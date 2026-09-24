@@ -7,9 +7,10 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   title: string;
   description: string;
-  confirmWord: string;
+  // Omit for low-risk actions (e.g. reactivate) to skip type-to-confirm.
+  confirmWord?: string;
   confirmLabel: string;
-  variant: "danger" | "warning";
+  variant: "danger" | "warning" | "primary";
   isLoading?: boolean;
 }
 
@@ -26,7 +27,8 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   const [typed, setTyped] = useState("");
 
-  const canConfirm = typed === confirmWord;
+  const requiresTyping = !!confirmWord;
+  const canConfirm = !requiresTyping || typed === confirmWord;
 
   const handleClose = () => {
     setTyped("");
@@ -42,25 +44,29 @@ export default function ConfirmModal({
   const btnColor =
     variant === "danger"
       ? "bg-red-600 hover:bg-red-700 disabled:bg-red-300"
-      : "bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300";
+      : variant === "warning"
+      ? "bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300"
+      : "bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300";
 
   return (
     <Modal open={open} onClose={handleClose} title={title}>
       <div className="space-y-4">
         <p className="text-sm text-gray-600">{description}</p>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Type <span className="font-mono font-bold text-red-600">{confirmWord}</span> to confirm
-          </label>
-          <input
-            type="text"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder={confirmWord}
-          />
-        </div>
+        {requiresTyping && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Type <span className="font-mono font-bold text-red-600">{confirmWord}</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={confirmWord}
+            />
+          </div>
+        )}
 
         <div className="flex justify-end gap-3">
           <button

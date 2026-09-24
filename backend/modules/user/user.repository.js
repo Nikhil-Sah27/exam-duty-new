@@ -29,9 +29,39 @@ const softDeleteById = (id) => {
   ).select(ALLOWED_FIELDS);
 };
 
+// Explicitly filters on isActive so the model's pre-find hook (which auto-scopes
+// queries to active users) does not hide the inactive record we want to update.
+const activateById = (id) => {
+  return User.findOneAndUpdate(
+    { _id: id, isActive: false },
+    { isActive: true },
+    { new: true }
+  ).select(ALLOWED_FIELDS);
+};
+
 // Matches any user whose `roles` array contains the given role.
 const countByRole = (role) => {
   return User.countDocuments({ roles: role });
 };
 
-module.exports = { create, findAll, findById, updateById, softDeleteById, countByRole };
+// Returns ObjectIds of active users. Optional role filter matches any user
+// whose `roles` array contains at least one of the given roles.
+const findActiveIds = async (roles) => {
+  const filter = {};
+  if (Array.isArray(roles) && roles.length > 0) {
+    filter.roles = { $in: roles };
+  }
+  const docs = await User.find(filter).select("_id");
+  return docs.map((d) => d._id);
+};
+
+module.exports = {
+  create,
+  findAll,
+  findById,
+  updateById,
+  softDeleteById,
+  activateById,
+  countByRole,
+  findActiveIds,
+};

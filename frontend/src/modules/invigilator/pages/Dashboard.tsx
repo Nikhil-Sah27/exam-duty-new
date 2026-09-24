@@ -7,12 +7,13 @@ import {
   normalizeDutiesCompleted,
   normalizeDutiesUpcoming,
 } from "@/modules/shared/dashboard/utils/dashboardNormalizers";
-import DutyStatisticsWidget from "@/modules/duty-calculation/components/DutyStatisticsWidget";
+import DutyStatsHeroInline from "@/modules/duty-calculation/components/DutyStatsHeroInline";
 
 /**
  * Invigilator dashboard. Same layout contract as RS/DCS dashboards —
  * hero band, upcoming, completed — coloured emerald to match the
- * Invigilator role pill.
+ * Invigilator role pill. The hero's right slot renders the live
+ * Completed / Remaining / Assigned duty circles.
  */
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
@@ -28,10 +29,6 @@ export default function Dashboard() {
     [duties],
   );
 
-  const examDays = new Set(
-    upcoming.map((u) => new Date(u.date).toISOString().slice(0, 10)),
-  );
-
   return (
     <div className="space-y-6">
       <DashboardHero
@@ -39,19 +36,13 @@ export default function Dashboard() {
         title={`Welcome${user ? `, ${user.name}` : ""}`}
         subtitle="Your invigilation overview — duties coming up and a record of completed shifts."
         gradient="from-emerald-500 via-teal-500 to-cyan-600"
-        stats={[
-          { label: "Upcoming", value: upcoming.length },
-          { label: "Days", value: examDays.size },
-          { label: "Completed", value: completed.length },
-        ]}
+        rightContent={<DutyStatsHeroInline />}
         primaryAction={{ label: "Select Duty", href: "/invigilator/select-duty" }}
         secondaryAction={{
           label: "Upcoming Duties",
           href: "/invigilator/upcoming-duties",
         }}
       />
-
-      <DutyStatisticsWidget />
 
       {dutiesQuery.isLoading && (
         <p className="text-sm text-gray-500">Loading your duties...</p>

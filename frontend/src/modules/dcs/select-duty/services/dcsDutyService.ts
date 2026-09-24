@@ -37,6 +37,24 @@ export const claimDcsGroup = async (id: string): Promise<DcsGroup> => {
   return res.data.data;
 };
 
+/**
+ * CS admin-assigns an entire DCS group to a specific teacher. Reuses the same
+ * transactional claim path as self-claim on the backend (one Duty per room +
+ * group marked `claimed`), but the assignee is the target teacher and each
+ * created duty fires a `duty_assigned` notification. Used by the CS Exams
+ * room-detail assignment flow — the group grouping/sizing is untouched.
+ */
+export const adminClaimDcsGroup = async (
+  id: string,
+  teacher: string,
+): Promise<DcsGroup> => {
+  const res = await api.post<SingleResponse<DcsGroup>>(
+    `/dcs/groups/${id}/admin-claim`,
+    { teacher },
+  );
+  return res.data.data;
+};
+
 export const releaseDcsGroup = async (
   id: string,
   reason?: string,

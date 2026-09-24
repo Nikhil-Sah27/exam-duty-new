@@ -26,9 +26,14 @@ const remove = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, message: "User deactivated" });
 });
 
+const activate = catchAsync(async (req, res) => {
+  const user = await userService.activateUser(req.params.id);
+  res.status(200).json({ success: true, data: user });
+});
+
 const bootstrap = catchAsync(async (req, res) => {
   const user = await userService.bootstrapAdmin();
   res.status(201).json({ success: true, data: user });
 });
 
-module.exports = { create, getAll, getById, update, remove, bootstrap };
+module.exports = { create, getAll, getById, update, remove, activate, bootstrap };

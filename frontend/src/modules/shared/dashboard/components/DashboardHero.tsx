@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -7,6 +8,12 @@ interface DashboardHeroProps {
   badge: string;
   gradient: string; // tailwind from-/via-/to- triple
   stats?: { label: string; value: number | string }[];
+  /**
+   * Custom content for the top-right slot. When set, it replaces `stats` —
+   * useful when a role needs richer widgets (e.g. progress circles) rather
+   * than the default label/value tiles.
+   */
+  rightContent?: ReactNode;
   primaryAction?: { label: string; href: string };
   secondaryAction?: { label: string; href: string };
 }
@@ -22,6 +29,7 @@ export default function DashboardHero({
   badge,
   gradient,
   stats,
+  rightContent,
   primaryAction,
   secondaryAction,
 }: DashboardHeroProps) {
@@ -69,20 +77,24 @@ export default function DashboardHero({
           )}
         </div>
 
-        {stats && stats.length > 0 && (
-          <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-xl bg-white/15 px-3 py-2 text-center backdrop-blur-sm ring-1 ring-white/20"
-              >
-                <p className="text-xl font-bold leading-tight">{s.value}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/80">
-                  {s.label}
-                </p>
-              </div>
-            ))}
-          </div>
+        {rightContent ? (
+          <div className="w-full sm:w-auto">{rightContent}</div>
+        ) : (
+          stats && stats.length > 0 && (
+            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
+              {stats.map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-xl bg-white/15 px-3 py-2 text-center backdrop-blur-sm ring-1 ring-white/20"
+                >
+                  <p className="text-xl font-bold leading-tight">{s.value}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/80">
+                    {s.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

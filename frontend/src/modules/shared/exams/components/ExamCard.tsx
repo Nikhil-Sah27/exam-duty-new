@@ -7,7 +7,6 @@ import {
   GraduationCap,
   Trash2,
   UserCheck,
-  Building2,
 } from "lucide-react";
 import type { ExamGroup, ExamGroupStatus } from "../types/exam.types";
 import { getTypeColor } from "../utils/examStatusUtils";
@@ -97,9 +96,10 @@ export default function ExamCard({
               <GraduationCap className="h-4 w-4" />
               SEE
             </span>
-            <span className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-pink-200">
+            <span className="rounded-md bg-white px-3 py-1 text-sm font-bold text-purple-700 ring-1 ring-pink-200">
               Sem {group.semester}
             </span>
+            <DepartmentChips departments={departments} tone="see" />
           </div>
           <div className="flex items-center gap-1">
             {onDelete && (
@@ -147,7 +147,6 @@ export default function ExamCard({
         <CardFooter
           startDate={group.startDate}
           endDate={group.endDate}
-          departments={departments}
           assignedDutyCount={assignedDutyCount}
           tone="see"
         />
@@ -170,9 +169,10 @@ export default function ExamCard({
           >
             {group.examType}
           </span>
-          <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+          <span className="rounded-md bg-gray-100 px-3 py-1 text-sm font-bold text-gray-800">
             Sem {group.semester}
           </span>
+          <DepartmentChips departments={departments} tone="cie" />
         </div>
         <div className="flex items-center gap-1">
           {onDelete && (
@@ -217,11 +217,47 @@ export default function ExamCard({
       <CardFooter
         startDate={group.startDate}
         endDate={group.endDate}
-        departments={departments}
         assignedDutyCount={assignedDutyCount}
         tone="cie"
       />
     </Link>
+  );
+}
+
+function DepartmentChips({
+  departments,
+  tone,
+}: {
+  departments?: string[];
+  tone: "cie" | "see";
+}) {
+  if (!departments || departments.length === 0) return null;
+
+  const chipClass =
+    tone === "see"
+      ? "rounded-md bg-purple-50 px-2.5 py-1 text-sm font-semibold text-purple-700 ring-1 ring-purple-200"
+      : "rounded-md bg-blue-50 px-2.5 py-1 text-sm font-semibold text-blue-700 ring-1 ring-blue-100";
+
+  const MAX_INLINE = 3;
+  const shown = departments.slice(0, MAX_INLINE);
+  const overflow = departments.length - shown.length;
+
+  return (
+    <>
+      {shown.map((d) => (
+        <span key={d} className={chipClass}>
+          {d}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span
+          className={chipClass}
+          title={departments.slice(MAX_INLINE).join(", ")}
+        >
+          +{overflow}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -248,13 +284,11 @@ function CardStat({
 function CardFooter({
   startDate,
   endDate,
-  departments,
   assignedDutyCount,
   tone,
 }: {
   startDate: string;
   endDate: string;
-  departments?: string[];
   assignedDutyCount?: number;
   tone: "cie" | "see";
 }) {
@@ -267,23 +301,14 @@ function CardFooter({
         <Calendar className="h-3 w-3" />
         {formatDateShort(startDate)} – {formatDateShort(endDate)}
       </div>
-      {(departments && departments.length > 0) || assignedDutyCount != null ? (
+      {assignedDutyCount != null && (
         <div className={`mt-2 flex flex-wrap items-center gap-3 text-[11px] ${optionalColor}`}>
-          {departments && departments.length > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <Building2 className="h-3 w-3" />
-              {departments.slice(0, 3).join(", ")}
-              {departments.length > 3 ? ` +${departments.length - 3}` : ""}
-            </span>
-          )}
-          {assignedDutyCount != null && (
-            <span className="inline-flex items-center gap-1">
-              <UserCheck className="h-3 w-3" />
-              {assignedDutyCount} duties
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1">
+            <UserCheck className="h-3 w-3" />
+            {assignedDutyCount} duties
+          </span>
         </div>
-      ) : null}
+      )}
     </>
   );
 }

@@ -9,6 +9,7 @@ import ExamDetails from "@/modules/exams/components/ExamDetails";
 import DutiesPage from "@/modules/duties/components/DutiesPage";
 import UsersPage from "@/modules/users/components/UsersPage";
 import ChangeRequestsPage from "@/modules/change-requests/components/ChangeRequestsPage";
+import NotifyPage from "@/modules/notify/components/NotifyPage";
 import DepartmentsPage from "@/modules/departments/components/DepartmentsPage";
 import DepartmentDetailsPage from "@/modules/departments/components/DepartmentDetailsPage";
 import InfrastructurePage from "@/modules/infrastructure/components/InfrastructurePage";
@@ -56,6 +57,7 @@ export default function App() {
           path="/manage-duties/:id/assign-dcs"
           element={<AssignDCSDutyPage />}
         />
+        <Route path="/notify" element={<NotifyPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
         <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
         <Route path="/infrastructure" element={<InfrastructurePage />} />

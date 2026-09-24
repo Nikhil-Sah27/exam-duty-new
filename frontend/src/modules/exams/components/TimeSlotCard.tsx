@@ -31,9 +31,9 @@ export default function TimeSlotCard({ schedule, dutyStatusMap }: TimeSlotCardPr
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         {/* Time header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1 shadow-sm">
             <Clock className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-semibold text-gray-800">
+            <span className="text-sm font-bold text-blue-700">
               {formatTime(schedule.startTime)} – {formatTime(schedule.endTime)}
             </span>
           </div>

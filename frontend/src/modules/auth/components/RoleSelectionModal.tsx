@@ -18,10 +18,7 @@ export default function RoleSelectionModal({ open, onClose }: Props) {
   if (!user) return null;
 
   const handleContinue = (role: UserRole) => {
-    selectRoleMutation.mutate(
-      { role, remember: false },
-      { onSuccess: () => onClose() }
-    );
+    selectRoleMutation.mutate(role, { onSuccess: () => onClose() });
   };
 
   return (
@@ -42,7 +39,7 @@ export default function RoleSelectionModal({ open, onClose }: Props) {
             onContinue={() => handleContinue(role)}
             isLoading={
               selectRoleMutation.isPending &&
-              selectRoleMutation.variables?.role === role
+              selectRoleMutation.variables === role
             }
           />
         ))}

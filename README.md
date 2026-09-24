@@ -43,7 +43,7 @@ Group vs. individual is the key mental model: **DCS and RS work on whole groups*
   - *Room conflict:* scoped by the room's ObjectId (`roomRef`) so the same room number in a *different building* does NOT collide, and scoped by role so DCS/RS/Invigilator slots on the same room are independent.
 
 ### Change Requests
-Every role can propose a change; CS and DCS approve/reject. Approval is atomic — either the whole change lands or nothing does.
+Every role can propose a change; **CS reviews (approves/rejects)** — DCS is an operational duty role and does not gate change requests. `request_submitted` notifications fan out to active CS users only; approve/reject fires `request_approved` / `request_rejected` back to the requester. Approval is atomic — either the whole change lands or nothing does.
 
 | Scope | Type | Used by | Behavior on approval |
 | --- | --- | --- | --- |
@@ -113,11 +113,10 @@ Backend uses Mongoose models under `backend/modules/*/[name].model.js`.
 
 ### DCS — Group Supervisor
 1. **Dashboard** — group-oriented hero band (upcoming groups, total rooms, total students).
-2. **Select Duty** — browses `DCSGroup`s available for the exam; each group covers a subset of rooms in one schedule (sized so no DCS supervises more than 300 students) and lists its rooms. Claiming a group creates one `Duty` per room atomically.
+2. **Select Duty** — browses `DCSGroup`s available for the exam; each group covers a subset of rooms in one schedule (sized so no DCS supervises more than 300 students) and lists its rooms. Claiming a group prompts for confirmation, then creates one `Duty` per room atomically.
 3. **Upcoming Duties** — one card per claimed group with the room list and (per room) the assigned invigilator's contact.
 4. **Change Requests** — swap a whole claimed group for another open group (`type = dcs_swap`). Cannot swap individual rooms.
 5. **Exams** — read-only exam browser.
-6. May approve/reject change requests raised by others (has admin privileges alongside CS).
 
 ### RS — Room Group Supervisor
 1. **Dashboard** — group-oriented hero band (upcoming groups, total rooms, buildings).
@@ -315,10 +314,11 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | --- | --- | --- |
 | POST | `/bootstrap` | Create the first admin — no auth. |
 | POST | `/` | Create user. |
-| GET | `/` | List users. |
+| GET | `/` | List users. Add `?includeInactive=true` to include deactivated users (Teachers admin page). |
 | GET | `/:id` | Get by id. |
 | PUT | `/:id` | Update. |
-| DELETE | `/:id` | Soft delete. |
+| DELETE | `/:id` | Soft delete (sets `isActive=false`). |
+| PATCH | `/:id/activate` | Reactivate a soft-deleted user (explicitly bypasses the auto-active-only pre-find hook). |
 
 ### Exams (legacy, `/exams`)
 | Method | Path | Description |
@@ -367,7 +367,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | POST | `/` | Submit — routes internally by `type` (`swap`/`drop`/`move`/`dcs_swap`/`rs_swap`). |
 | GET | `/` · `/mine` · `/:id` | List all / mine / by id. |
 | GET | `/replacements/:dutyId` | Vacant invigilator slots eligible for a `move`. |
-| PATCH | `/:id/approve` · `/:id/reject` | Review (CS/DCS). |
+| PATCH | `/:id/approve` · `/:id/reject` | Review (CS). |
 
 ### Departments (`/departments`)
 CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-groups`), `Course` (`/courses`). Plus `GET /:id/stats`.
@@ -412,6 +412,11 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 - **Building-aware conflict detection** across the entire duty stack (model, repository, service, `examGroup.getDutyStatus`, `changeRequest.isInvigilatorAlreadyAssigned`, invigilator frontend selection utilities).
 - **RS group-based UI parity** — Upcoming Duties, Change Requests, and Dashboard now all render one card per RS group instead of per room. Backend gained `rs_group` scope and `rs_swap` type on `ChangeRequest` with atomic approval, and `Duty` gained an indexed `roomRef` field for building-scoped queries.
 - **Elective seeding** — every `(department, semester)` pair has at least one professional-elective and one open-elective course, attached to `ElectiveGroup`s so the Departments UI renders them.
+- **Reactivate soft-deleted teachers** — Teachers admin page opts into `GET /users?includeInactive=true`, sorts deactivated users to the bottom (dimmed row, amber "Not active" pill), and exposes a highlighted power toggle whose "on" state signals deactivation. Reactivation goes through the new `PATCH /users/:id/activate` endpoint (dedicated because the model's pre-find hook otherwise hides inactive users from `findByIdAndUpdate`).
+- **CS-only change-request review** — `getReviewerIds` narrows `request_submitted` fan-out to active CS users (DCS is a duty role, not an admin role). Approve/reject notifications continue to reach the requester (and the swap counterparty for invigilator swaps).
+- **Claim-duty confirmation gate** — every self-assign path (invigilator, RS, DCS) routes its submit button through a shared `ConfirmActionModal` (`shared/components/`), which sits on top of the shared `Modal` (portalled + propagation-safe) so no per-panel workaround is needed.
+- **Sidebar-aware layout** — `MainContent` (`shared/components/`) reads `sidebarOpen` from the app store and toggles the main column's left margin, so collapsing the sidebar reclaims the horizontal space instead of leaving a gutter. All four role layouts (`ProtectedLayout`, `InvigilatorLayout`, `RSLayout`, `DCSLayout`) share it.
+- **Role-labelled sidebar heading** — the sidebar's section header renders the active role from `ROLE_LABELS` (single source of truth) instead of a hardcoded "Navigation" string.
 
 ## Contributing
 

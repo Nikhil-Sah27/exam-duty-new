@@ -22,7 +22,7 @@ export default function TimetableDay({ date, schedules, dutyStatusMap }: Timetab
       {/* Date header */}
       <div className="mb-3 flex items-center gap-3">
         <div className="h-px flex-1 bg-gray-200" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+        <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700 shadow-sm">
           {formatFullDate(date)}
         </span>
         <div className="h-px flex-1 bg-gray-200" />

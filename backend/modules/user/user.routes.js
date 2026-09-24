@@ -15,5 +15,6 @@ router.get("/", userController.getAll);
 router.get("/:id", userController.getById);
 router.put("/:id", userController.update);
 router.delete("/:id", userController.remove);
+router.patch("/:id/activate", userController.activate);
 
 module.exports = router;

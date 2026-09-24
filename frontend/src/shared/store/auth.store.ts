@@ -16,8 +16,6 @@ interface AuthState {
   hydrate: () => void;
 }
 
-const PREFERRED_ROLE_KEY = (userId: string) => `preferredRole:${userId}`;
-
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
@@ -66,17 +64,3 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token, tempToken, isHydrated: true });
   },
 }));
-
-export const rememberPreferredRole = (userId: string, role: UserRole) => {
-  localStorage.setItem(PREFERRED_ROLE_KEY(userId), role);
-};
-
-export const getPreferredRole = (userId: string): UserRole | null => {
-  const v = localStorage.getItem(PREFERRED_ROLE_KEY(userId));
-  if (v === "cs" || v === "dcs" || v === "rs" || v === "invigilator") return v;
-  return null;
-};
-
-export const clearPreferredRole = (userId: string) => {
-  localStorage.removeItem(PREFERRED_ROLE_KEY(userId));
-};

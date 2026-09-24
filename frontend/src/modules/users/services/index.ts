@@ -7,8 +7,17 @@ import {
   UserProfile,
 } from "../types";
 
-export const fetchUsers = async (): Promise<UserProfile[]> => {
-  const res = await api.get<UserListResponse>("/users");
+export interface FetchUsersOptions {
+  // When true, the response includes deactivated users too (Teachers admin page).
+  includeInactive?: boolean;
+}
+
+export const fetchUsers = async (
+  options: FetchUsersOptions = {}
+): Promise<UserProfile[]> => {
+  const res = await api.get<UserListResponse>("/users", {
+    params: options.includeInactive ? { includeInactive: true } : undefined,
+  });
   return res.data.data;
 };
 
@@ -32,4 +41,9 @@ export const updateUser = async (
 
 export const deleteUser = async (id: string): Promise<void> => {
   await api.delete(`/users/${id}`);
+};
+
+export const activateUser = async (id: string): Promise<UserProfile> => {
+  const res = await api.patch<UserResponse>(`/users/${id}/activate`);
+  return res.data.data;
 };

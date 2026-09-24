@@ -87,11 +87,15 @@ const CONFIGS: Record<OperationalRole, RoleDashboardConfig> = {
   dcs: DCS_CONFIG,
 };
 
-export function getRoleConfig(role: string | undefined): RoleDashboardConfig | null {
+export function getRoleConfig(
+  role: string | null | undefined,
+): RoleDashboardConfig | null {
   if (!role) return null;
   return CONFIGS[role as OperationalRole] || null;
 }
 
-export function isOperationalRole(role: string | undefined): role is OperationalRole {
+export function isOperationalRole(
+  role: string | null | undefined,
+): role is OperationalRole {
   return role === "invigilator" || role === "rs" || role === "dcs";
 }

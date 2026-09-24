@@ -32,7 +32,8 @@ const softDelete = (id) => {
 };
 
 /**
- * Aggregate stats for each exam group: total schedules, total rooms
+ * Aggregate stats for each exam group: total schedules, total rooms,
+ * distinct department codes involved.
  */
 const findAllWithStats = async (filter = {}) => {
   const groups = await findAll(filter);
@@ -59,13 +60,34 @@ const findAllWithStats = async (filter = {}) => {
     { $group: { _id: "$sched.examGroup", count: { $sum: 1 } } },
   ]);
 
+  // Distinct department codes per group, aggregated across every ExamRoom in
+  // every schedule of the group. Rendered as chips on the exam card.
+  const departmentSets = await ExamRoom.aggregate([
+    {
+      $lookup: {
+        from: "examschedules",
+        localField: "schedule",
+        foreignField: "_id",
+        as: "sched",
+      },
+    },
+    { $unwind: "$sched" },
+    { $match: { "sched.examGroup": { $in: groupIds } } },
+    { $unwind: "$departments" },
+    { $group: { _id: "$sched.examGroup", departments: { $addToSet: "$departments" } } },
+  ]);
+
   const scheduleMap = new Map(scheduleCounts.map((s) => [s._id.toString(), s.count]));
   const roomMap = new Map(roomCounts.map((r) => [r._id.toString(), r.count]));
+  const departmentMap = new Map(
+    departmentSets.map((d) => [d._id.toString(), (d.departments || []).filter(Boolean).sort()])
+  );
 
   return groups.map((g) => {
     const obj = g.toObject();
     obj.totalSchedules = scheduleMap.get(g._id.toString()) || 0;
     obj.totalRooms = roomMap.get(g._id.toString()) || 0;
+    obj.departments = departmentMap.get(g._id.toString()) || [];
     return obj;
   });
 };

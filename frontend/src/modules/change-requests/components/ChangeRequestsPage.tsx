@@ -24,7 +24,7 @@ export default function ChangeRequestsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Change Requests</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Review and approve duty change requests submitted by invigilators.
+          Review and approve duty change requests submitted by teachers.
         </p>
       </div>
 

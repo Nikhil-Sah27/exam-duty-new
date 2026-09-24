@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema(
         "request_rejected",
         "duty_swapped",
         "exam_deleted_duty_release",
+        "announcement",
       ],
     },
     title: {

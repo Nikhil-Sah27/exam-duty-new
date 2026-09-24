@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Trash2, CheckCircle2, XCircle } from "lucide-react";
 import type { DcsGroup } from "../types";
+import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 
 interface SubmitResult {
   group: DcsGroup;
@@ -36,6 +38,13 @@ export default function DcsSelectionPanel({
   isSubmitting,
   results,
 }: DcsSelectionPanelProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleConfirm = () => {
+    setConfirmOpen(false);
+    onSubmit();
+  };
+
   return (
     <div className="sticky top-20 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-indigo-50/40 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -107,7 +116,7 @@ export default function DcsSelectionPanel({
       )}
 
       <button
-        onClick={onSubmit}
+        onClick={() => setConfirmOpen(true)}
         disabled={selected.length === 0 || isSubmitting}
         className="mt-4 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5 text-sm font-bold text-white shadow-md transition-all enabled:hover:from-blue-700 enabled:hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -117,6 +126,24 @@ export default function DcsSelectionPanel({
             ? "Pick a group"
             : `Claim ${selected.length} group${selected.length === 1 ? "" : "s"}`}
       </button>
+
+      <ConfirmActionModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        title="Claim these DCS groups?"
+        description={
+          <>
+            You're about to claim{" "}
+            <span className="font-semibold text-gray-800">
+              {selected.length} DCS group{selected.length === 1 ? "" : "s"}
+            </span>
+            . Once claimed, changes require a change request.
+          </>
+        }
+        confirmLabel={`Claim ${selected.length} group${selected.length === 1 ? "" : "s"}`}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 }

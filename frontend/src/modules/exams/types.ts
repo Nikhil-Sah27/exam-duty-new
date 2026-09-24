@@ -33,6 +33,12 @@ export interface ExamGroup {
   createdBy: { _id: string; name: string; email: string };
   totalSchedules: number;
   totalRooms: number;
+  /**
+   * Distinct department codes involved across every ExamRoom in the group.
+   * Populated by `findAllWithStats`; may be omitted on responses from older
+   * endpoints that don't run the stats aggregation.
+   */
+  departments?: string[];
   createdAt: string;
   updatedAt: string;
 }

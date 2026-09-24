@@ -43,6 +43,7 @@ app.use("/api/create-exams", require("./modules/create-exams/createExams.routes"
 app.use("/api/duties", require("./modules/duty/duty.routes"));
 app.use("/api/change-requests", require("./modules/change-request/changeRequest.routes"));
 app.use("/api/notifications", require("./modules/notification/notification.routes"));
+app.use("/api/notify", require("./modules/notify/notify.routes"));
 app.use("/api/departments", require("./modules/department/department.routes"));
 app.use("/api/infrastructure", require("./modules/infrastructure/infrastructure.routes"));
 app.use("/api/reports", require("./modules/report/report.routes"));

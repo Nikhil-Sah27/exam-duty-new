@@ -32,6 +32,10 @@ const Duty = require("../duty/duty.model");
  */
 
 const ELIGIBLE_DESIGNATIONS = ["Assistant Professor", "Associate Professor"];
+const ASSISTANT_DESIGNATION = "Assistant Professor";
+const ASSOCIATE_DESIGNATION = "Associate Professor";
+// Associate profs carry 30% less than assistants (i.e. 70% of the base).
+const ASSOCIATE_MULTIPLIER = 0.7;
 
 // ---------- Low-level primitives ----------
 
@@ -64,10 +68,35 @@ const getExamTypeCountForSemester = async (semesterNumber) => {
 
 const countEligibleTeachers = () =>
   User.countDocuments({
-    role: "invigilator",
+    roles: "invigilator",
     isActive: true,
     designation: { $in: ELIGIBLE_DESIGNATIONS },
   });
+
+/**
+ * Return the eligible teacher pool split by designation. Sorted by _id so
+ * the "extra duty" tie-break for assistants (see distribution below) is
+ * deterministic across refreshes — a given teacher's target doesn't flip
+ * on every render.
+ */
+const getEligibleTeacherPool = async () => {
+  const teachers = await User.find({
+    roles: "invigilator",
+    isActive: true,
+    designation: { $in: ELIGIBLE_DESIGNATIONS },
+  })
+    .select("_id designation")
+    .sort({ _id: 1 });
+
+  const assistants = [];
+  const associates = [];
+  for (const t of teachers) {
+    const d = (t.designation || "").trim();
+    if (d === ASSISTANT_DESIGNATION) assistants.push(t._id.toString());
+    else if (d === ASSOCIATE_DESIGNATION) associates.push(t._id.toString());
+  }
+  return { assistants, associates };
+};
 
 // ---------- Step 1: per-semester ----------
 
@@ -160,18 +189,78 @@ const calculateInstitutionDuty = async () => {
 
 // ---------- Step 4: per-invigilator target ----------
 
-const calculateDutyPerInvigilator = async (options = {}) => {
-  const institution = options.institution || (await calculateInstitutionDuty());
-  const eligibleTeachers =
-    options.eligibleTeachers ?? (await countEligibleTeachers());
+/**
+ * Distribute institution-wide duties across the eligible teacher pool with a
+ * 70/30 weighting: Associate Professors carry 70% of what an Assistant
+ * Professor does (Assistant = x, Associate = 0.7x). We solve for the largest
+ * integer x that keeps `A*x + B*round(0.7x) <= total`, then hand any remaining
+ * duties (leftover from integer rounding) to Assistant Professors one at a
+ * time — the "extras go to assistants randomly" rule. Determinism: we sort
+ * assistants by _id, so the same set of teachers picks up the +1 each time
+ * the calc runs, keeping the dashboard number stable across refreshes.
+ */
+const distributeDuties = (totalDuties, pool) => {
+  const A = pool.assistants.length;
+  const B = pool.associates.length;
 
-  const target =
-    eligibleTeachers > 0 ? Math.round(institution.total / eligibleTeachers) : 0;
+  if (A + B === 0 || totalDuties <= 0) {
+    return {
+      assistantBase: 0,
+      associateBase: 0,
+      assistantExtras: new Map(),
+      distributedTotal: 0,
+    };
+  }
+
+  const weighted = A + ASSOCIATE_MULTIPLIER * B;
+  const assistantBase = Math.floor(totalDuties / weighted);
+  const associateBase = Math.round(ASSOCIATE_MULTIPLIER * assistantBase);
+  const distributedBase = A * assistantBase + B * associateBase;
+  const remainder = Math.max(0, totalDuties - distributedBase);
+
+  // Every assistant absorbs floor(remainder/A) extras; the first
+  // (remainder mod A) assistants take one more so the total lands
+  // exactly on the institution figure. Sort came from
+  // getEligibleTeacherPool (_id ascending) so the same teachers pick up
+  // the extra between renders — the "random" is stable-per-teacher.
+  const assistantExtras = new Map();
+  if (A > 0 && remainder > 0) {
+    const baseExtra = Math.floor(remainder / A);
+    const overflow = remainder % A;
+    pool.assistants.forEach((id, idx) => {
+      const extra = baseExtra + (idx < overflow ? 1 : 0);
+      if (extra > 0) assistantExtras.set(id, extra);
+    });
+  }
+
+  let extrasDistributed = 0;
+  for (const n of assistantExtras.values()) extrasDistributed += n;
 
   return {
-    target,
+    assistantBase,
+    associateBase,
+    assistantExtras,
+    distributedTotal: distributedBase + extrasDistributed,
+  };
+};
+
+const calculateDutyPerInvigilator = async (options = {}) => {
+  const institution = options.institution || (await calculateInstitutionDuty());
+  const pool = options.pool || (await getEligibleTeacherPool());
+  const eligibleCount = pool.assistants.length + pool.associates.length;
+
+  const distribution = distributeDuties(institution.total, pool);
+
+  return {
+    // Kept for legacy consumers — average target across the whole eligible pool.
+    target: eligibleCount > 0 ? Math.round(institution.total / eligibleCount) : 0,
     totalDuties: institution.total,
-    eligibleTeachers,
+    eligibleTeachers: eligibleCount,
+    assistantCount: pool.assistants.length,
+    associateCount: pool.associates.length,
+    assistantBase: distribution.assistantBase,
+    associateBase: distribution.associateBase,
+    assistantExtras: distribution.assistantExtras,
     avgClassroomCapacity: institution.avgClassroomCapacity,
   };
 };
@@ -217,6 +306,23 @@ const countCompletedDutiesForTeacher = async (teacherId) => {
 const isEligibleDesignation = (designation) =>
   ELIGIBLE_DESIGNATIONS.includes((designation || "").trim());
 
+/**
+ * The teacher-specific target depends on their designation:
+ *   Associate Professor → `associateBase`
+ *   Assistant Professor → `assistantBase` (+ 1 if they were picked to
+ *                           absorb a remainder duty)
+ *   Anything else       → 0 (not eligible)
+ */
+const resolveTeacherTarget = (teacher, perInvigilator) => {
+  const designation = (teacher.designation || "").trim();
+  if (designation === ASSOCIATE_DESIGNATION) return perInvigilator.associateBase;
+  if (designation === ASSISTANT_DESIGNATION) {
+    const extra = perInvigilator.assistantExtras.get(teacher._id.toString()) || 0;
+    return perInvigilator.assistantBase + extra;
+  }
+  return 0;
+};
+
 const calculateTeacherProgress = async (teacherId, options = {}) => {
   const teacher = await User.findById(teacherId);
   if (!teacher) throw new AppError("Teacher not found", 404);
@@ -228,7 +334,7 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
   const eligible =
     teacherRoles.includes("invigilator") && isEligibleDesignation(teacher.designation);
 
-  const target = eligible ? perInvigilator.target : 0;
+  const target = eligible ? resolveTeacherTarget(teacher, perInvigilator) : 0;
   const completed = await countCompletedDutiesForTeacher(teacherId);
   const remaining = Math.max(0, target - completed);
   const percentage =
@@ -249,6 +355,10 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
     breakdown: {
       totalDuties: perInvigilator.totalDuties,
       eligibleTeachers: perInvigilator.eligibleTeachers,
+      assistantCount: perInvigilator.assistantCount,
+      associateCount: perInvigilator.associateCount,
+      assistantBase: perInvigilator.assistantBase,
+      associateBase: perInvigilator.associateBase,
       avgClassroomCapacity: perInvigilator.avgClassroomCapacity,
     },
   };
@@ -277,8 +387,9 @@ const calculateAllTeachersProgress = async ({
     )
   );
 
+  const { assistantExtras, ...publicPerInvigilator } = perInvigilator;
   return {
-    perInvigilator,
+    perInvigilator: publicPerInvigilator,
     teachers: rows.filter(Boolean),
   };
 };
@@ -292,14 +403,16 @@ const calculateAllTeachersProgress = async ({
  */
 const recalculateAll = async () => {
   const institution = await calculateInstitutionDuty();
-  const eligibleTeachers = await countEligibleTeachers();
+  const pool = await getEligibleTeacherPool();
   const perInvigilator = await calculateDutyPerInvigilator({
     institution,
-    eligibleTeachers,
+    pool,
   });
+  // Strip the private lookup set before handing back to controllers.
+  const { assistantExtras, ...publicPerInvigilator } = perInvigilator;
   return {
     institution,
-    perInvigilator,
+    perInvigilator: publicPerInvigilator,
   };
 };
 

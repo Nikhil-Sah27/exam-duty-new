@@ -12,9 +12,11 @@ const { emit, emitToMany } = require("../notification/notification.emitter");
 
 // ---------- Helpers ----------
 
-const getAdminIds = async () => {
-  const admins = await User.find({ roles: { $in: ["cs", "dcs"] }, isActive: true }).select("_id");
-  return admins.map((a) => a._id);
+// Change-request review is a CS-only responsibility (DCS is a duty role, not an
+// admin role), so submission notifications fan out to active CS users only.
+const getReviewerIds = async () => {
+  const reviewers = await User.find({ roles: "cs", isActive: true }).select("_id");
+  return reviewers.map((r) => r._id);
 };
 
 // ---------- Submit ----------
@@ -196,9 +198,9 @@ const submitDcsGroupSwap = async (
     dcsTargetGroup,
   });
 
-  const adminIds = await getAdminIds();
+  const reviewerIds = await getReviewerIds();
   emitToMany("request_submitted", {
-    recipients: adminIds,
+    recipients: reviewerIds,
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type: "DCS swap", date: target.schedule.date },
@@ -407,9 +409,9 @@ const submitRsGroupSwap = async (
     rsTargetKey,
   });
 
-  const adminIds = await getAdminIds();
+  const reviewerIds = await getReviewerIds();
   emitToMany("request_submitted", {
-    recipients: adminIds,
+    recipients: reviewerIds,
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type: "RS swap", date: targetSchedule.date },
@@ -532,9 +534,9 @@ const submitRequest = async (
     ...movePayload,
   });
 
-  const adminIds = await getAdminIds();
+  const reviewerIds = await getReviewerIds();
   emitToMany("request_submitted", {
-    recipients: adminIds,
+    recipients: reviewerIds,
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type, date: duty.date },

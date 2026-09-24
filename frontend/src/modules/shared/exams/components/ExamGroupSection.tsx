@@ -84,6 +84,7 @@ export default function ExamGroupSection({
       status={status}
       to={getCardHref}
       onDelete={onDelete}
+      departments={g.departments}
     />
   );
   const cardFor = renderCard ?? defaultRender;

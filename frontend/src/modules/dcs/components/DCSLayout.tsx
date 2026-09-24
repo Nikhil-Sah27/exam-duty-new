@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import AuthGuard from "@/shared/components/AuthGuard";
+import MainContent from "@/shared/components/MainContent";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
 import InvigilatorHeader from "@/modules/invigilator/components/InvigilatorHeader";
@@ -21,9 +22,9 @@ export default function DCSLayout() {
     <AuthGuard>
       <InvigilatorHeader />
       <DCSSidebar />
-      <main className="ml-60 pt-16 p-6 transition-all duration-300">
+      <MainContent>
         <Outlet />
-      </main>
+      </MainContent>
     </AuthGuard>
   );
 }

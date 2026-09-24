@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Calendar, Clock, ClipboardList, Send, Loader2 } from "lucide-react";
 import type { DutySlot } from "../types";
 import { totalHours, uniqueUpcomingDates } from "../utils/dutyValidationUtils";
 import DutyPreferenceCard from "./DutyPreferenceCard";
+import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 
 function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", {
@@ -33,10 +35,16 @@ export default function SelectedDutySummary({
   isSubmitting,
   results,
 }: SelectedDutySummaryProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const hours = totalHours(selected);
   const dates = uniqueUpcomingDates(selected);
   const failures = results?.filter((r) => !r.ok) || [];
   const successes = results?.filter((r) => r.ok) || [];
+
+  const handleConfirm = () => {
+    setConfirmOpen(false);
+    onSubmit();
+  };
 
   return (
     <aside className="sticky top-20 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -112,7 +120,7 @@ export default function SelectedDutySummary({
 
       <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
         <button
-          onClick={onSubmit}
+          onClick={() => setConfirmOpen(true)}
           disabled={selected.length === 0 || isSubmitting}
           className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
         >
@@ -153,6 +161,24 @@ export default function SelectedDutySummary({
           ))}
         </div>
       )}
+
+      <ConfirmActionModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        title="Claim these duties?"
+        description={
+          <>
+            You're about to claim{" "}
+            <span className="font-semibold text-gray-800">
+              {selected.length} duty slot{selected.length === 1 ? "" : "s"}
+            </span>
+            . Once assigned, changes require a change request.
+          </>
+        }
+        confirmLabel={`Claim ${selected.length} slot${selected.length === 1 ? "" : "s"}`}
+        isLoading={isSubmitting}
+      />
     </aside>
   );
 }

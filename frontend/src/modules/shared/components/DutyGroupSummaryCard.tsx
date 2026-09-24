@@ -328,13 +328,13 @@ export function dcsGroupToSummary(
     group.assignedTeacher && group.assignedTeacher._id === myUserId,
   );
   const occupied = Boolean(group.assignedTeacher) && !assignedToMe;
-  const assignedTo = group.assignedTeacher
+  const assignedTo: AssigneePublic | null = group.assignedTeacher
     ? {
         _id: group.assignedTeacher._id,
         name: group.assignedTeacher.name,
         email: group.assignedTeacher.email,
         phone: group.assignedTeacher.phone ?? null,
-        role: "dcs" as const,
+        roles: ["dcs"],
         department: group.assignedTeacher.department ?? null,
         designation: null,
       }

@@ -18,7 +18,10 @@ interface Filters {
 }
 
 export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
-  const { data: users, isLoading, isError, error } = useUsers();
+  // Admin table shows deactivated teachers too, pushed to the bottom.
+  const { data: users, isLoading, isError, error } = useUsers({
+    includeInactive: true,
+  });
 
   const [filters, setFilters] = useState<Filters>({
     search: "",
@@ -37,7 +40,7 @@ export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
 
   const filtered = useMemo(() => {
     if (!users) return [];
-    return users.filter((u: UserProfile) => {
+    const matches = users.filter((u: UserProfile) => {
       if (filters.search) {
         const q = filters.search.toLowerCase();
         if (
@@ -49,6 +52,12 @@ export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
       if (filters.role && !u.roles?.includes(filters.role as UserRole)) return false;
       if (filters.department && u.department !== filters.department) return false;
       return true;
+    });
+
+    // Active first, deactivated at the bottom; keep name order within each group.
+    return [...matches].sort((a, b) => {
+      if (!!a.isActive !== !!b.isActive) return a.isActive ? -1 : 1;
+      return a.name.localeCompare(b.name);
     });
   }, [users, filters]);
 

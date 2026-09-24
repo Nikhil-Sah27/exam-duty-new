@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAppStore } from "@/shared/store/app.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { getVisibleNavItems } from "@/shared/lib/navigation";
+import { ROLE_LABELS } from "@/shared/constants/roles";
 
 export default function Sidebar() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
@@ -9,6 +10,8 @@ export default function Sidebar() {
   const user = useAuthStore((s) => s.user);
 
   const visibleItems = getVisibleNavItems(user?.activeRole ?? undefined);
+  // Section header shows the currently active role (CS / DCS / RS / Invigilator).
+  const sectionLabel = user?.activeRole ? ROLE_LABELS[user.activeRole] : "Navigation";
 
   return (
     <aside
@@ -18,7 +21,7 @@ export default function Sidebar() {
     >
       <nav className="flex flex-col gap-1 p-4">
         <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Navigation
+          {sectionLabel}
         </span>
         {visibleItems.map((item) => {
           const isActive = pathname === item.path;

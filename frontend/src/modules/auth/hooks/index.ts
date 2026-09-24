@@ -1,11 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { loginUser, registerUser, getMe, selectRole } from "../services";
-import {
-  useAuthStore,
-  getPreferredRole,
-  rememberPreferredRole,
-} from "@/shared/store/auth.store";
+import { useAuthStore } from "@/shared/store/auth.store";
 import { LoginRequest, RegisterRequest } from "../types";
 import type { UserRole } from "@/shared/lib/types";
 import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
@@ -24,7 +20,7 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: (data: LoginRequest) => loginUser(data),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
       const { user, token, tempToken, requiresRoleSelection } = res.data;
 
       if (!requiresRoleSelection && token) {
@@ -34,20 +30,7 @@ export const useLogin = () => {
         return;
       }
 
-      // Multi-role user. If a preferred role is remembered, auto-select it.
-      const remembered = getPreferredRole(user.id);
-      if (remembered && user.roles.includes(remembered) && tempToken) {
-        setTempAuth(user, tempToken);
-        try {
-          const sel = await selectRole(remembered);
-          setAuth(sel.data.user, sel.data.token);
-          navigate(dashboardPathForRole(remembered));
-          return;
-        } catch {
-          // Fall through to manual selection page.
-        }
-      }
-
+      // Multi-role user — always show the picker.
       setTempAuth(user, tempToken || "");
       navigate("/select-role");
     },
@@ -59,12 +42,11 @@ export const useSelectRole = () => {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async ({ role, remember }: { role: UserRole; remember: boolean }) => {
+    mutationFn: async (role: UserRole) => {
       const res = await selectRole(role);
-      return { res, role, remember };
+      return { res, role };
     },
-    onSuccess: ({ res, role, remember }) => {
-      if (remember) rememberPreferredRole(res.data.user.id, role);
+    onSuccess: ({ res, role }) => {
       setAuth(res.data.user, res.data.token);
       navigate(dashboardPathForRole(role));
     },

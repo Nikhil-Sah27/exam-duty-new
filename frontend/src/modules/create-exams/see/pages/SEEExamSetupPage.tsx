@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, ChevronRight, ArrowLeft, Plus } from "lucide-react";
+import { CheckCircle2, ChevronRight, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/shared/components/Button";
 import RoomAssignStep from "../../components/steps/RoomAssignStep";
@@ -192,14 +192,6 @@ export default function SEEExamSetupPage() {
         </>
       )}
 
-      <div>
-        <button
-          onClick={() => navigate("/create-exams")}
-          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
-        >
-          <ArrowLeft className="h-3 w-3" /> Back to exam type
-        </button>
-      </div>
     </div>
   );
 }

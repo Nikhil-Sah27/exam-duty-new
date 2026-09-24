@@ -17,7 +17,7 @@ interface AssignDutyRoleButtonProps {
 /**
  * Smart "+ Assign Duty" button on the teacher-detail page.
  *
- *  - 0 supported roles → disabled button.
+ *  - 0 supported roles → nothing rendered (e.g. pure-CS admin users).
  *  - 1 supported role  → direct <Link> into that role's flow.
  *  - 2+ supported roles → opens `AssignRolePickerModal` (card-style picker).
  *
@@ -32,18 +32,7 @@ export default function AssignDutyRoleButton({
   const [pickerOpen, setPickerOpen] = useState(false);
   const eligible = eligibleAssignRolesFor(teacherRoles);
 
-  if (eligible.length === 0) {
-    return (
-      <button
-        type="button"
-        disabled
-        title="This teacher has no duty-eligible role."
-        className="shrink-0 cursor-not-allowed rounded-lg bg-white/10 px-5 py-2.5 text-sm font-medium text-white/50"
-      >
-        + Assign Duty
-      </button>
-    );
-  }
+  if (eligible.length === 0) return null;
 
   if (eligible.length === 1) {
     return (

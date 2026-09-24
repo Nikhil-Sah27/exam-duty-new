@@ -7,15 +7,22 @@ import type { UserRole } from "@/shared/lib/types";
  * Add a role's builder and the picker + button surface it automatically —
  * no other file needs to change.
  */
-export const ASSIGN_DUTY_ROUTE_BY_ROLE: Partial<
-  Record<UserRole, (teacherId: string) => string>
+/**
+ * Roles the CS can currently target with an assign-duty flow. CS itself is
+ * never a duty slot, so it's excluded — which also keeps the derived
+ * `Record<AssignableDutyRole, …>` maps (picker labels/icons) from demanding a
+ * `cs` entry.
+ */
+export type AssignableDutyRole = Exclude<UserRole, "cs">;
+
+export const ASSIGN_DUTY_ROUTE_BY_ROLE: Record<
+  AssignableDutyRole,
+  (teacherId: string) => string
 > = {
   dcs: (id) => `/manage-duties/${id}/assign-dcs`,
   rs: (id) => `/manage-duties/${id}/assign-rs`,
   invigilator: (id) => `/manage-duties/${id}/assign`,
 };
-
-export type AssignableDutyRole = keyof typeof ASSIGN_DUTY_ROUTE_BY_ROLE;
 
 /** All roles the CS can currently target with an assign-duty flow. */
 export const ASSIGNABLE_DUTY_ROLES = Object.keys(

@@ -2,6 +2,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import AuthGuard from "./AuthGuard";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
+import MainContent from "./MainContent";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
 
@@ -21,9 +22,9 @@ export default function ProtectedLayout() {
     <AuthGuard>
       <Navbar />
       <Sidebar />
-      <main className="ml-60 pt-16 p-6 transition-all duration-300">
+      <MainContent>
         <Outlet />
-      </main>
+      </MainContent>
     </AuthGuard>
   );
 }

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useSelectRole } from "../hooks";
@@ -10,7 +9,6 @@ export default function RoleSelectionPage() {
   const user = useAuthStore((s) => s.user);
   const tempToken = useAuthStore((s) => s.tempToken);
   const token = useAuthStore((s) => s.token);
-  const [remember, setRemember] = useState(false);
   const selectRoleMutation = useSelectRole();
 
   // No tempToken and no full token → not authenticated at all.
@@ -23,7 +21,7 @@ export default function RoleSelectionPage() {
   }
 
   const handleContinue = (role: UserRole) => {
-    selectRoleMutation.mutate({ role, remember });
+    selectRoleMutation.mutate(role);
   };
 
   return (
@@ -58,21 +56,11 @@ export default function RoleSelectionPage() {
               onContinue={() => handleContinue(role)}
               isLoading={
                 selectRoleMutation.isPending &&
-                selectRoleMutation.variables?.role === role
+                selectRoleMutation.variables === role
               }
             />
           ))}
         </div>
-
-        <label className="mt-6 flex cursor-pointer items-center justify-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          Remember my choice on this device
-        </label>
       </div>
     </div>
   );

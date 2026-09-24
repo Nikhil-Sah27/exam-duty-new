@@ -57,6 +57,13 @@ const templates = {
     message: "A duty has been swapped to you. Check your duty list for details.",
   }),
 
+  // Free-form broadcast sent by CS via the Notify module. `title` and
+  // `message` are supplied verbatim by the sender (no interpolation).
+  announcement: ({ title, message }) => ({
+    title: title || "Announcement",
+    message: message || "",
+  }),
+
   // Emitted when CS/Admin deletes an exam (group/schedule/room) and the
   // teacher's duty is auto-released. Message includes the full slot context
   // so the recipient knows exactly which duty was cancelled.

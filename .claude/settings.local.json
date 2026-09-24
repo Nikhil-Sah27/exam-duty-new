@@ -133,7 +133,9 @@
       "PowerShell($body = @{ email = \"admin@examduty.com\"; password = \"Admin123\" } | ConvertTo-Json; $r = Invoke-RestMethod -Uri \"http://localhost:5000/api/auth/login\" -Method Post -Body $body -ContentType \"application/json\"; $token = $r.data.token; $h = @{ Authorization = \"Bearer $token\" }; $q = \"departmentIds=6a07948b7023c3ff287a622c&departmentIds=6a07948b7023c3ff287a6228&semester=4\"; $resp = Invoke-RestMethod -Uri \"http://localhost:5000/api/create-exams/cie/departments-data?$q\" -Headers $h; $resp.data | ForEach-Object { \"-- $\\($_.code\\) --\"; \"  courses:\"; $_.courses | ForEach-Object { $eg = if \\($_.electiveGroup\\) { \" -> egroup=$\\($_.electiveGroup.name\\)\" } else { \"\" }; \"    $\\($_.code\\) [$\\($_.courseType\\)]$eg\" }; \"  electiveGroups: $\\($_.electiveGroups.Count\\) [ $\\(\\($_.electiveGroups | ForEach-Object { $_.name }\\) -join ' | '\\) ]\" })",
       "PowerShell($body = @{ email = \"admin@examduty.com\"; password = \"Admin123\" } | ConvertTo-Json; $r = Invoke-RestMethod -Uri \"http://localhost:5000/api/auth/login\" -Method Post -Body $body -ContentType \"application/json\"; $token = $r.data.token; $h = @{ Authorization = \"Bearer $token\" }; $q = \"departmentIds=6a07948b7023c3ff287a622c,6a07948b7023c3ff287a6228&semester=4\"; $resp = Invoke-RestMethod -Uri \"http://localhost:5000/api/create-exams/cie/departments-data?$q\" -Headers $h; $resp.data | ForEach-Object { \"-- $\\($_.code\\) --\"; \"  courses:\"; $_.courses | ForEach-Object { $eg = if \\($_.electiveGroup\\) { \" -> egroup=$\\($_.electiveGroup.name\\)\" } else { \"\" }; \"    $\\($_.code\\) [$\\($_.courseType\\)]$eg\" }; \"  electiveGroups: $\\($_.electiveGroups.Count\\) [ $\\(\\($_.electiveGroups | ForEach-Object { $_.name }\\) -join ' | '\\) ]\" })",
       "Bash(ls -la backend/modules/)",
-      "Bash(find backend *)"
+      "Bash(find backend *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\exam-duty\\\\backend\" -Directory | Where-Object { $_.Name -ne 'node_modules' })",
+      "PowerShell(head *)"
     ]
   }
 }

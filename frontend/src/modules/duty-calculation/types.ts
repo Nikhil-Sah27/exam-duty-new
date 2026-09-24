@@ -8,6 +8,13 @@ export interface DutyCalculationBreakdown {
   totalDuties: number;
   eligibleTeachers: number;
   avgClassroomCapacity: number;
+  // Present since the assistant/associate 70/30 split was introduced. Older
+  // callers can ignore these — target/completed/remaining still tell the
+  // whole per-teacher story.
+  assistantCount?: number;
+  associateCount?: number;
+  assistantBase?: number;
+  associateBase?: number;
 }
 
 export interface TeacherDutyProgress {

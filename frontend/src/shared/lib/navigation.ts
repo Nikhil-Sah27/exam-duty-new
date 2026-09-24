@@ -9,6 +9,7 @@ import {
   DoorOpen,
   BarChart3,
   ScrollText,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { UserRole } from "./types";
@@ -21,6 +22,7 @@ export interface NavItem {
 }
 
 const ADMIN_ROLES: UserRole[] = ["cs", "dcs", "rs"];
+const CS_ONLY: UserRole[] = ["cs"];
 
 export const navItems: NavItem[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, roles: ADMIN_ROLES },
@@ -29,6 +31,7 @@ export const navItems: NavItem[] = [
   { path: "/requests", label: "Change Requests", icon: ArrowLeftRight, roles: ADMIN_ROLES },
   { path: "/manage-duties", label: "Manage Duties", icon: ClipboardList, roles: ADMIN_ROLES },
   { path: "/users", label: "Teachers", icon: Users, roles: ADMIN_ROLES },
+  { path: "/notify", label: "Notify", icon: Megaphone, roles: CS_ONLY },
   { path: "/departments", label: "Departments", icon: Building2, roles: ADMIN_ROLES },
   { path: "/infrastructure", label: "Rooms & Buildings", icon: DoorOpen, roles: ADMIN_ROLES },
   { path: "/reports", label: "Reports", icon: BarChart3, roles: ADMIN_ROLES },

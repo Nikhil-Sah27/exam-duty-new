@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Calendar,
   Clock,
@@ -13,6 +14,7 @@ import {
   uniqueUpcomingDates,
 } from "@/modules/shared/duties/utils/dutyDurationUtils";
 import { totalRoomCount } from "../utils/rsDutyGroupingUtils";
+import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 
 function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", {
@@ -54,11 +56,17 @@ export default function RSDutySelectionPanel({
   isSubmitting,
   results,
 }: RSDutySelectionPanelProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const hours = totalHours(selected);
   const dates = uniqueUpcomingDates(selected);
   const rooms = totalRoomCount(selected);
   const failures = results?.filter((r) => !r.ok) || [];
   const successes = results?.filter((r) => r.ok) || [];
+
+  const handleConfirm = () => {
+    setConfirmOpen(false);
+    onSubmit();
+  };
 
   return (
     <aside className="sticky top-20 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -155,7 +163,7 @@ export default function RSDutySelectionPanel({
 
       <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
         <button
-          onClick={onSubmit}
+          onClick={() => setConfirmOpen(true)}
           disabled={selected.length === 0 || isSubmitting}
           className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
         >
@@ -196,6 +204,28 @@ export default function RSDutySelectionPanel({
           ))}
         </div>
       )}
+
+      <ConfirmActionModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        title="Claim these RS groups?"
+        description={
+          <>
+            You're about to claim{" "}
+            <span className="font-semibold text-gray-800">
+              {selected.length} RS group{selected.length === 1 ? "" : "s"}
+            </span>{" "}
+            covering{" "}
+            <span className="font-semibold text-gray-800">
+              {rooms} room{rooms === 1 ? "" : "s"}
+            </span>
+            . Once assigned, changes require a change request.
+          </>
+        }
+        confirmLabel={`Claim ${selected.length} group${selected.length === 1 ? "" : "s"}`}
+        isLoading={isSubmitting}
+      />
     </aside>
   );
 }

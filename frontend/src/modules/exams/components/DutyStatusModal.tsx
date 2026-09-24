@@ -1,4 +1,5 @@
-import { X, CheckCircle2, AlertCircle, Loader2, UserCheck } from "lucide-react";
+import { useState } from "react";
+import { X, CheckCircle2, AlertCircle, Loader2, UserCheck, ChevronRight } from "lucide-react";
 import type {
   ExamRoomAssignment,
   ExamSchedule,
@@ -12,6 +13,12 @@ import {
   useAssignDutyBySlot,
   useTeacherDuties,
 } from "@/modules/manage-duties/hooks";
+import { useAuthStore } from "@/shared/store/auth.store";
+import CsInvigilatorAssignPanel from "./cs-assign/CsInvigilatorAssignPanel";
+import CsRsGroupAssignPanel from "./cs-assign/CsRsGroupAssignPanel";
+import CsDcsGroupAssignPanel from "./cs-assign/CsDcsGroupAssignPanel";
+
+type AssignRole = "dcs" | "rs" | "invigilator";
 
 interface DutyStatusModalProps {
   open: boolean;
@@ -56,13 +63,27 @@ function RoleBadge({
   label,
   assigned,
   assignee,
+  onAssignClick,
 }: {
   label: string;
   assigned: boolean;
   assignee?: { name: string; email: string; department?: string | null; designation?: string | null; phone?: string | null } | null;
+  /** When provided and the slot is vacant, the whole row becomes a button
+   *  that opens the CS assignment flow for this role. */
+  onAssignClick?: () => void;
 }) {
+  const clickable = !assigned && !!onAssignClick;
+  const Wrapper = clickable ? "button" : "div";
+
   return (
-    <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+    <Wrapper
+      {...(clickable ? { onClick: onAssignClick, type: "button" as const } : {})}
+      className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
+        clickable
+          ? "border-red-200 bg-red-50 hover:border-blue-300 hover:bg-blue-50"
+          : "border-gray-100 bg-gray-50"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-700">{label}</span>
         {assigned ? (
@@ -72,9 +93,15 @@ function RoleBadge({
         ) : (
           <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
             <AlertCircle className="h-3 w-3" /> Vacant
+            {clickable && <ChevronRight className="h-3 w-3" />}
           </span>
         )}
       </div>
+      {clickable && (
+        <p className="mt-1 text-[11px] font-medium text-blue-600">
+          Click to assign
+        </p>
+      )}
       {assigned && assignee && (
         <div className="mt-1.5 text-[11px] leading-snug text-gray-500">
           <p className="font-medium text-gray-700">{assignee.name}</p>
@@ -89,7 +116,7 @@ function RoleBadge({
           {assignee.phone && <p>{assignee.phone}</p>}
         </div>
       )}
-    </div>
+    </Wrapper>
   );
 }
 
@@ -109,7 +136,23 @@ export default function DutyStatusModal({
   const { data: teacherDuties } = useTeacherDuties(teacherId || "");
   const assignMutation = useAssignDutyBySlot(teacherId || "");
 
+  // CS administrative assignment: available only when browsing Exams as CS
+  // (active role) and NOT inside the invigilator assign-duty wizard (which
+  // carries its own teacher context and keeps its original behaviour).
+  const activeRole = useAuthStore((s) => s.user?.activeRole);
+  const csAssignMode = activeRole === "cs" && !assignmentCtx;
+  const [assignRole, setAssignRole] = useState<AssignRole | null>(null);
+
   if (!open) return null;
+
+  const handleClose = () => {
+    setAssignRole(null);
+    onClose();
+  };
+
+  // After a successful CS assignment, return to the overview — cache
+  // invalidation refreshes the flags so the row flips to Assigned in place.
+  const handleAssigned = () => setAssignRole(null);
 
   const { room, departments } = assignment;
   const buildingName = room.building?.name || "Unknown";
@@ -160,7 +203,7 @@ export default function DutyStatusModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
 
       {/* Modal */}
       <div className="relative w-full max-w-md rounded-xl bg-white shadow-xl">
@@ -175,13 +218,42 @@ export default function DutyStatusModal({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {assignRole && csAssignMode ? (
+          <div className="px-5 py-4">
+            {assignRole === "invigilator" && (
+              <CsInvigilatorAssignPanel
+                schedule={schedule}
+                assignment={assignment}
+                onBack={() => setAssignRole(null)}
+                onAssigned={handleAssigned}
+              />
+            )}
+            {assignRole === "rs" && (
+              <CsRsGroupAssignPanel
+                schedule={schedule}
+                assignment={assignment}
+                onBack={() => setAssignRole(null)}
+                onAssigned={handleAssigned}
+              />
+            )}
+            {assignRole === "dcs" && (
+              <CsDcsGroupAssignPanel
+                schedule={schedule}
+                assignment={assignment}
+                onBack={() => setAssignRole(null)}
+                onAssigned={handleAssigned}
+              />
+            )}
+          </div>
+        ) : (
+          <>
         <div className="space-y-4 px-5 py-4">
           {/* Subject / course — shared block; narrowed to this room's
               department(s) so multi-dept schedules show only the relevant
@@ -236,16 +308,25 @@ export default function DutyStatusModal({
                 label="DCS (Deputy Chief Superintendent)"
                 assigned={flags.dcsAssigned}
                 assignee={flags.dcsTeacher}
+                onAssignClick={
+                  csAssignMode ? () => setAssignRole("dcs") : undefined
+                }
               />
               <RoleBadge
                 label="RS (Room Superintendent)"
                 assigned={flags.rsAssigned}
                 assignee={flags.rsTeacher}
+                onAssignClick={
+                  csAssignMode ? () => setAssignRole("rs") : undefined
+                }
               />
               <RoleBadge
                 label="Invigilator"
                 assigned={flags.invigilatorAssigned}
                 assignee={flags.invigilatorTeacher}
+                onAssignClick={
+                  csAssignMode ? () => setAssignRole("invigilator") : undefined
+                }
               />
             </div>
           </div>
@@ -293,13 +374,15 @@ export default function DutyStatusModal({
             </div>
           ) : (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
             >
               Close
             </button>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

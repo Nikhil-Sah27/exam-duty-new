@@ -46,7 +46,12 @@ const getAllUsers = async (query) => {
 
   if (query.department) filter.department = query.department;
   if (query.role) filter.roles = query.role; // matches any user whose roles array contains `role`
-  if (query.isActive !== undefined) filter.isActive = query.isActive === "true";
+  if (query.isActive !== undefined) {
+    filter.isActive = query.isActive === "true";
+  } else if (query.includeInactive === "true") {
+    // Bypass the auto-active-only pre-find hook so deactivated teachers show in the list.
+    filter.isActive = { $in: [true, false] };
+  }
 
   return userRepository.findAll(filter);
 };
@@ -87,6 +92,12 @@ const deleteUser = async (id) => {
   return user;
 };
 
+const activateUser = async (id) => {
+  const user = await userRepository.activateById(id);
+  if (!user) throw new AppError("User not found", 404);
+  return user;
+};
+
 const bootstrapAdmin = async () => {
   const count = await userRepository.countByRole("cs");
   if (count > 0) {
@@ -106,4 +117,4 @@ const bootstrapAdmin = async () => {
   return userRepository.findById(user._id);
 };
 
-module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, bootstrapAdmin };
+module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, activateUser, bootstrapAdmin };

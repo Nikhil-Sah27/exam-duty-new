@@ -8,7 +8,6 @@ import {
   restoreExam,
   fetchExamGroups,
   fetchExamGroupDetails,
-  createExamGroup,
   updateExamGroup,
   deleteExamGroup,
   createSchedule,
@@ -20,7 +19,6 @@ import {
 import {
   CreateExamRequest,
   UpdateExamRequest,
-  CreateExamGroupRequest,
   UpdateExamGroupRequest,
   CreateScheduleRequest,
   CreateExamRoomRequest,
@@ -98,16 +96,6 @@ export const useExamGroupDetails = (id: string) => {
     queryKey: examGroupDetailsKey(id),
     queryFn: () => fetchExamGroupDetails(id),
     enabled: !!id,
-  });
-};
-
-export const useCreateExamGroup = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: CreateExamGroupRequest) => createExamGroup(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: EXAM_GROUPS_KEY });
-    },
   });
 };
 

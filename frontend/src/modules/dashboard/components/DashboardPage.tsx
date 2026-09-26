@@ -1,41 +1,72 @@
 import { useAuthStore } from "@/shared/store/auth.store";
-import ExamGroupSection from "@/modules/shared/exams/components/ExamGroupSection";
-import { useExamGroups } from "@/modules/shared/exams/hooks/useSharedExamData";
+import DashboardHero from "./DashboardHero";
+import AssignmentStatusSection from "./AssignmentStatusSection";
+import ExamStatisticsSection from "./ExamStatisticsSection";
+import OngoingExamsSection from "./OngoingExamsSection";
+import UpcomingExamsSection from "./UpcomingExamsSection";
+import CompletedExamsSection from "./CompletedExamsSection";
+import UpcomingExamPopup from "./upcoming-exam-popup/UpcomingExamPopup";
+import { useDashboardSummary } from "../hooks/useDashboardSummary";
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { data: groups, isLoading, error } = useExamGroups();
-  const allGroups = groups ?? [];
+  const {
+    ongoingExams,
+    upcomingExams,
+    completedExams,
+    assignmentTarget,
+    groupsLoading,
+    assignmentLoading,
+    error,
+  } = useDashboardSummary();
+
+  // No ongoing and no upcoming exams → there's no assignment data, so the top
+  // section becomes the Exam Statistics overview and the Completed grid is
+  // surfaced below. Otherwise (tomorrow / nearest-future) show assignment
+  // status at the top and keep Completed hidden.
+  const noActiveExams =
+    ongoingExams.length === 0 && upcomingExams.length === 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Welcome{user ? `, ${user.name}` : ""}. Active and upcoming exams across the institution.
-        </p>
-      </div>
+    <div className="mt-4 space-y-6">
+      <DashboardHero name={user?.name} />
 
-      {isLoading && <p className="text-sm text-gray-500">Loading exams...</p>}
-
-      {error && (
+      {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Failed to load exams. Please try again later.
+          Failed to load dashboard data. Please try again later.
         </div>
+      ) : null}
+
+      {groupsLoading ? (
+        <p className="text-sm text-gray-500">Loading exams...</p>
+      ) : (
+        <>
+          {/* Top section: assignment status (State A/B) or exam statistics (State C). */}
+          {noActiveExams ? (
+            <ExamStatisticsSection
+              ongoingCount={ongoingExams.length}
+              upcomingCount={upcomingExams.length}
+            />
+          ) : (
+            <AssignmentStatusSection
+              target={assignmentTarget}
+              ongoingCount={ongoingExams.length}
+              upcomingCount={upcomingExams.length}
+              loading={assignmentLoading}
+            />
+          )}
+
+          {/* Exam card grids — always shown. */}
+          <OngoingExamsSection exams={ongoingExams} />
+          <UpcomingExamsSection exams={upcomingExams} />
+
+          {/* Completed exams only when nothing is ongoing or upcoming. */}
+          {noActiveExams && <CompletedExamsSection exams={completedExams} />}
+        </>
       )}
 
-      {!isLoading && !error && allGroups.length === 0 && (
-        <div className="rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
-          <p className="text-sm text-gray-500">No exam groups yet — create one from the Exams page.</p>
-        </div>
-      )}
-
-      {!isLoading && !error && allGroups.length > 0 && (
-        <ExamGroupSection
-          exams={allGroups}
-          getCardHref={(g) => `/exams/${g._id}`}
-        />
-      )}
+      {/* Additive: floating bottom flip-popup for upcoming exams (CS only). */}
+      <UpcomingExamPopup />
     </div>
   );
 }

@@ -111,7 +111,7 @@ const main = async () => {
           sem,
           code: `${dept.code}${semNumber}91`,
           name: profName,
-          courseType: "professional_elective",
+          courseType: "elective",
           credits: 3,
         }),
         upsertElective({
@@ -119,7 +119,7 @@ const main = async () => {
           sem,
           code: `${dept.code}${semNumber}92`,
           name: openName,
-          courseType: "open_elective",
+          courseType: "elective",
           credits: 3,
         }),
       ]);
@@ -140,7 +140,7 @@ const main = async () => {
     for (const sem of semesters) {
       const count = await Course.countDocuments({
         semester: sem._id,
-        courseType: { $in: ["professional_elective", "open_elective"] },
+        courseType: "elective",
       });
       const flag = count >= 2 ? "OK" : "MISSING";
       console.log(`  ${dept.code.padEnd(4)} sem ${sem.name}: ${count} electives [${flag}]`);

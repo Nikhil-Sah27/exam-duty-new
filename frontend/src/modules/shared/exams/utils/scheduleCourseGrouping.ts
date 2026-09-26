@@ -11,7 +11,6 @@ export type GroupedScheduleEntry =
       kind: "group";
       groupId: string;
       groupName: string;
-      groupType: "professional" | "open" | null;
       departmentCode: string | null;
       departmentName: string | null;
       members: ScheduleCourse[];
@@ -38,7 +37,6 @@ export function groupScheduleCourses(
         kind: "group",
         groupId: row.electiveGroupId,
         groupName: row.electiveGroupName || "Electives",
-        groupType: row.electiveGroupType || null,
         departmentCode: row.departmentCode,
         departmentName: row.departmentName,
         members: [row],

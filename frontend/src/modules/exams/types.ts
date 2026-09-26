@@ -54,12 +54,11 @@ export interface ScheduleCourse {
   courseCode: string | null;
   courseTitle: string | null;
   credits: number | null;
-  courseType: "core" | "professional_elective" | "open_elective" | null;
+  courseType: "core" | "elective" | null;
   // When the course belongs to an elective group, the backend returns the
   // group details here so the client can render one collapsed row per group.
   electiveGroupId?: string | null;
   electiveGroupName?: string | null;
-  electiveGroupType?: "professional" | "open" | null;
   departmentCode: string | null;
   departmentName: string | null;
 }

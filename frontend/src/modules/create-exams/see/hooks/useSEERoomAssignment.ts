@@ -45,7 +45,7 @@ export function useSEERoomAssignment(args: {
   avgStudentsPerClass?: number;
 }) {
   const queryClient = useQueryClient();
-  const avg = args.avgStudentsPerClass ?? 60;
+  const avg = args.avgStudentsPerClass ?? 40;
 
   const initialSlots: SlotAllocation[] = useMemo(() => {
     if (!args.department) return [];

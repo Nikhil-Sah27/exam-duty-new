@@ -73,7 +73,7 @@ const getCourses = async (semesterId) => {
   return repo.findCoursesBySemester(semesterId);
 };
 
-const createCourse = async ({ name, code, credits, semester, exams, courseType, electiveGroup, studentCount }) => {
+const createCourse = async ({ name, code, credits, semester, exams, courseType, electiveGroup }) => {
   const sem = await repo.findSemesterById(semester);
   if (!sem) throw new AppError("Semester not found", 404);
 
@@ -92,9 +92,10 @@ const createCourse = async ({ name, code, credits, semester, exams, courseType, 
     credits,
     semester,
     exams,
-    courseType: courseType || "core",
+    // A course belonging to an elective group is an "elective"; everything
+    // else is "core". No professional/open distinction.
+    courseType: electiveGroup ? "elective" : courseType || "core",
     electiveGroup: electiveGroup || null,
-    studentCount: studentCount || 0,
   });
 };
 
@@ -131,10 +132,10 @@ const getElectiveGroups = async (semesterId) => {
   return result;
 };
 
-const createElectiveGroup = async ({ name, type, semester }) => {
+const createElectiveGroup = async ({ name, semester }) => {
   const sem = await repo.findSemesterById(semester);
   if (!sem) throw new AppError("Semester not found", 404);
-  return repo.createElectiveGroup({ name, type, semester });
+  return repo.createElectiveGroup({ name, semester });
 };
 
 const updateElectiveGroup = async (id, data) => {
@@ -153,7 +154,6 @@ const deleteElectiveGroup = async (id) => {
     await repo.updateCourse(course._id, {
       courseType: "core",
       electiveGroup: null,
-      studentCount: 0,
     });
   }
 

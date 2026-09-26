@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
-import { Plus, Trash2, Pencil, Inbox, Users, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Pencil, Inbox, ChevronDown, ChevronRight } from "lucide-react";
 import {
   useCourses,
   useCreateCourse,
@@ -7,6 +7,7 @@ import {
   useDeleteCourse,
   useElectiveGroups,
   useCreateElectiveGroup,
+  useUpdateElectiveGroup,
   useDeleteElectiveGroup,
 } from "../hooks";
 import type { Course, CourseExams, CourseType, ElectiveGroup } from "../types";
@@ -26,20 +27,17 @@ const EXAM_LABELS: { key: keyof CourseExams; label: string }[] = [
 
 const COURSE_TYPE_LABELS: Record<CourseType, string> = {
   core: "Core",
-  professional_elective: "Professional Elective",
-  open_elective: "Open Elective",
+  elective: "Elective",
 };
 
 function CourseRow({
   course,
   onEdit,
   onDelete,
-  showStudentCount,
 }: {
   course: Course;
   onEdit: (c: Course) => void;
   onDelete: (id: string) => void;
-  showStudentCount?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2.5">
@@ -48,12 +46,6 @@ function CourseRow({
         <span className="mx-2 text-gray-300">&mdash;</span>
         <span className="text-sm text-gray-600">{course.name}</span>
         <span className="ml-2 text-xs text-gray-400">({course.credits} cr)</span>
-        {showStudentCount && course.studentCount > 0 && (
-          <span className="ml-2 inline-flex items-center gap-1 text-xs text-emerald-600">
-            <Users className="h-3 w-3" />
-            {course.studentCount}
-          </span>
-        )}
       </div>
       <div className="flex items-center gap-2">
         {EXAM_LABELS.map(({ key, label }) =>
@@ -89,19 +81,18 @@ function ElectiveGroupSection({
   group,
   onEditCourse,
   onDeleteCourse,
+  onEditGroup,
   onDeleteGroup,
   onAddCourse,
 }: {
   group: ElectiveGroup;
   onEditCourse: (c: Course) => void;
   onDeleteCourse: (id: string) => void;
+  onEditGroup: (g: ElectiveGroup) => void;
   onDeleteGroup: (id: string) => void;
-  onAddCourse: (groupId: string, groupType: "professional" | "open") => void;
+  onAddCourse: (groupId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const typeLabel = group.type === "professional" ? "PE" : "OE";
-  const typeBg = group.type === "professional" ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700";
-  const totalStudents = group.courses.reduce((sum, c) => sum + (c.studentCount || 0), 0);
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
@@ -114,21 +105,30 @@ function ElectiveGroupSection({
         ) : (
           <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
         )}
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${typeBg}`}>{typeLabel}</span>
         <span className="text-sm font-medium text-gray-700">{group.name}</span>
         <span className="text-xs text-gray-400">
-          ({group.courses.length} options, {totalStudents} students)
+          ({group.courses.length} {group.courses.length === 1 ? "subject" : "subjects"})
         </span>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onAddCourse(group._id, group.type);
+              onAddCourse(group._id);
             }}
             className="rounded p-1 text-gray-300 hover:bg-blue-50 hover:text-blue-500"
             title="Add course to group"
           >
             <Plus className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditGroup(group);
+            }}
+            className="rounded p-1 text-gray-300 hover:bg-blue-50 hover:text-blue-500"
+            title="Rename group"
+          >
+            <Pencil className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={(e) => {
@@ -153,7 +153,6 @@ function ElectiveGroupSection({
                 course={c}
                 onEdit={onEditCourse}
                 onDelete={onDeleteCourse}
-                showStudentCount
               />
             ))
           )}
@@ -170,12 +169,14 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
   const updateMutation = useUpdateCourse(semesterId, deptId);
   const deleteMutation = useDeleteCourse(semesterId, deptId);
   const createGroupMutation = useCreateElectiveGroup(semesterId, deptId);
+  const updateGroupMutation = useUpdateElectiveGroup(semesterId);
   const deleteGroupMutation = useDeleteElectiveGroup(semesterId, deptId);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editCourse, setEditCourse] = useState<Course | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [editGroup, setEditGroup] = useState<ElectiveGroup | null>(null);
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
 
   // Course form state
@@ -185,11 +186,9 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
   const [exams, setExams] = useState<CourseExams>({ ia1: false, ia2: false, ia3: false, see: false });
   const [courseType, setCourseType] = useState<CourseType>("core");
   const [electiveGroupId, setElectiveGroupId] = useState<string>("");
-  const [studentCount, setStudentCount] = useState("0");
 
   // Group form state
   const [groupName, setGroupName] = useState("");
-  const [groupType, setGroupType] = useState<"professional" | "open">("professional");
 
   const courseToDelete = courses?.find((c) => c._id === deleteId);
   const coreCourses = courses?.filter((c) => c.courseType === "core" || !c.courseType) ?? [];
@@ -201,7 +200,6 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
     setExams({ ia1: false, ia2: false, ia3: false, see: false });
     setCourseType("core");
     setElectiveGroupId("");
-    setStudentCount("0");
     setEditCourse(null);
   };
 
@@ -216,14 +214,13 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
         ? editCourse.electiveGroup._id
         : editCourse.electiveGroup || "";
       setElectiveGroupId(egId as string);
-      setStudentCount(String(editCourse.studentCount || 0));
     }
   }, [editCourse]);
 
-  const handleOpenCreate = (groupId?: string, gType?: "professional" | "open") => {
+  const handleOpenCreate = (groupId?: string) => {
     resetForm();
-    if (groupId && gType) {
-      setCourseType(gType === "professional" ? "professional_elective" : "open_elective");
+    if (groupId) {
+      setCourseType("elective");
       setElectiveGroupId(groupId);
     }
     setModalOpen(true);
@@ -249,7 +246,6 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
       exams,
       courseType,
       electiveGroup: courseType !== "core" ? electiveGroupId || null : null,
-      studentCount: courseType !== "core" ? Number(studentCount) : 0,
     };
 
     if (editCourse) {
@@ -267,17 +263,37 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
     deleteMutation.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
   };
 
-  const handleCreateGroup = (e: FormEvent) => {
+  const handleOpenCreateGroup = () => {
+    setEditGroup(null);
+    setGroupName("");
+    setGroupModalOpen(true);
+  };
+
+  const handleOpenEditGroup = (group: ElectiveGroup) => {
+    setEditGroup(group);
+    setGroupName(group.name);
+    setGroupModalOpen(true);
+  };
+
+  const handleCloseGroupModal = () => {
+    setGroupModalOpen(false);
+    setEditGroup(null);
+    setGroupName("");
+  };
+
+  const handleSubmitGroup = (e: FormEvent) => {
     e.preventDefault();
-    createGroupMutation.mutate(
-      { name: groupName, type: groupType, semester: semesterId },
-      {
-        onSuccess: () => {
-          setGroupModalOpen(false);
-          setGroupName("");
-        },
-      }
-    );
+    if (editGroup) {
+      updateGroupMutation.mutate(
+        { id: editGroup._id, data: { name: groupName } },
+        { onSuccess: handleCloseGroupModal }
+      );
+    } else {
+      createGroupMutation.mutate(
+        { name: groupName, semester: semesterId },
+        { onSuccess: handleCloseGroupModal }
+      );
+    }
   };
 
   const handleConfirmDeleteGroup = () => {
@@ -328,7 +344,7 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium uppercase text-gray-400">Elective Groups</span>
           <button
-            onClick={() => setGroupModalOpen(true)}
+            onClick={handleOpenCreateGroup}
             className="flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800"
           >
             <Plus className="h-3 w-3" /> Add Elective Group
@@ -347,6 +363,7 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
                 group={g}
                 onEditCourse={handleOpenEdit}
                 onDeleteCourse={setDeleteId}
+                onEditGroup={handleOpenEditGroup}
                 onDeleteGroup={setDeleteGroupId}
                 onAddCourse={handleOpenCreate}
               />
@@ -369,7 +386,7 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">Course Type</label>
             <div className="flex gap-3">
-              {(["core", "professional_elective", "open_elective"] as CourseType[]).map((t) => (
+              {(["core", "elective"] as CourseType[]).map((t) => (
                 <label key={t} className="flex items-center gap-1.5 text-sm text-gray-700">
                   <input
                     type="radio"
@@ -387,41 +404,24 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
             </div>
           </div>
 
-          {/* Elective Group selector + Student Count */}
+          {/* Elective Group selector */}
           {isElective && (
-            <>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Elective Group</label>
-                <select
-                  value={electiveGroupId}
-                  onChange={(e) => setElectiveGroupId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select group...</option>
-                  {(electiveGroups ?? [])
-                    .filter(
-                      (g) =>
-                        (courseType === "professional_elective" && g.type === "professional") ||
-                        (courseType === "open_elective" && g.type === "open")
-                    )
-                    .map((g) => (
-                      <option key={g._id} value={g._id}>
-                        {g.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <Input
-                label="Students Opted"
-                type="number"
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Elective Group</label>
+              <select
+                value={electiveGroupId}
+                onChange={(e) => setElectiveGroupId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
-                min={0}
-                value={studentCount}
-                onChange={(e) => setStudentCount(e.target.value)}
-                placeholder="How many students chose this subject"
-              />
-            </>
+              >
+                <option value="">Select group...</option>
+                {(electiveGroups ?? []).map((g) => (
+                  <option key={g._id} value={g._id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Exam Types */}
@@ -451,45 +451,35 @@ export default function CourseList({ semesterId, deptId }: CourseListProps) {
         </form>
       </Modal>
 
-      {/* ── Create Elective Group Modal ── */}
-      <Modal open={groupModalOpen} onClose={() => setGroupModalOpen(false)} title="Create Elective Group">
-        {createGroupMutation.isError && <ErrorAlert message={createGroupMutation.error.message} />}
-        <form onSubmit={handleCreateGroup} className="space-y-4">
+      {/* ── Create / Rename Elective Group Modal ── */}
+      <Modal
+        open={groupModalOpen}
+        onClose={handleCloseGroupModal}
+        title={editGroup ? "Rename Elective Group" : "Create Elective Group"}
+      >
+        {(createGroupMutation.isError || updateGroupMutation.isError) && (
+          <ErrorAlert
+            message={
+              (createGroupMutation.error || updateGroupMutation.error)?.message ?? ""
+            }
+          />
+        )}
+        <form onSubmit={handleSubmitGroup} className="space-y-4">
           <Input
             label="Group Name"
             required
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            placeholder="e.g. Professional Elective 1"
+            placeholder="e.g. Elective Group 1"
           />
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">Type</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="groupType"
-                  checked={groupType === "professional"}
-                  onChange={() => setGroupType("professional")}
-                  className="border-gray-300"
-                />
-                Professional Elective
-              </label>
-              <label className="flex items-center gap-1.5 text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="groupType"
-                  checked={groupType === "open"}
-                  onChange={() => setGroupType("open")}
-                  className="border-gray-300"
-                />
-                Open Elective
-              </label>
-            </div>
-          </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setGroupModalOpen(false)}>Cancel</Button>
-            <Button type="submit" isLoading={createGroupMutation.isPending}>Create Group</Button>
+            <Button type="button" variant="secondary" onClick={handleCloseGroupModal}>Cancel</Button>
+            <Button
+              type="submit"
+              isLoading={editGroup ? updateGroupMutation.isPending : createGroupMutation.isPending}
+            >
+              {editGroup ? "Save Changes" : "Create Group"}
+            </Button>
           </div>
         </form>
       </Modal>

@@ -7,11 +7,6 @@ const electiveGroupSchema = new mongoose.Schema(
       required: [true, "Elective group name is required"],
       trim: true,
     },
-    type: {
-      type: String,
-      enum: ["professional", "open"],
-      required: [true, "Elective type is required"],
-    },
     semester: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Semester",

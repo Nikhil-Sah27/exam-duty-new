@@ -10,7 +10,6 @@ import {
   ExamGroupListResponse,
   ExamGroupResponse,
   ExamGroupDetailsResponse,
-  CreateExamGroupRequest,
   UpdateExamGroupRequest,
   ExamSchedule,
   ExamScheduleResponse,
@@ -69,13 +68,6 @@ export const fetchExamGroupDetails = async (
   const res = await api.get<ExamGroupDetailsResponse>(
     `/exam-groups/${id}/details`
   );
-  return res.data.data;
-};
-
-export const createExamGroup = async (
-  data: CreateExamGroupRequest
-): Promise<ExamGroup> => {
-  const res = await api.post<ExamGroupResponse>("/exam-groups", data);
   return res.data.data;
 };
 

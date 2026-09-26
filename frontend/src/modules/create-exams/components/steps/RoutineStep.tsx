@@ -71,7 +71,19 @@ export default function RoutineStep({
                     </td>
                     {departmentsData.map((dept) => {
                       const selectedToken = entry.assignments[dept._id] || "";
-                      const options = buildRoutineOptions(dept);
+                      // Decorate each option with its "already used elsewhere"
+                      // state, then sink used options to the bottom so unused
+                      // choices stay at the top of the dropdown.
+                      const options = buildRoutineOptions(dept)
+                        .map((opt) => ({
+                          opt,
+                          alreadyUsed:
+                            selectedToken !== opt.token &&
+                            isTokenUsedInRoutine(routine, dept._id, opt.token),
+                        }))
+                        .sort(
+                          (a, b) => Number(a.alreadyUsed) - Number(b.alreadyUsed),
+                        );
                       const isFlagged =
                         !!selectedToken &&
                         flaggedCells.has(`${dept._id}::${selectedToken}`);
@@ -94,10 +106,7 @@ export default function RoutineStep({
                             }`}
                           >
                             <option value="">— Select —</option>
-                            {options.map((opt) => {
-                              const alreadyUsed =
-                                selectedToken !== opt.token &&
-                                isTokenUsedInRoutine(routine, dept._id, opt.token);
+                            {options.map(({ opt, alreadyUsed }) => {
                               const groupSuffix =
                                 opt.kind === "group"
                                   ? ` (${opt.memberCourseIds.length} subject${opt.memberCourseIds.length !== 1 ? "s" : ""})`
@@ -107,10 +116,19 @@ export default function RoutineStep({
                                   key={opt.token}
                                   value={opt.token}
                                   disabled={alreadyUsed}
+                                  // Used courses are non-selectable and tinted a
+                                  // light red so they read as unavailable.
+                                  style={
+                                    alreadyUsed
+                                      ? {
+                                          backgroundColor: "#fee2e2",
+                                          color: "#b91c1c",
+                                        }
+                                      : undefined
+                                  }
                                 >
                                   {opt.label}
                                   {groupSuffix}
-                                  {alreadyUsed ? " (used)" : ""}
                                 </option>
                               );
                             })}

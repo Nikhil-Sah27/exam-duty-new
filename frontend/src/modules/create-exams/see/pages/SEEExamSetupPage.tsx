@@ -34,7 +34,7 @@ export default function SEEExamSetupPage() {
     semester: routineHook.semester,
     routine: routineHook.routine,
     department: routineHook.department ?? null,
-    avgStudentsPerClass: 60,
+    avgStudentsPerClass: 40,
   });
 
   const editingEntry =
@@ -100,7 +100,7 @@ export default function SEEExamSetupPage() {
         slotAllocations={roomAssignment.slotAllocations}
         shifts={seeShifts}
         usedRoomsMap={roomAssignment.usedRoomsMap}
-        avgStudentsPerClass={60}
+        avgStudentsPerClass={40}
         warnings={roomAssignment.roomWarnings}
         isAssigning={roomAssignment.isFinalizing}
         error={finalizeError}

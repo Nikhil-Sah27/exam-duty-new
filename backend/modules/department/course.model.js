@@ -23,22 +23,17 @@ const courseSchema = new mongoose.Schema(
       ref: "Semester",
       required: [true, "Semester is required"],
     },
+    // A course is either "core" or an "elective" (grouped under an
+    // ElectiveGroup). There is no finer professional/open distinction.
     courseType: {
       type: String,
-      enum: ["core", "professional_elective", "open_elective"],
+      enum: ["core", "elective"],
       default: "core",
     },
     electiveGroup: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ElectiveGroup",
       default: null,
-    },
-    // For elective courses: how many students opted for this subject
-    // For core courses: ignored (uses semester.studentCount)
-    studentCount: {
-      type: Number,
-      default: 0,
-      min: 0,
     },
     exams: {
       ia1: { type: Boolean, default: false },

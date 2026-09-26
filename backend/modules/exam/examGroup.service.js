@@ -96,7 +96,7 @@ const getGroupDetails = async (id) => {
     .populate({
       path: "course",
       select: "code name credits courseType electiveGroup",
-      populate: { path: "electiveGroup", select: "name type" },
+      populate: { path: "electiveGroup", select: "name" },
     })
     .populate({ path: "department", select: "code name" });
 
@@ -110,7 +110,6 @@ const getGroupDetails = async (id) => {
       courseType: entry.course?.courseType || null,
       electiveGroupId: eg?._id || null,
       electiveGroupName: eg?.name || null,
-      electiveGroupType: eg?.type || null,
       departmentCode: entry.department?.code || null,
       departmentName: entry.department?.name || null,
     };
@@ -148,7 +147,7 @@ const getGroupDetails = async (id) => {
         .populate({
           path: "course",
           select: "code name credits courseType electiveGroup",
-          populate: { path: "electiveGroup", select: "name type" },
+          populate: { path: "electiveGroup", select: "name" },
         })
         .populate({ path: "department", select: "code name" });
 

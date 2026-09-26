@@ -47,14 +47,14 @@ const getDepartmentsData = async (departmentIds, semesterName) => {
     if (!semester) continue;
 
     const courses = await Course.find({ semester: semester._id })
-      .populate("electiveGroup", "name type")
+      .populate("electiveGroup", "name")
       .sort({ code: 1 });
 
     // Fetch ElectiveGroups for this semester too — the wizard renders them
     // as single-select entries alongside core courses.
     const electiveGroups = await ElectiveGroup.find({
       semester: semester._id,
-    }).sort({ type: 1, name: 1 });
+    }).sort({ name: 1 });
 
     result.push({
       ...dept.toObject(),

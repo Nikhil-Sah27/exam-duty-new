@@ -1,4 +1,3 @@
-import { Plus } from "lucide-react";
 import { ExamGroup } from "../types";
 import ExamGroupSection from "@/modules/shared/exams/components/ExamGroupSection";
 
@@ -10,7 +9,6 @@ interface ExamGridProps {
    */
   selectedType: string;
   selectedSemester?: string;
-  onAddClick: () => void;
   onDelete: (group: ExamGroup) => void;
 }
 
@@ -22,19 +20,12 @@ export default function ExamGrid({
   groups,
   selectedType,
   selectedSemester = "",
-  onAddClick,
   onDelete,
 }: ExamGridProps) {
   if (groups.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-16">
         <p className="text-sm text-gray-500">No exam groups found</p>
-        <button
-          onClick={onAddClick}
-          className="mt-3 flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4" /> Create Exam Group
-        </button>
       </div>
     );
   }

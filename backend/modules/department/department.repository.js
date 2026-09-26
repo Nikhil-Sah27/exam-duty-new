@@ -37,7 +37,7 @@ const createCourse = (data) => Course.create(data);
 
 const findCoursesBySemester = (semesterId) =>
   Course.find({ semester: semesterId })
-    .populate("electiveGroup", "name type")
+    .populate("electiveGroup", "name")
     .sort({ courseType: 1, code: 1 });
 
 const findCourseById = (id) => Course.findById(id);
@@ -52,7 +52,7 @@ const deleteCourse = (id) => Course.findByIdAndDelete(id);
 const createElectiveGroup = (data) => ElectiveGroup.create(data);
 
 const findElectiveGroupsBySemester = (semesterId) =>
-  ElectiveGroup.find({ semester: semesterId }).sort({ type: 1, name: 1 });
+  ElectiveGroup.find({ semester: semesterId }).sort({ name: 1 });
 
 const findElectiveGroupById = (id) => ElectiveGroup.findById(id);
 

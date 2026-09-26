@@ -58,7 +58,7 @@ export default function ExamGroupSection({
   renderCard,
   emptyState,
   cieTitle = "CIE — Internal Exams",
-  cieSubtitle = "Continuous Internal Evaluation · IA1, IA2, IA3",
+  cieSubtitle = "IA1, IA2, IA3",
   seeTitle = "SEE — Semester End Exams",
   seeSubtitle = "External Examination",
   compact = false,

@@ -37,14 +37,13 @@ export interface CourseWithGroup {
   name: string;
   code: string;
   credits: number;
-  courseType?: "core" | "professional_elective" | "open_elective";
-  electiveGroup?: { _id: string; name: string; type: "professional" | "open" } | null;
+  courseType?: "core" | "elective";
+  electiveGroup?: { _id: string; name: string } | null;
 }
 
 export interface ElectiveGroupData {
   _id: string;
   name: string;
-  type: "professional" | "open";
 }
 
 export interface DepartmentData {

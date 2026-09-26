@@ -308,13 +308,11 @@ const main = async () => {
       const semDoc = semesterIndex.get(`${dept._id}:${sem}`);
       const subjects = COURSES[dept.code][sem];
       subjects.forEach((c, idx) => {
-        // Sem 8: name-based elective tagging
-        let courseType = "core";
-        if (c.name.startsWith("Professional Elective")) {
-          courseType = "professional_elective";
-        } else if (c.name.startsWith("Open Elective")) {
-          courseType = "open_elective";
-        }
+        // Sem 8: name-based elective tagging (core vs elective; no sub-type)
+        const isElective =
+          c.name.startsWith("Professional Elective") ||
+          c.name.startsWith("Open Elective");
+        const courseType = isElective ? "elective" : "core";
         courseDocs.push({
           name: c.name,
           code: courseCode(dept.code, sem, idx),

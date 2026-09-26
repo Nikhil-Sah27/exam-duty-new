@@ -14,7 +14,7 @@ export const INITIAL_CONFIG: CIEConfig = {
   departmentIds: [],
   semester: "",
   examType: "IA1",
-  avgStudentsPerClass: 60,
+  avgStudentsPerClass: 40,
   shifts: DEFAULT_SHIFTS,
   startDate: "",
   endDate: "",

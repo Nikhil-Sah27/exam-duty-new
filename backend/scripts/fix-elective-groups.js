@@ -1,6 +1,8 @@
-// For every semester, ensure a "Professional Electives" and "Open Electives"
-// ElectiveGroup exists, and attach any ungrouped elective course of the
-// matching type to that group. Idempotent.
+// For every semester, ensure a single "Electives" ElectiveGroup exists and
+// attach any ungrouped elective course to it. Idempotent.
+//
+// Elective groups no longer carry a professional/open type — a group is just a
+// name with its subjects.
 
 require("dotenv").config();
 const mongoose = require("mongoose");
@@ -10,16 +12,12 @@ const Semester = require("../modules/department/semester.model");
 const Course = require("../modules/department/course.model");
 const ElectiveGroup = require("../modules/department/electiveGroup.model");
 
-const GROUP_NAME = {
-  professional: "Professional Electives",
-  open: "Open Electives",
-};
+const GROUP_NAME = "Electives";
 
-const ensureGroup = async (semesterId, type) => {
-  const name = GROUP_NAME[type];
-  let group = await ElectiveGroup.findOne({ semester: semesterId, name });
+const ensureGroup = async (semesterId) => {
+  let group = await ElectiveGroup.findOne({ semester: semesterId, name: GROUP_NAME });
   if (!group) {
-    group = await ElectiveGroup.create({ name, type, semester: semesterId });
+    group = await ElectiveGroup.create({ name: GROUP_NAME, semester: semesterId });
     return { group, created: true };
   }
   return { group, created: false };
@@ -36,25 +34,18 @@ const main = async () => {
   for (const dept of departments) {
     const semesters = await Semester.find({ department: dept._id }).sort({ name: 1 });
     for (const sem of semesters) {
-      const [profGroupRes, openGroupRes] = await Promise.all([
-        ensureGroup(sem._id, "professional"),
-        ensureGroup(sem._id, "open"),
-      ]);
-      if (profGroupRes.created) groupsCreated++;
-      if (openGroupRes.created) groupsCreated++;
+      const { group, created } = await ensureGroup(sem._id);
+      if (created) groupsCreated++;
 
-      const profRes = await Course.updateMany(
-        { semester: sem._id, courseType: "professional_elective", electiveGroup: null },
-        { $set: { electiveGroup: profGroupRes.group._id } }
+      // Attach every ungrouped elective course to the single group.
+      const res = await Course.updateMany(
+        { semester: sem._id, courseType: "elective", electiveGroup: null },
+        { $set: { electiveGroup: group._id } }
       );
-      const openRes = await Course.updateMany(
-        { semester: sem._id, courseType: "open_elective", electiveGroup: null },
-        { $set: { electiveGroup: openGroupRes.group._id } }
-      );
-      coursesAttached += profRes.modifiedCount + openRes.modifiedCount;
+      coursesAttached += res.modifiedCount;
 
       console.log(
-        `  [${dept.code} sem ${sem.name}] prof group ${profGroupRes.created ? "created" : "exists"} (attached ${profRes.modifiedCount}), open group ${openGroupRes.created ? "created" : "exists"} (attached ${openRes.modifiedCount})`
+        `  [${dept.code} sem ${sem.name}] group ${created ? "created" : "exists"} (attached ${res.modifiedCount})`
       );
     }
   }
@@ -69,7 +60,6 @@ const main = async () => {
       const withGroupCounts = await Promise.all(
         groups.map(async (g) => ({
           name: g.name,
-          type: g.type,
           count: await Course.countDocuments({ semester: sem._id, electiveGroup: g._id }),
         }))
       );

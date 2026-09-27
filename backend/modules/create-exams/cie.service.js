@@ -15,6 +15,7 @@ const { withOptionalTransaction } = require("../../shared/utils/withOptionalTran
 const dcsGroupService = require("../dcs/dcsGroup.service");
 const roomReservationService = require("../exam/roomReservation.service");
 const seatSharingService = require("../seat-sharing/seatSharing.service");
+const { notifyExamPublished } = require("./examNotification.service");
 
 /**
  * Fetch departments with their semester + courses for a given semester name.
@@ -788,6 +789,17 @@ const finalizeCIEPlan = async (data, userId) => {
     // failure but don't roll back the committed exam. Re-generation can be
     // retried manually if needed.
     console.error("DCS group generation failed for", plan._id, err);
+  }
+
+  // Announce the new exam to duty-eligible teachers — only for a freshly
+  // created group, not when merging departments into an existing exam (which
+  // would re-notify everyone about an exam they already know about).
+  if (!existingGroup) {
+    try {
+      await notifyExamPublished(plan);
+    } catch (err) {
+      console.error("exam_created notification failed for", plan._id, err);
+    }
   }
 
   return plan;

@@ -65,6 +65,8 @@ export interface AssignmentStatusCardProps {
   valueSuffix?: string;
   /** When set, the whole card becomes a router Link and shows a chevron. */
   to?: string;
+  /** When set (and no `to`), the card becomes a button and shows a chevron. */
+  onClick?: () => void;
 }
 
 /**
@@ -81,8 +83,10 @@ export default function AssignmentStatusCard({
   valuePrefix,
   valueSuffix,
   to,
+  onClick,
 }: AssignmentStatusCardProps) {
   const t = TONES[tone];
+  const clickable = Boolean(to) || Boolean(onClick);
 
   const body = (
     <>
@@ -92,7 +96,7 @@ export default function AssignmentStatusCard({
         >
           {icon}
         </span>
-        {to && (
+        {clickable && (
           <ChevronRight className={`h-5 w-5 transition-colors ${t.chevron}`} />
         )}
       </div>
@@ -109,7 +113,7 @@ export default function AssignmentStatusCard({
   );
 
   const className = `group flex flex-col rounded-2xl border p-5 shadow-sm transition-all ${t.card} ${
-    to ? "hover:shadow-md" : ""
+    clickable ? "hover:shadow-md" : ""
   }`;
 
   if (to) {
@@ -117,6 +121,13 @@ export default function AssignmentStatusCard({
       <Link to={to} className={className}>
         {body}
       </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${className} text-left`}>
+        {body}
+      </button>
     );
   }
   return <div className={className}>{body}</div>;

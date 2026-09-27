@@ -10,6 +10,7 @@ import {
 import { getMyDcsGroups } from "../select-duty/services/dcsDutyService";
 import type { DcsGroup } from "../select-duty/types";
 import DcsDutyModal from "../upcoming-duties/components/DcsDutyModal";
+import RoleImportantNotificationProvider from "@/modules/dashboard/important-notifications/RoleImportantNotificationProvider";
 
 /**
  * DCS dashboard. Mirrors the structure used by the RS and Invigilator
@@ -116,6 +117,8 @@ export default function Dashboard() {
         group={selectedGroup}
         onClose={() => setSelectedGroup(null)}
       />
+
+      <RoleImportantNotificationProvider />
     </div>
   );
 }

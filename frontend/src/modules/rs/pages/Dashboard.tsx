@@ -12,6 +12,7 @@ import {
   type RSUpcomingGroup,
 } from "@/modules/rs/upcoming-duties/utils/rsUpcomingGrouping";
 import RSUpcomingGroupModal from "@/modules/rs/upcoming-duties/components/RSUpcomingGroupModal";
+import RoleImportantNotificationProvider from "@/modules/dashboard/important-notifications/RoleImportantNotificationProvider";
 
 /**
  * RS dashboard. Same layout contract as the DCS / Invigilator dashboards —
@@ -122,6 +123,8 @@ export default function Dashboard() {
         group={selectedGroup}
         onClose={() => setSelectedGroup(null)}
       />
+
+      <RoleImportantNotificationProvider />
     </div>
   );
 }

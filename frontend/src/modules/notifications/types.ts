@@ -5,7 +5,11 @@ export type NotificationType =
   | "request_approved"
   | "request_rejected"
   | "duty_swapped"
-  | "exam_deleted_duty_release";
+  | "duty_reminder"
+  | "target_reached"
+  | "exam_created"
+  | "exam_deleted_duty_release"
+  | "announcement";
 
 export interface Notification {
   _id: string;

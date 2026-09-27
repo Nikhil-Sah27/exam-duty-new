@@ -1,26 +1,58 @@
 /**
- * Centralized, pure selectors that power the CS dashboard summary widgets
- * (assignment status target, Ongoing / Upcoming / Completed exams).
+ * Centralized, pure selectors that power the CS dashboard assignment widgets
+ * (assignment-status target + the class-level drill-down) and the Ongoing /
+ * Upcoming / Completed exam lists.
  *
- * SINGLE SOURCE OF TRUTH: these reuse the existing canonical helpers rather
- * than re-deriving anything:
+ * SINGLE SOURCE OF TRUTH: everything is derived from `ClassAssignmentRow[]` —
+ * one row per (schedule × classroom) built with the SAME rules the rest of the
+ * app uses:
  *   • per-room duty status  → `getDutyStatus` (shared dutyStatusUtils)
+ *   • schedule selectability → `isDutySelectable` (duties/dutyStatusFilter)
  *   • per-group lifecycle    → `getExamGroupStatus` (shared examStatusUtils)
  *   • status/date ordering   → `sortExamsByPriority` (shared examSortUtils)
- * The duty slots they consume come from `useAvailableDutySlots`, the exact
- * same feed Select Duty uses for DCS / RS / Invigilator — so dashboard counts
- * always match what those roles see.
+ * The rows are fetched by `useAssignmentClassRows`, which reads the exact same
+ * `/exam-groups/:id/details` + `/duty-status` feed Select Duty uses — so the
+ * dashboard card COUNT and the drill-down LIST always match.
  *
- * The assignment-status target is chosen by DATE, not by a single exam:
+ * Assignment-status target is chosen by DATE, not by a single exam:
  *   1. If any exam is scheduled tomorrow → target date = tomorrow.
  *   2. Otherwise → target date = the nearest future exam date after tomorrow.
  *   3. All exams (and all their classrooms) on the target date are combined.
  */
-import type { ExamGroup } from "../types/exam.types";
-import type { AvailableDutySlot } from "./examSelectors";
+import type {
+  ExamGroup,
+  ExamGroupDetails,
+  ExamSchedule,
+  ExamRoomAssignment,
+  RoomDutyFlags,
+  DutyStatus,
+  DutyStatusMap,
+} from "../types/exam.types";
 import { getExamGroupStatus } from "../utils/examStatusUtils";
 import { getDutyStatus } from "../utils/dutyStatusUtils";
 import { sortExamsByPriority } from "../utils/examSortUtils";
+import { isDutySelectable } from "@/modules/duties/utils/dutyStatusFilter";
+
+/**
+ * One classroom on one schedule, with its duty flags + status and the raw
+ * schedule/room objects needed to drive the existing DutyStatusModal.
+ */
+export interface ClassAssignmentRow {
+  /** `${scheduleId}:${examRoomId}` — stable identity. */
+  slotId: string;
+  examGroupId: string;
+  examType: ExamGroup["examType"];
+  semester: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  departments: string[];
+  flags: RoomDutyFlags;
+  status: DutyStatus;
+  /** Raw objects handed straight to the existing assignment modal. */
+  schedule: ExamSchedule;
+  assignment: ExamRoomAssignment;
+}
 
 export interface AssignmentTargetExam {
   examGroupId: string;
@@ -31,8 +63,6 @@ export interface AssignmentTargetExam {
 export interface DashboardAssignmentTarget {
   /** Start-of-day of the selected date, or null when no future exams exist. */
   date: Date | null;
-  /** `YYYY-MM-DD` for deep-links, or null. */
-  dateKey: string | null;
   /** True when the selected date is tomorrow. */
   isTomorrow: boolean;
   /** Distinct exams occurring on the target date. */
@@ -45,6 +75,59 @@ export interface DashboardAssignmentTarget {
   fullyAssigned: number;
   /** Total classrooms considered on the target date. */
   totalClasses: number;
+}
+
+/**
+ * Build the class rows for a single exam group from its details + duty status.
+ * Mirrors `selectDutySlotsForGroup`'s filters (selectable schedules, non-empty
+ * rooms) but keeps the raw schedule/room objects so the assignment modal can
+ * be reused as-is. Reuses `getDutyStatus` — no duplicated status logic.
+ */
+export function buildClassRowsForGroup({
+  group,
+  details,
+  dutyStatus,
+}: {
+  group: ExamGroup;
+  details: ExamGroupDetails;
+  dutyStatus: DutyStatusMap;
+}): ClassAssignmentRow[] {
+  const rows: ClassAssignmentRow[] = [];
+  for (const schedule of details.schedules) {
+    if (
+      !isDutySelectable({
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+      })
+    ) {
+      continue;
+    }
+    if (schedule.rooms.length === 0) continue;
+
+    for (const assignment of schedule.rooms) {
+      const flags: RoomDutyFlags = dutyStatus[assignment._id] || {
+        dcsAssigned: false,
+        rsAssigned: false,
+        invigilatorAssigned: false,
+      };
+      rows.push({
+        slotId: `${schedule._id}:${assignment._id}`,
+        examGroupId: group._id,
+        examType: group.examType,
+        semester: group.semester,
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        departments: assignment.departments,
+        flags,
+        status: getDutyStatus(flags),
+        schedule,
+        assignment,
+      });
+    }
+  }
+  return rows;
 }
 
 /** Start-of-day for the next calendar day relative to `now`. */
@@ -62,37 +145,18 @@ function dayMsOf(dateStr: string): number {
   return d.getTime();
 }
 
-/** Format a Date as a local `YYYY-MM-DD` key (used in deep-link URLs). */
-export function toDateKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/** Parse a local `YYYY-MM-DD` key back to a start-of-day epoch ms. */
-export function dayMsFromKey(key: string): number {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, (m || 1) - 1, d || 1).getTime();
-}
-
-/** Slots scheduled on a specific day (by start-of-day ms). */
-function slotsOnDate(slots: AvailableDutySlot[], dayMs: number): AvailableDutySlot[] {
-  return slots.filter((s) => dayMsOf(s.date) === dayMs);
-}
-
 /**
  * The nearest exam date at/after tomorrow. Returns tomorrow when exams exist
  * tomorrow, else the closest future date, else null when no future exams.
  */
 export function getNextUpcomingExamDate(
-  slots: AvailableDutySlot[],
+  rows: ClassAssignmentRow[],
   now: Date = new Date(),
 ): Date | null {
   const tomorrowMs = getTomorrow(now).getTime();
   let best: number | null = null;
-  for (const s of slots) {
-    const ms = dayMsOf(s.date);
+  for (const r of rows) {
+    const ms = dayMsOf(r.date);
     if (ms >= tomorrowMs && (best === null || ms < best)) best = ms;
   }
   return best === null ? null : new Date(best);
@@ -100,39 +164,21 @@ export function getNextUpcomingExamDate(
 
 /** Distinct exams (group + type + semester) occurring on a given day. */
 export function getExamsForDate(
-  slots: AvailableDutySlot[],
+  rows: ClassAssignmentRow[],
   dayMs: number,
 ): AssignmentTargetExam[] {
   const byGroup = new Map<string, AssignmentTargetExam>();
-  for (const s of slotsOnDate(slots, dayMs)) {
-    if (!byGroup.has(s.examGroupId)) {
-      byGroup.set(s.examGroupId, {
-        examGroupId: s.examGroupId,
-        examType: s.examType,
-        semester: s.semester,
+  for (const r of rows) {
+    if (dayMsOf(r.date) !== dayMs) continue;
+    if (!byGroup.has(r.examGroupId)) {
+      byGroup.set(r.examGroupId, {
+        examGroupId: r.examGroupId,
+        examType: r.examType,
+        semester: r.semester,
       });
     }
   }
   return [...byGroup.values()];
-}
-
-/** Aggregate a set of slots (classrooms) into Not/Partial/Fully counts. */
-export function getAssignmentStatusForSlots(slots: AvailableDutySlot[]) {
-  let notAssigned = 0;
-  let partiallyAssigned = 0;
-  let fullyAssigned = 0;
-  for (const s of slots) {
-    const status = getDutyStatus(s.flags);
-    if (status === "NOT_ASSIGNED") notAssigned++;
-    else if (status === "PARTIAL") partiallyAssigned++;
-    else fullyAssigned++;
-  }
-  return {
-    notAssigned,
-    partiallyAssigned,
-    fullyAssigned,
-    totalClasses: slots.length,
-  };
 }
 
 /**
@@ -141,14 +187,13 @@ export function getAssignmentStatusForSlots(slots: AvailableDutySlot[]) {
  * classroom of every exam on that date.
  */
 export function getDashboardAssignmentTarget(
-  slots: AvailableDutySlot[],
+  rows: ClassAssignmentRow[],
   now: Date = new Date(),
 ): DashboardAssignmentTarget {
-  const date = getNextUpcomingExamDate(slots, now);
+  const date = getNextUpcomingExamDate(rows, now);
   if (!date) {
     return {
       date: null,
-      dateKey: null,
       isTomorrow: false,
       exams: [],
       notAssigned: 0,
@@ -158,30 +203,46 @@ export function getDashboardAssignmentTarget(
     };
   }
   const dayMs = date.getTime();
-  const counts = getAssignmentStatusForSlots(slotsOnDate(slots, dayMs));
+  const dayRows = rows.filter((r) => dayMsOf(r.date) === dayMs);
+  let notAssigned = 0;
+  let partiallyAssigned = 0;
+  let fullyAssigned = 0;
+  for (const r of dayRows) {
+    if (r.status === "NOT_ASSIGNED") notAssigned++;
+    else if (r.status === "PARTIAL") partiallyAssigned++;
+    else fullyAssigned++;
+  }
   return {
     date,
-    dateKey: toDateKey(date),
     isTomorrow: dayMs === getTomorrow(now).getTime(),
-    exams: getExamsForDate(slots, dayMs),
-    ...counts,
+    exams: getExamsForDate(rows, dayMs),
+    notAssigned,
+    partiallyAssigned,
+    fullyAssigned,
+    totalClasses: dayRows.length,
   };
 }
 
 /**
- * Exam-group ids that own ≥1 classroom in the given status on a specific day.
- * Used by the Exams page to filter the list when a status card deep-links in.
+ * The drill-down list: classrooms on the target date matching the selected
+ * status, ordered by session time then room. Uses the SAME rows as the counts
+ * so the number on the card equals the number of rows shown.
  */
-export function getGroupIdsWithStatusOnDate(
-  slots: AvailableDutySlot[],
-  status: "NOT_ASSIGNED" | "PARTIAL",
-  dayMs: number,
-): Set<string> {
-  const ids = new Set<string>();
-  for (const s of slotsOnDate(slots, dayMs)) {
-    if (getDutyStatus(s.flags) === status) ids.add(s.examGroupId);
-  }
-  return ids;
+export function getClassesForTarget(
+  rows: ClassAssignmentRow[],
+  date: Date | null,
+  statusFilter: Extract<DutyStatus, "NOT_ASSIGNED" | "PARTIAL">,
+): ClassAssignmentRow[] {
+  if (!date) return [];
+  const dayMs = date.getTime();
+  return rows
+    .filter((r) => dayMsOf(r.date) === dayMs && r.status === statusFilter)
+    .sort((a, b) => {
+      if (a.startTime !== b.startTime) return a.startTime.localeCompare(b.startTime);
+      const roomA = `${a.assignment.room.building?.name ?? ""} ${a.assignment.room.roomNumber}`;
+      const roomB = `${b.assignment.room.building?.name ?? ""} ${b.assignment.room.roomNumber}`;
+      return roomA.localeCompare(roomB, undefined, { numeric: true });
+    });
 }
 
 /** Exams in progress right now, nearest-first. */

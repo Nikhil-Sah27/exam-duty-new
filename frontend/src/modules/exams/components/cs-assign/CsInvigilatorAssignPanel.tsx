@@ -78,6 +78,11 @@ export default function CsInvigilatorAssignPanel({
         onAssign={handleAssign}
         assigningId={assigningId}
         isPending={mutation.isPending}
+        conflict={{
+          date: schedule.date,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+        }}
       />
     </AssignPanelShell>
   );

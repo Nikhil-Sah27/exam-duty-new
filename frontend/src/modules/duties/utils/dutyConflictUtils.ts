@@ -128,3 +128,27 @@ export function getConflictReason(
  * when they only need the shared engine name once.
  */
 export { sharedFindTimeConflict as findTimeConflict };
+
+/**
+ * Teacher ids that already hold an ASSIGNED duty overlapping `window`.
+ * Uses the same shared same-day + overlap primitives as the rest of the app,
+ * applied across the whole duty list — so the CS eligible-teacher picker can
+ * hide teachers the backend conflict scan would reject up front.
+ */
+export function getBusyTeacherIds(
+  duties: readonly Duty[],
+  window: TimeWindow,
+): Set<string> {
+  const busy = new Set<string>();
+  for (const d of duties) {
+    if (d.status !== "assigned") continue;
+    if (!sharedSameDay(d.date, window.date)) continue;
+    if (
+      !sharedOverlaps(d.startTime, d.endTime, window.startTime, window.endTime)
+    ) {
+      continue;
+    }
+    if (d.teacher?._id) busy.add(d.teacher._id);
+  }
+  return busy;
+}

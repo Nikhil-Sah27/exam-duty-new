@@ -1,7 +1,6 @@
 import { useState } from "react";
 import ExamFilters from "@/modules/exams/components/ExamFilters";
 import ExamGroupSection from "@/modules/shared/exams/components/ExamGroupSection";
-import DutyStatusLegend from "@/modules/shared/components/DutyStatusLegend";
 import { useInvigilatorExamView } from "../hooks/useInvigilatorExams";
 
 export default function InvigilatorExamsPage() {
@@ -19,8 +18,6 @@ export default function InvigilatorExamsPage() {
           Upcoming and ongoing exams. Open any group to see its schedule and rooms.
         </p>
       </div>
-
-      <DutyStatusLegend />
 
       {allGroups.length > 0 && (
         <ExamFilters

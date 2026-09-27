@@ -12,6 +12,7 @@ const { resolveAssignment } = require("./assignmentResolver");
 const dcsGroupService = require("../dcs/dcsGroup.service");
 const roomReservationService = require("../exam/roomReservation.service");
 const seatSharingService = require("../seat-sharing/seatSharing.service");
+const { notifyExamPublished } = require("./examNotification.service");
 
 /**
  * Same time-overlap math used elsewhere in the codebase.
@@ -579,6 +580,16 @@ const finalizeSEEPlan = async (data, userId) => {
     await dcsGroupService.generateDCSGroupsForExamGroup(plan._id);
   } catch (err) {
     console.error("DCS group generation failed for", plan._id, err);
+  }
+
+  // Announce the new exam to duty-eligible teachers — only for a freshly
+  // created group, not when merging departments into an existing exam.
+  if (!existingGroup) {
+    try {
+      await notifyExamPublished(plan);
+    } catch (err) {
+      console.error("exam_created notification failed for", plan._id, err);
+    }
   }
 
   return plan;

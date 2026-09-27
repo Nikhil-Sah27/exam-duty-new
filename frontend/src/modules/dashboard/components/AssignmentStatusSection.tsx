@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { Users, UserX, UserCog, Activity, CalendarClock } from "lucide-react";
 import AssignmentStatusCard from "./AssignmentStatusCard";
+import TeacherAssignmentView from "./TeacherAssignmentView";
 import type { DashboardAssignmentTarget } from "@/modules/shared/exams/selectors/dashboardSelectors";
+import type { DutyStatus } from "@/modules/shared/exams/types/exam.types";
+
+type FilterStatus = Extract<DutyStatus, "NOT_ASSIGNED" | "PARTIAL">;
 
 interface AssignmentStatusSectionProps {
   target: DashboardAssignmentTarget;
   ongoingCount: number;
   upcomingCount: number;
-  /** True while the duty slots feeding the assignment counts are loading. */
+  /** True while the duty rows feeding the assignment counts are loading. */
   loading?: boolean;
 }
 
@@ -23,10 +28,10 @@ function formatFull(d: Date): string {
 /**
  * Assignment-status section. The target date is chosen centrally
  * (`getDashboardAssignmentTarget`): tomorrow when exams exist tomorrow, else
- * the nearest future exam date — combining ALL exams on that date. The header,
- * subtitle, exam list and card deep-links all adapt to the chosen date.
- * Renders the two required cards (Not Assigned, Partially Assigned — Fully
- * Assigned omitted) plus the Ongoing / Upcoming counts beside them.
+ * the nearest future exam date — combining ALL exams on that date. Clicking a
+ * status card opens the full-screen class-level drill-down (no navigation to
+ * Exams). Renders the two required cards (Not Assigned, Partially Assigned —
+ * Fully Assigned omitted) plus the Ongoing / Upcoming counts beside them.
  */
 export default function AssignmentStatusSection({
   target,
@@ -34,93 +39,101 @@ export default function AssignmentStatusSection({
   upcomingCount,
   loading = false,
 }: AssignmentStatusSectionProps) {
+  const [openStatus, setOpenStatus] = useState<FilterStatus | null>(null);
   const hasTarget = target.date !== null && target.totalClasses > 0;
 
   const title = target.isTomorrow
     ? "Tomorrow's Exams — Teacher Assignment Status"
     : "Next Exams — Teacher Assignment Status";
 
-  const linkFor = (assignment: "not-assigned" | "partial") =>
-    `/exams?assignment=${assignment}&date=${target.dateKey}`;
-
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-      <header className="mb-5 flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-          <Users className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-          <p className="text-sm text-slate-500">{renderSubtitle(target)}</p>
+    <>
+      <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+        <header className="mb-5 flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+            <Users className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+            <p className="text-sm text-slate-500">{renderSubtitle(target)}</p>
 
-          {target.exams.length > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                {target.exams.length}{" "}
-                {target.exams.length === 1 ? "Exam" : "Exams"}
-              </span>
-              {target.exams.map((e) => (
-                <span
-                  key={e.examGroupId}
-                  className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 ring-1 ring-indigo-100"
-                >
-                  {e.examType} · Sem {e.semester}
+            {target.exams.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  {target.exams.length}{" "}
+                  {target.exams.length === 1 ? "Exam" : "Exams"}
                 </span>
-              ))}
+                {target.exams.map((e) => (
+                  <span
+                    key={e.examGroupId}
+                    className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 ring-1 ring-indigo-100"
+                  >
+                    {e.examType} · Sem {e.semester}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {loading ? (
+            <>
+              <CardSkeleton />
+              <CardSkeleton />
+            </>
+          ) : hasTarget ? (
+            <>
+              <AssignmentStatusCard
+                tone="red"
+                icon={<UserX className="h-5 w-5" />}
+                label="Teachers Not Assigned"
+                value={target.notAssigned}
+                valuePrefix="across "
+                valueSuffix=" classes"
+                onClick={() => setOpenStatus("NOT_ASSIGNED")}
+              />
+              <AssignmentStatusCard
+                tone="amber"
+                icon={<UserCog className="h-5 w-5" />}
+                label="Partially Assigned"
+                value={target.partiallyAssigned}
+                valuePrefix="across "
+                valueSuffix=" classes"
+                onClick={() => setOpenStatus("PARTIAL")}
+              />
+            </>
+          ) : (
+            <div className="sm:col-span-2 flex items-center rounded-2xl border border-dashed border-gray-200 px-5 py-6 text-sm text-slate-500">
+              No upcoming exams scheduled.
             </div>
           )}
+
+          <AssignmentStatusCard
+            tone="emerald"
+            icon={<Activity className="h-5 w-5" />}
+            label="Ongoing Exams"
+            value={ongoingCount}
+            valueSuffix=" in progress"
+          />
+          <AssignmentStatusCard
+            tone="indigo"
+            icon={<CalendarClock className="h-5 w-5" />}
+            label="Upcoming Exams"
+            value={upcomingCount}
+            valueSuffix=" not started"
+          />
         </div>
-      </header>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {loading ? (
-          <>
-            <CardSkeleton />
-            <CardSkeleton />
-          </>
-        ) : hasTarget ? (
-          <>
-            <AssignmentStatusCard
-              tone="red"
-              icon={<UserX className="h-5 w-5" />}
-              label="Teachers Not Assigned"
-              value={target.notAssigned}
-              valuePrefix="across "
-              valueSuffix=" classes"
-              to={linkFor("not-assigned")}
-            />
-            <AssignmentStatusCard
-              tone="amber"
-              icon={<UserCog className="h-5 w-5" />}
-              label="Partially Assigned"
-              value={target.partiallyAssigned}
-              valuePrefix="across "
-              valueSuffix=" classes"
-              to={linkFor("partial")}
-            />
-          </>
-        ) : (
-          <div className="sm:col-span-2 flex items-center rounded-2xl border border-dashed border-gray-200 px-5 py-6 text-sm text-slate-500">
-            No upcoming exams scheduled.
-          </div>
-        )}
-
-        <AssignmentStatusCard
-          tone="emerald"
-          icon={<Activity className="h-5 w-5" />}
-          label="Ongoing Exams"
-          value={ongoingCount}
-          valueSuffix=" in progress"
+      {openStatus && (
+        <TeacherAssignmentView
+          status={openStatus}
+          target={target}
+          onClose={() => setOpenStatus(null)}
         />
-        <AssignmentStatusCard
-          tone="indigo"
-          icon={<CalendarClock className="h-5 w-5" />}
-          label="Upcoming Exams"
-          value={upcomingCount}
-          valueSuffix=" not started"
-        />
-      </div>
-    </section>
+      )}
+    </>
   );
 }
 
@@ -128,15 +141,16 @@ function renderSubtitle(target: DashboardAssignmentTarget) {
   if (!target.date) {
     return "No exams are scheduled tomorrow or later.";
   }
-  const date = <span className="font-semibold text-slate-700">{formatFull(target.date)}</span>;
+  const date = (
+    <span className="font-semibold text-slate-700">{formatFull(target.date)}</span>
+  );
   if (target.isTomorrow) {
-    return <>Status of teacher assignments for exams scheduled on {date}.</>;
+    return (
+      <>Showing assignment status for tomorrow&apos;s scheduled exams on {date}.</>
+    );
   }
   return (
-    <>
-      No exams are scheduled tomorrow. Showing assignment status for the next
-      scheduled exams on {date}.
-    </>
+    <>Showing assignment status for the next scheduled exams on {date}.</>
   );
 }
 

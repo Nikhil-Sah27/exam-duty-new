@@ -23,6 +23,10 @@ const findById = (id) => {
   return Notification.findById(id);
 };
 
+const existsByDedupeKey = (dedupeKey) => {
+  return Notification.exists({ dedupeKey });
+};
+
 const markAsRead = (id) => {
   return Notification.findByIdAndUpdate(
     id,
@@ -54,6 +58,7 @@ module.exports = {
   findByRecipient,
   countUnread,
   findById,
+  existsByDedupeKey,
   markAsRead,
   markAllAsRead,
   deleteById,

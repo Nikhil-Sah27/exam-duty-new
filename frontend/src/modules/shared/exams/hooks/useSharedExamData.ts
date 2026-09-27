@@ -10,6 +10,10 @@ import {
   selectDutySlotsForGroup,
   type AvailableDutySlot,
 } from "../selectors/examSelectors";
+import {
+  buildClassRowsForGroup,
+  type ClassAssignmentRow,
+} from "../selectors/dashboardSelectors";
 
 const KEYS = {
   groups: ["shared", "exam-groups"] as const,
@@ -102,4 +106,66 @@ export function useAvailableDutySlots() {
   }
 
   return { data: slots, isLoading, error };
+}
+
+/**
+ * Class-level rows (one per schedule × classroom) with duty flags + status and
+ * the raw schedule/room objects. Same fetch + cache keys as
+ * `useAvailableDutySlots` (so a CS assignment's `["shared"]` invalidation
+ * refetches this too), but shaped for the CS dashboard's assignment-status
+ * count + drill-down. Both consume `buildClassRowsForGroup`, so the count and
+ * the list are always the identical dataset.
+ */
+export function useAssignmentClassRows() {
+  const groupsQuery = useExamGroups();
+  const activeGroups = groupsQuery.data
+    ? selectActiveExamGroups(groupsQuery.data)
+    : [];
+
+  const detailsQueries = useQueries({
+    queries: activeGroups.map((g) => ({
+      queryKey: KEYS.details(g._id),
+      queryFn: () => fetchExamGroupDetails(g._id),
+    })),
+  });
+
+  const dutyStatusQueries = useQueries({
+    queries: activeGroups.map((g) => ({
+      queryKey: KEYS.dutyStatus(g._id),
+      queryFn: () => fetchExamDutyStatus(g._id),
+    })),
+  });
+
+  const isLoading =
+    groupsQuery.isLoading ||
+    detailsQueries.some((q) => q.isLoading) ||
+    dutyStatusQueries.some((q) => q.isLoading);
+
+  const error =
+    groupsQuery.error ||
+    detailsQueries.find((q) => q.error)?.error ||
+    dutyStatusQueries.find((q) => q.error)?.error ||
+    null;
+
+  // Build from whatever per-group data is cached, regardless of a transient
+  // refetch error on any single fan-out query. React Query retains the last
+  // good `data` during a background-refetch error, so the row list (and any
+  // open assignment modal keyed off it) stays stable instead of collapsing to
+  // empty. `isLoading` / `error` are still surfaced so callers render the
+  // right chrome (skeleton, or an error only when nothing loaded at all).
+  const rows: ClassAssignmentRow[] = [];
+  for (let i = 0; i < activeGroups.length; i++) {
+    const details = detailsQueries[i].data;
+    const dutyStatus = dutyStatusQueries[i].data;
+    if (!details || !dutyStatus) continue;
+    rows.push(
+      ...buildClassRowsForGroup({
+        group: activeGroups[i],
+        details,
+        dutyStatus,
+      })
+    );
+  }
+
+  return { data: rows, isLoading, error };
 }

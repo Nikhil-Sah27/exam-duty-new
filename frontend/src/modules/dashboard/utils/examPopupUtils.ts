@@ -89,16 +89,24 @@ export interface ExamAccent {
 }
 
 const ACCENTS: Record<ExamGroupType, ExamAccent> = {
-  IA1: { dot: "bg-blue-500", pillBg: "bg-blue-100/80", pillText: "text-blue-700" },
+  IA1: {
+    dot: "bg-blue-500",
+    pillBg: "bg-blue-100/80 dark:bg-blue-500/25",
+    pillText: "text-blue-700",
+  },
   IA2: {
     dot: "bg-emerald-500",
-    pillBg: "bg-emerald-100/80",
+    pillBg: "bg-emerald-100/80 dark:bg-emerald-500/25",
     pillText: "text-emerald-700",
   },
-  IA3: { dot: "bg-pink-500", pillBg: "bg-pink-100/80", pillText: "text-pink-700" },
+  IA3: {
+    dot: "bg-pink-500",
+    pillBg: "bg-pink-100/80 dark:bg-pink-500/25",
+    pillText: "text-pink-700",
+  },
   SEE: {
     dot: "bg-orange-500",
-    pillBg: "bg-orange-100/80",
+    pillBg: "bg-orange-100/80 dark:bg-orange-500/25",
     pillText: "text-orange-700",
   },
 };
@@ -107,7 +115,7 @@ export function getExamAccent(examType: ExamGroupType): ExamAccent {
   return (
     ACCENTS[examType] ?? {
       dot: "bg-slate-500",
-      pillBg: "bg-slate-100/80",
+      pillBg: "bg-slate-100/80 dark:bg-slate-500/30",
       pillText: "text-slate-700",
     }
   );
@@ -116,7 +124,7 @@ export function getExamAccent(examType: ExamGroupType): ExamAccent {
 /** Accent used to highlight the single nearest upcoming exam (orange). */
 export const NEAREST_ACCENT: ExamAccent = {
   dot: "bg-orange-500",
-  pillBg: "bg-orange-100/80",
+  pillBg: "bg-orange-100/80 dark:bg-orange-500/25",
   pillText: "text-orange-700",
 };
 

@@ -8,6 +8,7 @@ import {
   normalizeDutiesUpcoming,
 } from "@/modules/shared/dashboard/utils/dashboardNormalizers";
 import DutyStatsHeroInline from "@/modules/duty-calculation/components/DutyStatsHeroInline";
+import RoleImportantNotificationProvider from "@/modules/dashboard/important-notifications/RoleImportantNotificationProvider";
 
 /**
  * Invigilator dashboard. Same layout contract as RS/DCS dashboards —
@@ -75,6 +76,8 @@ export default function Dashboard() {
           />
         </>
       )}
+
+      <RoleImportantNotificationProvider />
     </div>
   );
 }

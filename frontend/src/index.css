@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #ffffff;
@@ -25,4 +26,400 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Dark mode — global retrofit.
+
+   The app chrome (top bar + sidebars) is already dark; these rules re-theme
+   the LIGHT content surfaces so toggling `.dark` on <html> yields a coherent
+   dark UI across every dashboard (CS / DCS / RS / Invigilator) without editing
+   each component. Rules are unlayered, so they win over Tailwind's layered
+   utilities. Colored accents (buttons, badges) keep their hue; only their
+   light tint backgrounds and dark-shade text are lifted for contrast.
+   ───────────────────────────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+  /* Match ring offsets to the dark surface (default is white → shows on dark). */
+  --tw-ring-offset-color: #1e293b;
+}
+.dark body {
+  background-color: #0f172a;
+  color: #e5edf7;
+}
+
+/* Native <select> dropdown options — force a dark popup so option rows aren't
+   dim (inherited light text on the default white list). Inline-styled options
+   (e.g. RoutineStep's already-used courses, tinted red) keep their own colors
+   because inline styles win over this rule. */
+.dark select option,
+.dark select optgroup {
+  background-color: #1e293b;
+  color: #e5edf7;
+}
+
+/* Neutral surfaces */
+.dark .bg-white {
+  background-color: #1e293b;
+}
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: #1a2536;
+}
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: #0f172a;
+}
+.dark .bg-gray-200,
+.dark .bg-slate-200 {
+  background-color: #334155;
+}
+
+/* Subtle light panel tints at ANY opacity (e.g. `bg-gray-50/60` table headers,
+   `bg-gray-50/80` sticky footers) → a faint raised dark panel. The attribute
+   selector catches every opacity step so these never stay light on dark. Only
+   neutral gray/slate tints — colored tints keep their hue. */
+.dark [class*="bg-gray-50/"],
+.dark [class*="bg-gray-100/"],
+.dark [class*="bg-slate-50/"],
+.dark [class*="bg-slate-100/"] {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Neutral text */
+.dark .text-gray-900,
+.dark .text-slate-900,
+.dark .text-gray-800,
+.dark .text-slate-800 {
+  color: #e5edf7;
+}
+.dark .text-gray-700,
+.dark .text-slate-700 {
+  color: #cbd5e1;
+}
+.dark .text-gray-600,
+.dark .text-slate-600 {
+  color: #a7b4c4;
+}
+.dark .text-gray-500,
+.dark .text-slate-500 {
+  color: #94a3b8;
+}
+/* text-gray-400 / text-gray-300 are intentionally NOT re-themed: their default
+   values (#9ca3af / #d1d5db) are already light and read well on both the dark
+   content surfaces AND the always-dark navbar/sidebar chrome. Dimming them
+   dropped the chrome nav labels below WCAG AA. */
+
+/* Borders + divides */
+.dark .border-gray-100,
+.dark .border-slate-100,
+.dark .border-gray-200,
+.dark .border-slate-200 {
+  border-color: #2b3a4f;
+}
+.dark .border-gray-300,
+.dark .border-slate-300 {
+  border-color: #3b4d64;
+}
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2b3a4f;
+}
+
+/* Neutral hovers */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-slate-50\/60:hover,
+.dark .hover\:bg-slate-50:hover {
+  background-color: #223047;
+}
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #26344b;
+}
+
+/* White gradient stops → dark (cards using `... to-white` / `via-white`) */
+.dark .from-white {
+  --tw-gradient-from: #1e293b;
+}
+.dark .via-white {
+  --tw-gradient-via: #1e293b;
+}
+.dark .to-white {
+  --tw-gradient-to: #1e293b;
+}
+
+/* Colored gradient FROM stops (-50) → dark translucent, so cards like the
+   stat cards (`from-rose-50 to-white`) don't keep a bright left half that
+   swallows their (now-light) label text. */
+.dark .from-blue-50 {
+  --tw-gradient-from: rgba(59, 130, 246, 0.16);
+}
+.dark .from-sky-50,
+.dark .from-cyan-50 {
+  --tw-gradient-from: rgba(14, 165, 233, 0.16);
+}
+.dark .from-indigo-50 {
+  --tw-gradient-from: rgba(99, 102, 241, 0.16);
+}
+.dark .from-violet-50,
+.dark .from-purple-50 {
+  --tw-gradient-from: rgba(139, 92, 246, 0.16);
+}
+.dark .from-pink-50,
+.dark .from-fuchsia-50 {
+  --tw-gradient-from: rgba(236, 72, 153, 0.16);
+}
+.dark .from-red-50,
+.dark .from-rose-50 {
+  --tw-gradient-from: rgba(244, 63, 94, 0.16);
+}
+.dark .from-amber-50,
+.dark .from-orange-50 {
+  --tw-gradient-from: rgba(245, 158, 11, 0.16);
+}
+.dark .from-green-50,
+.dark .from-emerald-50 {
+  --tw-gradient-from: rgba(16, 185, 129, 0.16);
+}
+.dark .from-slate-50,
+.dark .from-gray-50 {
+  --tw-gradient-from: #1a2536;
+}
+
+/* Soft colored tint backgrounds (-50) → dark translucent */
+.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.14);
+}
+.dark .bg-sky-50,
+.dark .bg-cyan-50 {
+  background-color: rgba(14, 165, 233, 0.14);
+}
+.dark .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.15);
+}
+.dark .bg-violet-50,
+.dark .bg-purple-50 {
+  background-color: rgba(139, 92, 246, 0.15);
+}
+.dark .bg-pink-50,
+.dark .bg-fuchsia-50 {
+  background-color: rgba(217, 70, 239, 0.14);
+}
+.dark .bg-red-50,
+.dark .bg-rose-50 {
+  background-color: rgba(244, 63, 94, 0.14);
+}
+.dark .bg-amber-50,
+.dark .bg-orange-50,
+.dark .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.14);
+}
+.dark .bg-green-50,
+.dark .bg-emerald-50,
+.dark .bg-teal-50 {
+  background-color: rgba(16, 185, 129, 0.14);
+}
+
+/* Colored tint backgrounds (-100) — icon tiles / badges */
+.dark .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.22);
+}
+.dark .bg-sky-100,
+.dark .bg-cyan-100 {
+  background-color: rgba(14, 165, 233, 0.22);
+}
+.dark .bg-indigo-100 {
+  background-color: rgba(99, 102, 241, 0.24);
+}
+.dark .bg-violet-100,
+.dark .bg-purple-100 {
+  background-color: rgba(139, 92, 246, 0.24);
+}
+.dark .bg-pink-100 {
+  background-color: rgba(217, 70, 239, 0.22);
+}
+.dark .bg-red-100,
+.dark .bg-rose-100 {
+  background-color: rgba(244, 63, 94, 0.22);
+}
+.dark .bg-amber-100,
+.dark .bg-orange-100 {
+  background-color: rgba(245, 158, 11, 0.22);
+}
+.dark .bg-green-100,
+.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.22);
+}
+
+/* Colored text — lift dark shades for contrast on dark */
+.dark .text-blue-700,
+.dark .text-blue-600 {
+  color: #93c5fd;
+}
+.dark .text-sky-700,
+.dark .text-sky-600,
+.dark .text-cyan-700 {
+  color: #7dd3fc;
+}
+.dark .text-indigo-700,
+.dark .text-indigo-600 {
+  color: #a5b4fc;
+}
+.dark .text-violet-700,
+.dark .text-violet-600,
+.dark .text-purple-700,
+.dark .text-purple-600 {
+  color: #c4b5fd;
+}
+.dark .text-pink-700,
+.dark .text-pink-600 {
+  color: #f0abfc;
+}
+.dark .text-red-700,
+.dark .text-red-600,
+.dark .text-rose-700,
+.dark .text-rose-600 {
+  color: #fca5a5;
+}
+.dark .text-amber-700,
+.dark .text-amber-600,
+.dark .text-orange-700,
+.dark .text-orange-600 {
+  color: #fcd34d;
+}
+.dark .text-green-700,
+.dark .text-green-600,
+.dark .text-emerald-700,
+.dark .text-emerald-600 {
+  color: #6ee7b7;
+}
+
+/* Colored borders softened */
+.dark .border-blue-100,
+.dark .border-blue-200,
+.dark .border-indigo-100,
+.dark .border-indigo-200,
+.dark .border-sky-100,
+.dark .border-sky-200 {
+  border-color: rgba(99, 102, 241, 0.35);
+}
+.dark .border-red-200,
+.dark .border-rose-200 {
+  border-color: rgba(244, 63, 94, 0.35);
+}
+.dark .border-amber-200,
+.dark .border-orange-200 {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.dark .border-green-200,
+.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.dark .border-violet-200,
+.dark .border-purple-200 {
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+/* White ring outlines (e.g. the dashboard hero) */
+.dark .ring-white\/40,
+.dark .ring-white\/60,
+.dark .ring-white\/70 {
+  --tw-ring-color: rgba(148, 163, 184, 0.14);
+}
+.dark .border-white\/60 {
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+/* Colored gradient TO stops (-50) → dark translucent — mirror the FROM stops
+   above so a card's trailing edge doesn't keep a bright halo in dark mode
+   (e.g. the dashboard duty cards `from-emerald-50 via-white to-teal-50`). */
+.dark .to-blue-50 {
+  --tw-gradient-to: rgba(59, 130, 246, 0.16);
+}
+.dark .to-sky-50,
+.dark .to-cyan-50 {
+  --tw-gradient-to: rgba(14, 165, 233, 0.16);
+}
+.dark .to-indigo-50 {
+  --tw-gradient-to: rgba(99, 102, 241, 0.16);
+}
+.dark .to-violet-50,
+.dark .to-purple-50 {
+  --tw-gradient-to: rgba(139, 92, 246, 0.16);
+}
+.dark .to-pink-50,
+.dark .to-fuchsia-50 {
+  --tw-gradient-to: rgba(236, 72, 153, 0.16);
+}
+.dark .to-red-50,
+.dark .to-rose-50 {
+  --tw-gradient-to: rgba(244, 63, 94, 0.16);
+}
+.dark .to-amber-50,
+.dark .to-orange-50 {
+  --tw-gradient-to: rgba(245, 158, 11, 0.16);
+}
+.dark .to-green-50,
+.dark .to-emerald-50,
+.dark .to-teal-50 {
+  --tw-gradient-to: rgba(16, 185, 129, 0.16);
+}
+.dark .to-slate-50,
+.dark .to-gray-50 {
+  --tw-gradient-to: #1a2536;
+}
+
+/* Soft colored tints at ANY opacity (`bg-red-50/70` occupied/conflict cards,
+   `bg-blue-50/60`, `bg-orange-50/50`, …) → dark translucent colored panel.
+   The exact-opacity (`bg-red-50`) rules above only match the non-opacity form,
+   so these attribute selectors catch every `/NN` step. */
+.dark [class*="bg-blue-50/"] {
+  background-color: rgba(59, 130, 246, 0.14);
+}
+.dark [class*="bg-sky-50/"],
+.dark [class*="bg-cyan-50/"] {
+  background-color: rgba(14, 165, 233, 0.14);
+}
+.dark [class*="bg-indigo-50/"] {
+  background-color: rgba(99, 102, 241, 0.15);
+}
+.dark [class*="bg-violet-50/"],
+.dark [class*="bg-purple-50/"] {
+  background-color: rgba(139, 92, 246, 0.15);
+}
+.dark [class*="bg-red-50/"],
+.dark [class*="bg-rose-50/"] {
+  background-color: rgba(244, 63, 94, 0.14);
+}
+.dark [class*="bg-amber-50/"],
+.dark [class*="bg-orange-50/"],
+.dark [class*="bg-yellow-50/"] {
+  background-color: rgba(245, 158, 11, 0.14);
+}
+.dark [class*="bg-green-50/"],
+.dark [class*="bg-emerald-50/"],
+.dark [class*="bg-teal-50/"] {
+  background-color: rgba(16, 185, 129, 0.14);
+}
+
+/* Near-opaque white SURFACES (`bg-white/70` info boxes, `bg-white/80` room &
+   semester chips, the duty-status legend cards) → raised dark panel. The
+   low-opacity whites (`bg-white/5`–/45) are accent overlays on the always-dark
+   chrome, and `bg-white/90` is the colored hero (which stays colored) — both
+   are intentionally excluded so they keep reading light. */
+.dark .bg-white\/55,
+.dark .bg-white\/60,
+.dark .bg-white\/70,
+.dark .bg-white\/80 {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Teal accents (MBA dept tag) — the only colored family without a text/-100
+   override above. */
+.dark .bg-teal-100 {
+  background-color: rgba(20, 184, 166, 0.22);
+}
+.dark .text-teal-700,
+.dark .text-teal-600 {
+  color: #5eead4;
 }

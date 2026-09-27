@@ -57,6 +57,46 @@ const templates = {
     message: "A duty has been swapped to you. Check your duty list for details.",
   }),
 
+  // Daily reminder for duties happening the next day. Aggregated per teacher —
+  // `count` covers the case of multiple duties tomorrow.
+  duty_reminder: ({ room, date, startTime, endTime, count }) => {
+    if (count && count > 1) {
+      return {
+        title: "Duty Reminder — Tomorrow",
+        message: `You have ${count} duties tomorrow, ${formatLongDate(date)}. First one at ${formatTime12h(startTime)}.`,
+      };
+    }
+    const where = room ? ` · ${room}` : "";
+    return {
+      title: "Duty Reminder — Tomorrow",
+      message: `You have a duty tomorrow, ${formatLongDate(date)} at ${formatTime12h(startTime)} – ${formatTime12h(endTime)}${where}.`,
+    };
+  },
+
+  // Fired once a teacher completes their whole assigned-duty target.
+  target_reached: ({ target }) => ({
+    title: "Duty Target Reached 🎉",
+    message: `You've completed all ${target} of your assigned duties. Great work!`,
+  }),
+
+  // Emitted once when CS/Admin publishes a new exam (group + schedules + rooms
+  // all created). Sent to every duty-eligible teacher so they know new slots
+  // are open for selection.
+  exam_created: ({ examLabel, semester, startDate, endDate }) => {
+    const range =
+      startDate && endDate
+        ? ` (${formatLongDate(startDate)} – ${formatLongDate(endDate)})`
+        : "";
+    const label =
+      examLabel && semester != null
+        ? `${examLabel} — Semester ${semester}`
+        : examLabel || "A new exam";
+    return {
+      title: "New Exam Published",
+      message: `${label} is now open for duty selection${range}.`,
+    };
+  },
+
   // Free-form broadcast sent by CS via the Notify module. `title` and
   // `message` are supplied verbatim by the sender (no interpolation).
   announcement: ({ title, message }) => ({

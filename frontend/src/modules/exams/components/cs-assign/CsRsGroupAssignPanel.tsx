@@ -118,6 +118,11 @@ export default function CsRsGroupAssignPanel({
             isPending={mutation.isPending}
             disabled={group.allAssigned}
             actionLabel="Assign to Group"
+            conflict={{
+              date: schedule.date,
+              startTime: schedule.startTime,
+              endTime: schedule.endTime,
+            }}
           />
         </>
       )}

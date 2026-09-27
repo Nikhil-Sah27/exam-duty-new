@@ -1,4 +1,4 @@
-import type { Notification } from "../types";
+import type { Notification, NotificationType } from "../types";
 
 /**
  * Notification-presentation helpers. Live in one place so item/list/modal
@@ -16,6 +16,86 @@ export function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+/**
+ * Per-type visual metadata for the bell list. `tone` drives the left accent
+ * bar / dot colour; `highlight` gives the "very important" types (a duty
+ * assigned by CS, a swap landing on you) a standout amber treatment.
+ */
+type NotifTone = "red" | "amber" | "blue" | "violet" | "green" | "slate";
+
+interface NotifTypeMeta {
+  tone: NotifTone;
+  highlight: boolean;
+}
+
+const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
+  duty_assigned: { tone: "violet", highlight: true },
+  duty_swapped: { tone: "violet", highlight: true },
+  exam_deleted_duty_release: { tone: "red", highlight: false },
+  duty_cancelled: { tone: "red", highlight: false },
+  duty_reminder: { tone: "amber", highlight: false },
+  target_reached: { tone: "green", highlight: false },
+  request_approved: { tone: "blue", highlight: false },
+  request_rejected: { tone: "amber", highlight: false },
+  request_submitted: { tone: "blue", highlight: false },
+  exam_created: { tone: "blue", highlight: false },
+  announcement: { tone: "blue", highlight: false },
+};
+
+const TONE_BORDER: Record<NotifTone, string> = {
+  red: "border-l-red-500",
+  amber: "border-l-amber-500",
+  blue: "border-l-blue-500",
+  violet: "border-l-violet-500",
+  green: "border-l-emerald-500",
+  slate: "border-l-slate-400",
+};
+
+const TONE_DOT: Record<NotifTone, string> = {
+  red: "bg-red-500",
+  amber: "bg-amber-500",
+  blue: "bg-blue-500",
+  violet: "bg-violet-500",
+  green: "bg-emerald-500",
+  slate: "bg-slate-400",
+};
+
+/**
+ * Presentation title/message for a notification. Broadcasts (`announcement`)
+ * are always sent by CS, but stored with the CS-typed subject as the title and
+ * no sender attribution — so we relabel them "Announcement from CS" and fold
+ * the original subject into the message. Applied at render time, so it fixes
+ * already-stored announcements too. All other types render verbatim.
+ */
+export function getDisplayContent(n: {
+  type: NotificationType;
+  title: string;
+  message: string;
+}): { title: string; message: string } {
+  if (n.type === "announcement") {
+    const subject = (n.title || "").trim();
+    return {
+      title: "Announcement from CS",
+      message: subject ? `${subject} — ${n.message}` : n.message,
+    };
+  }
+  return { title: n.title, message: n.message };
+}
+
+export function getNotificationMeta(type: NotificationType): {
+  tone: NotifTone;
+  highlight: boolean;
+  border: string;
+  dot: string;
+} {
+  const meta = TYPE_META[type] ?? { tone: "slate", highlight: false };
+  return {
+    ...meta,
+    border: TONE_BORDER[meta.tone],
+    dot: TONE_DOT[meta.tone],
+  };
 }
 
 /**

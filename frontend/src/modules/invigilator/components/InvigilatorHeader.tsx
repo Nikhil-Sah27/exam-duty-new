@@ -5,6 +5,7 @@ import { useAppStore } from "@/shared/store/app.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useUnreadCount } from "@/modules/notifications/hooks";
 import NotificationList from "@/modules/notifications/components/NotificationList";
+import DarkModeToggle from "@/shared/components/DarkModeToggle";
 
 export default function InvigilatorHeader() {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
@@ -46,6 +47,7 @@ export default function InvigilatorHeader() {
       </div>
 
       <div className="flex items-center gap-4">
+        <DarkModeToggle />
         <div ref={dropdownRef} className="relative">
           <button
             onClick={() => setDropdownOpen((prev) => !prev)}

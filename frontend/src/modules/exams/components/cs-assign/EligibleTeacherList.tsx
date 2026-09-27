@@ -1,6 +1,8 @@
 import { Loader2, UserCheck } from "lucide-react";
 import type { UserRole } from "@/shared/lib/types";
 import { useEligibleTeachers } from "@/modules/manage-duties/hooks";
+import { useBusyTeacherIds } from "@/modules/duties/hooks";
+import type { TimeWindow } from "@/modules/shared/duties/utils/timeConflictUtils";
 
 /**
  * Compact, reusable picker of teachers eligible for a duty role. Eligibility
@@ -16,6 +18,7 @@ export default function EligibleTeacherList({
   isPending,
   disabled = false,
   actionLabel = "Assign",
+  conflict,
 }: {
   role: Exclude<UserRole, "cs">;
   onAssign: (teacherId: string) => void;
@@ -23,8 +26,12 @@ export default function EligibleTeacherList({
   isPending: boolean;
   disabled?: boolean;
   actionLabel?: string;
+  /** When set, teachers already on an assigned duty overlapping this
+   *  date/time window are hidden (they'd be rejected as a conflict anyway). */
+  conflict?: TimeWindow;
 }) {
   const { data: teachers, isLoading, error } = useEligibleTeachers(role);
+  const busyIds = useBusyTeacherIds(conflict);
 
   if (isLoading) {
     return (
@@ -50,13 +57,33 @@ export default function EligibleTeacherList({
     );
   }
 
+  // Hide teachers who already hold a duty overlapping this slot — the backend
+  // would reject them, so they should never appear as assignable options.
+  const visible = teachers.filter((t) => !busyIds.has(t._id));
+  const hiddenCount = teachers.length - visible.length;
+
+  if (visible.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-4 text-center text-xs text-gray-500">
+        All eligible teachers already have a duty at this time.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-        Eligible Teachers
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Eligible Teachers
+        </p>
+        {hiddenCount > 0 && (
+          <p className="text-[10px] text-gray-400">
+            {hiddenCount} busy at this time · hidden
+          </p>
+        )}
+      </div>
       <div className="max-h-64 space-y-2 overflow-y-auto pr-0.5">
-        {teachers.map((t) => {
+        {visible.map((t) => {
           const busy = isPending && assigningId === t._id;
           return (
             <div

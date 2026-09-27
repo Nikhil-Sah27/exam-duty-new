@@ -53,7 +53,7 @@ export default function SelectedDutySummary({
           Your Selection
         </p>
         <h3 className="mt-1 text-lg font-bold text-gray-800">
-          {selected.length} duty{selected.length !== 1 ? "ies" : ""}
+          {selected.length} {selected.length === 1 ? "duty" : "duties"}
         </h3>
       </div>
 
@@ -148,7 +148,7 @@ export default function SelectedDutySummary({
         <div className="space-y-1 border-t border-gray-100 pt-3 text-xs">
           {successes.length > 0 && (
             <p className="rounded-lg bg-green-50 px-2 py-1.5 text-green-700">
-              {successes.length} duty{successes.length !== 1 ? "ies" : ""} assigned successfully.
+              {successes.length} {successes.length === 1 ? "duty" : "duties"} assigned successfully.
             </p>
           )}
           {failures.map((r) => (

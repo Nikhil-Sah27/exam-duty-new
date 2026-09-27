@@ -17,6 +17,9 @@ const notificationSchema = new mongoose.Schema(
         "request_approved",
         "request_rejected",
         "duty_swapped",
+        "duty_reminder",
+        "target_reached",
+        "exam_created",
         "exam_deleted_duty_release",
         "announcement",
       ],
@@ -49,10 +52,29 @@ const notificationSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Idempotency key for system-generated notifications (e.g. the daily
+    // duty-reminder / target-reached sweeps). Lets a re-run skip a notification
+    // it already created. Null for ordinary event notifications.
+    dedupeKey: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
+// Enforce one notification per dedupeKey. A PARTIAL index (not sparse) is
+// required here: the field defaults to `null` on every ordinary event
+// notification, and a sparse-unique index would treat those nulls as values
+// and reject the second one. The partial filter indexes ONLY string keys, so
+// null/absent dedupeKeys are ignored entirely.
+notificationSchema.index(
+  { dedupeKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { dedupeKey: { $type: "string" } },
+  },
+);
 
 module.exports = mongoose.model("Notification", notificationSchema);

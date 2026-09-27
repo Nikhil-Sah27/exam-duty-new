@@ -1,6 +1,6 @@
 import {
   useExamGroups,
-  useAvailableDutySlots,
+  useAssignmentClassRows,
 } from "@/modules/shared/exams/hooks/useSharedExamData";
 import {
   getOngoingExams,
@@ -34,20 +34,20 @@ export interface DashboardSummary {
  */
 export function useDashboardSummary(): DashboardSummary {
   const groupsQuery = useExamGroups();
-  const slotsQuery = useAvailableDutySlots();
+  const rowsQuery = useAssignmentClassRows();
 
   const groups = groupsQuery.data ?? [];
-  const slots = slotsQuery.data ?? [];
+  const rows = rowsQuery.data ?? [];
   const now = new Date();
 
   return {
     ongoingExams: getOngoingExams(groups),
     upcomingExams: getUpcomingExams(groups),
     completedExams: getCompletedExams(groups),
-    assignmentTarget: getDashboardAssignmentTarget(slots, now),
-    isLoading: groupsQuery.isLoading || slotsQuery.isLoading,
+    assignmentTarget: getDashboardAssignmentTarget(rows, now),
+    isLoading: groupsQuery.isLoading || rowsQuery.isLoading,
     groupsLoading: groupsQuery.isLoading,
-    assignmentLoading: slotsQuery.isLoading,
-    error: groupsQuery.error || slotsQuery.error,
+    assignmentLoading: rowsQuery.isLoading,
+    error: groupsQuery.error || rowsQuery.error,
   };
 }

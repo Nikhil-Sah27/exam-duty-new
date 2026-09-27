@@ -6,6 +6,7 @@ import { useAuthStore } from "@/shared/store/auth.store";
 import { useUnreadCount } from "@/modules/notifications/hooks";
 import NotificationList from "@/modules/notifications/components/NotificationList";
 import RoleSelectionModal from "@/modules/auth/components/RoleSelectionModal";
+import DarkModeToggle from "@/shared/components/DarkModeToggle";
 import { ROLE_LABELS } from "@/shared/constants/roles";
 
 export default function Navbar() {
@@ -69,6 +70,7 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-4">
+        <DarkModeToggle />
         <div ref={notifRef} className="relative">
           <button
             onClick={() => setNotifOpen((prev) => !prev)}

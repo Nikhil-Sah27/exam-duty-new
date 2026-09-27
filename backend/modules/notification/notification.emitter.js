@@ -4,7 +4,10 @@
 const notificationRepository = require("./notification.repository");
 const templates = require("./notification.templates");
 
-const emit = async (type, { recipient, refModel, refId, data = {}, session } = {}) => {
+const emit = async (
+  type,
+  { recipient, refModel, refId, data = {}, dedupeKey, session } = {},
+) => {
   const { title, message } = templates[type](data);
 
   return notificationRepository.create(
@@ -15,9 +18,30 @@ const emit = async (type, { recipient, refModel, refId, data = {}, session } = {
       message,
       refModel: refModel || null,
       refId: refId || null,
+      dedupeKey: dedupeKey || null,
     },
     session,
   );
+};
+
+/**
+ * Emit only if no notification with this `dedupeKey` already exists — used by
+ * the daily sweeps so a re-run (or a nodemon restart) never double-notifies.
+ * The unique sparse index on `dedupeKey` is the ultimate guard; the pre-check
+ * just avoids noisy duplicate-key errors on the common path.
+ */
+const emitIfAbsent = async (type, { dedupeKey, ...rest } = {}) => {
+  if (!dedupeKey) return emit(type, rest);
+  const exists = await notificationRepository.existsByDedupeKey(dedupeKey);
+  if (exists) return null;
+  try {
+    return await emit(type, { ...rest, dedupeKey });
+  } catch (err) {
+    // Lost a race with a concurrent sweep — the row already exists, which is
+    // exactly the desired end state.
+    if (err && err.code === 11000) return null;
+    throw err;
+  }
 };
 
 const emitToMany = async (
@@ -62,4 +86,4 @@ const bulkEmit = async (notifications, { session } = {}) => {
   return notificationRepository.createMany(docs, session);
 };
 
-module.exports = { emit, emitToMany, bulkEmit };
+module.exports = { emit, emitToMany, bulkEmit, emitIfAbsent };

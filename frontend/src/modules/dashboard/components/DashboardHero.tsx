@@ -28,7 +28,7 @@ export default function DashboardHero({ name }: DashboardHeroProps) {
   const today = new Date();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-100 via-indigo-100 to-transparent">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-100 via-indigo-100 to-transparent dark:from-slate-800 dark:via-slate-800 dark:to-transparent">
       {/* Campus building watermark — faded, behind the crest on the right. */}
       <div
         className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] bg-cover bg-center opacity-25 sm:block"
@@ -65,10 +65,10 @@ export default function DashboardHero({ name }: DashboardHeroProps) {
             draggable={false}
           />
           <div className="text-right">
-            <p className="text-3xl font-extrabold leading-none text-slate-500/60 [text-shadow:0_1px_3px_rgba(255,255,255,0.7)]">
+            <p className="text-3xl font-extrabold leading-none text-slate-500/60 dark:text-slate-300/60 [text-shadow:0_1px_3px_rgba(255,255,255,0.7)] dark:[text-shadow:none]">
               {formatDay(today)}
             </p>
-            <p className="mt-1.5 text-base font-bold text-slate-500/60 [text-shadow:0_1px_3px_rgba(255,255,255,0.7)]">
+            <p className="mt-1.5 text-base font-bold text-slate-500/60 dark:text-slate-300/60 [text-shadow:0_1px_3px_rgba(255,255,255,0.7)] dark:[text-shadow:none]">
               {formatDate(today)}
             </p>
           </div>

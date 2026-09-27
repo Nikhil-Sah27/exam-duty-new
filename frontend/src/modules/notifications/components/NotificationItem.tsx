@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Star, Trash2 } from "lucide-react";
 import { Notification } from "../types";
 import { useDeleteNotification, useMarkAsRead } from "../hooks";
-import { timeAgo } from "../utils/notificationHelpers";
+import {
+  getDisplayContent,
+  getNotificationMeta,
+  timeAgo,
+} from "../utils/notificationHelpers";
 import NotificationDeleteModal from "./NotificationDeleteModal";
 
 interface NotificationItemProps {
@@ -38,6 +42,9 @@ export default function NotificationItem({
     });
   };
 
+  const meta = getNotificationMeta(notification.type);
+  const { title, message } = getDisplayContent(notification);
+
   return (
     <>
       <div
@@ -50,22 +57,34 @@ export default function NotificationItem({
             handleCardClick();
           }
         }}
-        className={`group/notif flex w-full cursor-pointer flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-          notification.isRead ? "opacity-60" : "bg-blue-50/50"
+        className={`group/notif flex w-full cursor-pointer flex-col gap-1 border-l-4 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
+          meta.border
+        } ${
+          meta.highlight
+            ? "bg-amber-50/60 ring-1 ring-inset ring-amber-300/70 dark:bg-amber-500/10"
+            : notification.isRead
+              ? "opacity-60"
+              : "bg-blue-50/50"
         }`}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-gray-900">
-            {!notification.isRead && (
-              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-blue-500" />
+          <span className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+            {meta.highlight ? (
+              <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-500" />
+            ) : (
+              <span
+                className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                  notification.isRead ? "bg-transparent" : meta.dot
+                }`}
+              />
             )}
-            {notification.title}
+            {title}
           </span>
           <span className="shrink-0 text-xs text-gray-400">
             {timeAgo(notification.createdAt)}
           </span>
         </div>
-        <p className="text-xs text-gray-500">{notification.message}</p>
+        <p className="text-xs text-gray-500">{message}</p>
 
         <div className="mt-1 flex items-center justify-end">
           <button

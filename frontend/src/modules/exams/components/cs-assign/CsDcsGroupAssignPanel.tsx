@@ -117,6 +117,11 @@ export default function CsDcsGroupAssignPanel({
                 assigningId={assigningId}
                 isPending={mutation.isPending}
                 actionLabel="Assign to Group"
+                conflict={{
+                  date: schedule.date,
+                  startTime: schedule.startTime,
+                  endTime: schedule.endTime,
+                }}
               />
             </>
           )}

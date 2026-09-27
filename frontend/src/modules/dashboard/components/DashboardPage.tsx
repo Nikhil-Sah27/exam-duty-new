@@ -6,6 +6,7 @@ import OngoingExamsSection from "./OngoingExamsSection";
 import UpcomingExamsSection from "./UpcomingExamsSection";
 import CompletedExamsSection from "./CompletedExamsSection";
 import UpcomingExamPopup from "./upcoming-exam-popup/UpcomingExamPopup";
+import ImportantNotificationProvider from "../important-notifications/ImportantNotificationProvider";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
 
 export default function DashboardPage() {
@@ -67,6 +68,9 @@ export default function DashboardPage() {
 
       {/* Additive: floating bottom flip-popup for upcoming exams (CS only). */}
       <UpcomingExamPopup />
+
+      {/* Additive: top-left liquid-glass important-notification popups (CS only). */}
+      <ImportantNotificationProvider />
     </div>
   );
 }

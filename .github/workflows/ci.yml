@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Frontend: lint + type-check + production build. This is the BLOCKING gate —
+  # it catches real breakage (TypeScript errors, broken build) before deploy.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend build & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+        continue-on-error: true # report lint issues without failing the build
+
+      - name: Build (tsc + vite)
+        run: npm run build
+        working-directory: frontend
+
+  # ---------------------------------------------------------------------------
+  # Backend API integration tests against a throwaway MongoDB service.
+  # Marked non-blocking for now: the suite has pre-existing failures (stale
+  # hardcoded dates + legacy /exams,/duties endpoints that drifted from the
+  # current ExamGroup flow). It still runs so the results are visible in CI.
+  # ---------------------------------------------------------------------------
+  api-tests:
+    name: Backend API tests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      MONGO_URI: mongodb://localhost:27017/exam-duty-test
+      JWT_SECRET: ci-test-secret
+      JWT_EXPIRES_IN: 1d
+      NODE_ENV: test
+      PORT: 5000
+      API_URL: http://localhost:5000/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend deps
+        run: npm install --no-audit --no-fund
+        working-directory: backend
+
+      - name: Seed users
+        run: node scripts/seed-users.js
+        working-directory: backend
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          node server.js &
+          echo "waiting for backend to be ready..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/ >/dev/null; then
+              echo "backend up"; break
+            fi
+            sleep 1
+          done
+
+      - name: Install test deps
+        run: npm install --no-audit --no-fund
+        working-directory: tests
+
+      - name: Run API test suite
+        run: node runner.js
+        working-directory: tests

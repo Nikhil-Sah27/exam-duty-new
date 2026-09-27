@@ -11,7 +11,20 @@ const allowedOrigins = [
   "http://localhost:3002",
   "http://localhost:4173",
   "http://localhost:5173",
+  // Production site (served same-origin behind nginx, but browsers still send
+  // an Origin header on POSTs — so these must be allowed explicitly).
+  "https://proctavo.com",
+  "https://www.proctavo.com",
 ];
+
+// Extra origins can be supplied at runtime via CLIENT_ORIGINS (comma-separated)
+// without a code change.
+if (process.env.CLIENT_ORIGINS) {
+  for (const o of process.env.CLIENT_ORIGINS.split(",")) {
+    const trimmed = o.trim();
+    if (trimmed) allowedOrigins.push(trimmed);
+  }
+}
 
 // Allow ngrok origins dynamically
 app.use(cors({

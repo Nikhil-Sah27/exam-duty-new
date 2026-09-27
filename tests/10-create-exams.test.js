@@ -1,6 +1,6 @@
 const {
   api, setToken, test, skip,
-  assert, assertExists, assertStatus, summary, resetCounters, CONFIG,
+  assert, assertExists, assertStatus, summary, resetCounters, futureDate, CONFIG,
 } = require("./helpers");
 
 async function run(token) {
@@ -27,7 +27,10 @@ async function run(token) {
   let deptId = null;
   let semId = null;
   let courseId = null;
+  let planGroupId = null;
   const deptCode = `CIE${Date.now() % 10000}`;
+  const planStart = futureDate(45);
+  const planEnd = futureDate(46);
 
   await test("Setup: create dept + semester + course", async () => {
     const dRes = await api.post("/departments", {
@@ -66,7 +69,7 @@ async function run(token) {
   // --- Calculate Dates ---
   await test("POST /create-exams/cie/calculate-dates - auto calculate", async () => {
     const res = await api.post("/create-exams/cie/calculate-dates", {
-      startDate: "2026-07-01",
+      startDate: futureDate(45),
       departments: [{ courseCount: 5 }],
       shifts: [
         { startTime: "09:00", endTime: "12:00" },
@@ -91,23 +94,28 @@ async function run(token) {
     const res = await api.post("/create-exams/cie/plan", {
       examType: "IA1",
       semester: 3,
-      startDate: "2026-07-15",
-      endDate: "2026-07-16",
+      startDate: planStart,
+      endDate: planEnd,
       shifts: [{ startTime: "09:00", endTime: "12:00" }],
       routine: [
         {
-          date: "2026-07-15",
+          date: planStart,
           shiftIndex: 0,
           assignments: { [deptId]: courseId },
         },
       ],
     });
     assertStatus(res, 201);
-    assertExists(res.data.data.examGroup, "examGroup");
+    // createPlan returns the created group (spread) + scheduleMapping.
+    assertExists(res.data.data._id, "created exam group id");
+    assertExists(res.data.data.scheduleMapping, "scheduleMapping");
+    planGroupId = res.data.data._id;
   });
 
   // --- Cleanup ---
   await test("Cleanup: delete test department", async () => {
+    // Remove the created exam group first so re-runs don't hit a duplicate.
+    if (planGroupId) await api.delete(`/exam-groups/${planGroupId}`).catch(() => {});
     if (courseId) await api.delete(`/departments/courses/${courseId}`).catch(() => {});
     if (semId) await api.delete(`/departments/semesters/${semId}`).catch(() => {});
     if (deptId) await api.delete(`/departments/${deptId}`).catch(() => {});

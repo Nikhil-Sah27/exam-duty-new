@@ -36,14 +36,12 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Backend API integration tests against a throwaway MongoDB service.
-  # Marked non-blocking for now: the suite has pre-existing failures (stale
-  # hardcoded dates + legacy /exams,/duties endpoints that drifted from the
-  # current ExamGroup flow). It still runs so the results are visible in CI.
+  # Blocking gate — the full suite (90 tests) must pass. It seeds the admin
+  # users, boots the server against a fresh Mongo, then runs the runner.
   # ---------------------------------------------------------------------------
   api-tests:
     name: Backend API tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     services:
       mongo:
         image: mongo:7

@@ -32,7 +32,9 @@ async function run() {
       name: "Test User",
       email: testEmail,
       password: "test123456",
-      role: "invigilator",
+      phone: "9990000001",
+      designation: "Other",
+      roles: ["invigilator"],
     });
     assertStatus(res, 201);
     assertExists(res.data.data.token, "token");

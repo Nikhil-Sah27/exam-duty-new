@@ -1,6 +1,6 @@
 const {
   api, setToken, test, skip,
-  assert, assertExists, assertStatus, summary, resetCounters, CONFIG,
+  assert, assertExists, assertStatus, summary, resetCounters, futureDate, CONFIG,
 } = require("./helpers");
 
 async function run(token) {
@@ -14,17 +14,21 @@ async function run(token) {
     });
     token = res.data.data.token;
   }
-  setToken(token);
+  const adminToken = token;
+  setToken(adminToken);
 
   // We need an exam to assign duties to. Create one.
   let examId = null;
   let teacherId = null;
   let dutyId = null;
+  const dutyDate = futureDate(20);
+  const teacherEmail = `duty_teacher_${Date.now()}@test.com`;
+  const teacherPassword = "teacher123";
 
   await test("Setup: create exam for duty tests", async () => {
     const res = await api.post("/exams", {
       name: "Duty Test Exam",
-      date: "2026-08-01",
+      date: dutyDate,
       department: "CSE",
       semester: 4,
       type: "internal",
@@ -32,13 +36,15 @@ async function run(token) {
     examId = res.data.data._id || res.data.data.id;
   });
 
-  // Create a teacher user
-  const teacherEmail = `duty_teacher_${Date.now()}@test.com`;
+  // Create a single-role invigilator (designation "Other" fixes exactly one
+  // role) so they can log in without the multi-role selection step.
   await test("Setup: create teacher user", async () => {
     const res = await api.post("/users", {
       name: "Duty Test Teacher",
       email: teacherEmail,
-      password: "teacher123",
+      password: teacherPassword,
+      phone: "9990000010",
+      designation: "Other",
       role: "invigilator",
     });
     teacherId = res.data.data._id || res.data.data.id;
@@ -50,8 +56,9 @@ async function run(token) {
     const res = await api.post("/duties/admin-assign", {
       exam: examId,
       teacher: teacherId,
+      role: "invigilator",
       room: "101",
-      date: "2026-08-01",
+      date: dutyDate,
       startTime: "09:00",
       endTime: "12:00",
     });
@@ -66,8 +73,9 @@ async function run(token) {
       await api.post("/duties/admin-assign", {
         exam: examId,
         teacher: teacherId,
+        role: "invigilator",
         room: "102",
-        date: "2026-08-01",
+        date: dutyDate,
         startTime: "09:00",
         endTime: "12:00",
       });
@@ -77,17 +85,28 @@ async function run(token) {
     }
   });
 
-  // --- Self Assign ---
+  // --- Self Assign (as the teacher, at a non-conflicting time) ---
   await test("POST /duties/self-assign - self assign duty", async () => {
     if (!examId) throw new Error("No exam");
-    const res = await api.post("/duties/self-assign", {
-      exam: examId,
-      room: "201",
-      date: "2026-08-01",
-      startTime: "14:00",
-      endTime: "17:00",
+    const login = await api.post("/auth/login", {
+      email: teacherEmail,
+      password: teacherPassword,
     });
-    assertStatus(res, 201);
+    const teacherToken = login.data.data.token;
+    assertExists(teacherToken, "teacher token");
+    setToken(teacherToken);
+    try {
+      const res = await api.post("/duties/self-assign", {
+        exam: examId,
+        room: "201",
+        date: dutyDate,
+        startTime: "14:00",
+        endTime: "17:00",
+      });
+      assertStatus(res, 201);
+    } finally {
+      setToken(adminToken); // restore admin for the remaining tests
+    }
   });
 
   // --- List Duties ---

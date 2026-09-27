@@ -27,7 +27,7 @@ const toUserDTO = (user, activeRole = null) => ({
   activeRole: activeRole || (user.roles && user.roles.length === 1 ? user.roles[0] : null),
 });
 
-const register = async ({ name, email, password, designation, roles }) => {
+const register = async ({ name, email, password, phone, designation, roles }) => {
   const existing = await authRepository.findUserByEmail(email);
   if (existing) {
     throw new AppError("Email already registered", 409);
@@ -40,6 +40,7 @@ const register = async ({ name, email, password, designation, roles }) => {
     name,
     email,
     password: hashedPassword,
+    phone,
     designation,
     roles: finalRoles,
   });

@@ -84,6 +84,15 @@ function resetCounters() {
   errors.length = 0;
 }
 
+// Returns an ISO date string (YYYY-MM-DD) N days from today. Used so exam/duty
+// dates are always in the future — the backend rejects past start dates and
+// past-duty change requests.
+function futureDate(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 module.exports = {
   api,
   setToken,
@@ -96,5 +105,6 @@ module.exports = {
   assertStatus,
   summary,
   resetCounters,
+  futureDate,
   CONFIG,
 };

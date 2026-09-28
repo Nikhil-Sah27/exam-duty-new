@@ -17,7 +17,7 @@ const DESIGNATION_ROLE_MAP: Record<string, UserRole[]> = {
   "HOD/Dean": ["dcs"],
   Professor: ["rs"],
   "Associate Professor": ["rs", "invigilator"],
-  "Assistant Professor": ["rs", "invigilator"],
+  "Assistant Professor": ["invigilator"],
 };
 
 /**

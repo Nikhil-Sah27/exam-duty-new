@@ -5,7 +5,7 @@ const DESIGNATION_ROLE_MAP = {
   "HOD/Dean": ["dcs"],
   "Professor": ["rs"],
   "Associate Professor": ["rs", "invigilator"],
-  "Assistant Professor": ["rs", "invigilator"],
+  "Assistant Professor": ["invigilator"],
 };
 
 const OTHER_DESIGNATION = "Other";

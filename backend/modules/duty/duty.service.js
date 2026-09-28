@@ -7,6 +7,7 @@ const examScheduleRepo = require("../exam/examSchedule.repository");
 const examRoomRepo = require("../exam/examRoom.repository");
 const examGroupRepo = require("../exam/examGroup.repository");
 const { emit } = require("../notification/notification.emitter");
+const { buildRoomLabel } = require("../exam-cleanup/utils/examCleanupUtils");
 
 // ---------- Conflict validation ----------
 
@@ -222,7 +223,7 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
       recipient: teacherId,
       refModel: "Duty",
       refId: duty._id,
-      data: { room, date, startTime, endTime },
+      data: { room: buildRoomLabel(populated), date, startTime, endTime },
     });
   }
 
@@ -399,19 +400,23 @@ const adminAssignDutyGroup = async (data, adminId) => {
     createdIds.map((id) => dutyRepository.findById(id)),
   );
 
-  for (const d of populated) {
-    emit("duty_assigned", {
-      recipient: teacherId,
-      refModel: "Duty",
-      refId: d._id,
-      data: {
-        room: d.room,
-        date: d.date,
-        startTime: d.startTime,
-        endTime: d.endTime,
-      },
-    });
-  }
+  // ONE notification for the whole group (RS or DCS) — never per room. The
+  // teacher claims/holds the group as a single unit.
+  const examGroup = populated[0]?.examSchedule?.examGroup;
+  emit("duty_group_assigned", {
+    recipient: teacherId,
+    refModel: "Duty",
+    refId: createdIds[0] || null,
+    data: {
+      roleLabel: dutyRole === "dcs" ? "DCS" : "RS",
+      roomCount: populated.length,
+      date,
+      startTime,
+      endTime,
+      examLabel: examGroup?.examType,
+      semester: examGroup?.semester,
+    },
+  });
 
   return populated;
 };
@@ -510,7 +515,7 @@ const cancelDuty = async (id, cancelReason) => {
     recipient: duty.teacher,
     refModel: "Duty",
     refId: duty._id,
-    data: { room: duty.room, date: duty.date },
+    data: { room: buildRoomLabel(duty), date: duty.date },
   });
 
   return updated;

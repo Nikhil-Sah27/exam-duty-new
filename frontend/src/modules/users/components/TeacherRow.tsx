@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Phone } from "lucide-react";
 import { formatDate } from "@/shared/lib/utils";
 import RoleBadge from "@/shared/components/RoleBadge";
 import { UserProfile } from "../types";
@@ -52,6 +53,22 @@ export default function TeacherRow({ user }: TeacherRowProps) {
             <p className="truncate text-xs text-gray-400">{user.email}</p>
           </div>
         </div>
+      </td>
+
+      {/* Contact — phone prominent (CS/DCS need to reach the teacher) */}
+      <td className="px-5 py-3">
+        {user.phone ? (
+          <a
+            href={`tel:${user.phone}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-800 hover:text-blue-600"
+          >
+            <Phone className="h-3.5 w-3.5 text-gray-400" />
+            {user.phone}
+          </a>
+        ) : (
+          <span className="text-gray-300">—</span>
+        )}
       </td>
 
       {/* Roles — one badge per assigned role */}

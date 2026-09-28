@@ -15,6 +15,12 @@ export interface DutyCalculationBreakdown {
   associateCount?: number;
   assistantBase?: number;
   associateBase?: number;
+  // Present only on the RS progress payload (`/my-rs-progress`). The RS split
+  // is Professor (base, x) + Associate Professor (0.7x), and `totalDuties` is
+  // already the RS figure (invigilator total / 5).
+  totalInvigilatorDuties?: number;
+  professorCount?: number;
+  professorBase?: number;
 }
 
 export interface TeacherDutyProgress {

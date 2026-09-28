@@ -12,6 +12,7 @@ import {
   type RSUpcomingGroup,
 } from "@/modules/rs/upcoming-duties/utils/rsUpcomingGrouping";
 import RSUpcomingGroupModal from "@/modules/rs/upcoming-duties/components/RSUpcomingGroupModal";
+import RsDutyStatsHeroInline from "@/modules/duty-calculation/components/RsDutyStatsHeroInline";
 import RoleImportantNotificationProvider from "@/modules/dashboard/important-notifications/RoleImportantNotificationProvider";
 
 /**
@@ -65,11 +66,6 @@ export default function Dashboard() {
     [duties, groupById],
   );
 
-  const totalRooms = upcoming.reduce((sum, g) => sum + g.rooms.length, 0);
-  const buildings = new Set(
-    upcoming.flatMap((u) => u.rooms.map((r) => r.building).filter(Boolean) as string[]),
-  );
-
   return (
     <div className="space-y-6">
       <DashboardHero
@@ -77,11 +73,7 @@ export default function Dashboard() {
         title={`Welcome${user ? `, ${user.name}` : ""}`}
         subtitle="Your room-batch overview — supervision groups you're holding and a log of completed shifts."
         gradient="from-amber-500 via-orange-500 to-rose-500"
-        stats={[
-          { label: "Groups", value: upcoming.length },
-          { label: "Rooms", value: totalRooms },
-          { label: "Buildings", value: buildings.size },
-        ]}
+        rightContent={<RsDutyStatsHeroInline />}
         primaryAction={{ label: "Select Duty", href: "/rs/select-duty" }}
         secondaryAction={{ label: "Upcoming Duties", href: "/rs/upcoming-duties" }}
       />

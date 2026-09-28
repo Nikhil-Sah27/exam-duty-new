@@ -6,6 +6,7 @@ const Course = require("../department/course.model");
 const Room = require("../infrastructure/infrastructure.model");
 const ExamGroup = require("../exam/examGroup.model");
 const Duty = require("../duty/duty.model");
+const DCSGroup = require("../dcs/dcsGroup.model");
 
 /**
  * Centralised duty-target calculation.
@@ -36,6 +37,27 @@ const ASSISTANT_DESIGNATION = "Assistant Professor";
 const ASSOCIATE_DESIGNATION = "Associate Professor";
 // Associate profs carry 30% less than assistants (i.e. 70% of the base).
 const ASSOCIATE_MULTIPLIER = 0.7;
+
+// ---------- RS (Room Superintendent) duty constants ----------
+//
+// RS is a *group* role: one RS supervises up to 5 rooms in a block. So the
+// total RS workload is the institution invigilator workload divided by 5, and
+// it's shared only by Professors + Associate Professors who carry the RS role.
+// Within that pool the same 70/30 split applies, but the *base* role here is
+// Professor (x) with Associate Professors at 0.7x.
+const RS_ELIGIBLE_DESIGNATIONS = ["Professor", "Associate Professor"];
+const PROFESSOR_DESIGNATION = "Professor";
+// Rooms supervised per RS group — the invigilator→RS divisor.
+const RS_ROOMS_PER_GROUP = 5;
+
+// ---------- DCS (Deputy Chief Superintendent) duty constants ----------
+//
+// DCS is a group role handled only by HOD/Dean. Per the spec, each semester's
+// DCS duties = (courses × students × examTypes) / 300 (one DCS ≈ 300 students),
+// summed across semesters and departments, then split evenly across the
+// HOD/Dean pool (no 70/30 weighting — a single designation).
+const DCS_ELIGIBLE_DESIGNATIONS = ["HOD/Dean"];
+const DCS_STUDENTS_PER_DUTY = 300;
 
 // ---------- Low-level primitives ----------
 
@@ -96,6 +118,30 @@ const getEligibleTeacherPool = async () => {
     else if (d === ASSOCIATE_DESIGNATION) associates.push(t._id.toString());
   }
   return { assistants, associates };
+};
+
+/**
+ * RS-eligible teacher pool: Professors and Associate Professors who hold the
+ * `rs` role. Sorted by _id (same determinism guarantee as the invigilator
+ * pool) so the remainder tie-break is stable across refreshes.
+ */
+const getRsEligibleTeacherPool = async () => {
+  const teachers = await User.find({
+    roles: "rs",
+    isActive: true,
+    designation: { $in: RS_ELIGIBLE_DESIGNATIONS },
+  })
+    .select("_id designation")
+    .sort({ _id: 1 });
+
+  const professors = [];
+  const associates = [];
+  for (const t of teachers) {
+    const d = (t.designation || "").trim();
+    if (d === PROFESSOR_DESIGNATION) professors.push(t._id.toString());
+    else if (d === ASSOCIATE_DESIGNATION) associates.push(t._id.toString());
+  }
+  return { professors, associates };
 };
 
 // ---------- Step 1: per-semester ----------
@@ -273,7 +319,12 @@ const calculateDutyPerInvigilator = async (options = {}) => {
  * job flipping the flag.  This means "Completed" grows automatically once
  * an exam's end time is in the past.
  */
-const countCompletedDutiesForTeacher = async (teacherId) => {
+/**
+ * A duty is "completed" once its end has passed (even if the status field still
+ * says "assigned" — there's no job flipping it). Shared by the room-level and
+ * group-level counters below.
+ */
+const completedDutyMatch = () => {
   const now = new Date();
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
@@ -283,8 +334,7 @@ const countCompletedDutiesForTeacher = async (teacherId) => {
   const mm = String(now.getMinutes()).padStart(2, "0");
   const nowHhMm = `${hh}:${mm}`;
 
-  return Duty.countDocuments({
-    teacher: teacherId,
+  return {
     $or: [
       { status: "completed" },
       {
@@ -298,7 +348,52 @@ const countCompletedDutiesForTeacher = async (teacherId) => {
         ],
       },
     ],
+  };
+};
+
+const countCompletedDutiesForTeacher = async (teacherId) => {
+  return Duty.countDocuments({
+    teacher: teacherId,
+    ...completedDutyMatch(),
   });
+};
+
+/**
+ * Count a teacher's completed RS **groups** (not rooms). RS claims whole room
+ * groups (≤5 rooms per schedule + building), stored as one Duty per room. To
+ * match the group cards on the dashboard — and the group-unit target
+ * (total RS = invigilator ÷ 5) — we partition completed rs duties exactly like
+ * the UI's `groupRSDutiesIntoUpcomingGroups` (schedule + date + slot + building)
+ * and chunk each partition by 5.
+ */
+const countCompletedRsGroupsForTeacher = async (teacherId) => {
+  const duties = await Duty.find({
+    teacher: teacherId,
+    role: "rs",
+    ...completedDutyMatch(),
+  })
+    .select("examSchedule roomRef date startTime endTime _id")
+    .populate({ path: "roomRef", select: "building" });
+
+  const partitions = new Map();
+  for (const d of duties) {
+    const scheduleId = d.examSchedule?.toString();
+    const buildingId = d.roomRef?.building?.toString();
+    const dateKey = new Date(d.date).toISOString().slice(0, 10);
+    // Legacy duties missing schedule/building can't be grouped — count each as
+    // its own group so nothing is silently dropped.
+    const key =
+      scheduleId && buildingId
+        ? [scheduleId, dateKey, d.startTime, d.endTime, buildingId].join("|")
+        : `legacy:${d._id}`;
+    partitions.set(key, (partitions.get(key) || 0) + 1);
+  }
+
+  let groups = 0;
+  for (const roomCount of partitions.values()) {
+    groups += Math.ceil(roomCount / RS_ROOMS_PER_GROUP);
+  }
+  return groups;
 };
 
 // ---------- Per-teacher progress ----------
@@ -360,6 +455,239 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
       assistantBase: perInvigilator.assistantBase,
       associateBase: perInvigilator.associateBase,
       avgClassroomCapacity: perInvigilator.avgClassroomCapacity,
+    },
+  };
+};
+
+// ---------- RS (Room Superintendent) target + progress ----------
+
+/**
+ * Institution-wide RS duty target with the same weighted split as invigilators,
+ * but the base role is Professor (x) and Associate Professors carry 0.7x.
+ *
+ *   Total RS duties   = round(total invigilator duties / RS_ROOMS_PER_GROUP)
+ *   Per-teacher split = distributeDuties() with Professors in the base slot
+ *
+ * We reuse `distributeDuties` by mapping Professors onto its `assistants`
+ * (base) slot and Associate Professors onto its `associates` (0.7x) slot —
+ * identical maths, different roles.
+ */
+const calculateRsDutyPerTeacher = async (options = {}) => {
+  const institution = options.institution || (await calculateInstitutionDuty());
+  const pool = options.pool || (await getRsEligibleTeacherPool());
+  const eligibleCount = pool.professors.length + pool.associates.length;
+
+  const totalRsDuties = Math.round(institution.total / RS_ROOMS_PER_GROUP);
+
+  const distribution = distributeDuties(totalRsDuties, {
+    assistants: pool.professors, // base group (x)
+    associates: pool.associates, // 0.7x
+  });
+
+  return {
+    // Flat average across the eligible pool — kept for parity with the
+    // invigilator payload's `target` field.
+    target: eligibleCount > 0 ? Math.round(totalRsDuties / eligibleCount) : 0,
+    totalDuties: totalRsDuties,
+    totalInvigilatorDuties: institution.total,
+    eligibleTeachers: eligibleCount,
+    professorCount: pool.professors.length,
+    associateCount: pool.associates.length,
+    professorBase: distribution.assistantBase,
+    associateBase: distribution.associateBase,
+    professorExtras: distribution.assistantExtras,
+    avgClassroomCapacity: institution.avgClassroomCapacity,
+  };
+};
+
+const isRsEligibleDesignation = (designation) =>
+  RS_ELIGIBLE_DESIGNATIONS.includes((designation || "").trim());
+
+/**
+ * Per-teacher RS target:
+ *   Professor          → professorBase (+1 if picked to absorb a remainder)
+ *   Associate Professor → associateBase
+ *   Anything else      → 0 (not RS-eligible)
+ */
+const resolveRsTeacherTarget = (teacher, perRs) => {
+  const designation = (teacher.designation || "").trim();
+  if (designation === ASSOCIATE_DESIGNATION) return perRs.associateBase;
+  if (designation === PROFESSOR_DESIGNATION) {
+    const extra = perRs.professorExtras.get(teacher._id.toString()) || 0;
+    return perRs.professorBase + extra;
+  }
+  return 0;
+};
+
+const calculateRsTeacherProgress = async (teacherId, options = {}) => {
+  const teacher = await User.findById(teacherId);
+  if (!teacher) throw new AppError("Teacher not found", 404);
+
+  const perRs = options.perRs || (await calculateRsDutyPerTeacher());
+
+  const teacherRoles = teacher.roles || [];
+  const eligible =
+    teacherRoles.includes("rs") && isRsEligibleDesignation(teacher.designation);
+
+  const target = eligible ? resolveRsTeacherTarget(teacher, perRs) : 0;
+  // RS is a group role — count completed groups, not individual rooms, so the
+  // circle matches the group cards and the group-unit target.
+  const completed = await countCompletedRsGroupsForTeacher(teacherId);
+  const remaining = Math.max(0, target - completed);
+  const percentage =
+    target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
+
+  return {
+    teacherId: teacher._id,
+    name: teacher.name,
+    email: teacher.email,
+    department: teacher.department,
+    designation: teacher.designation,
+    role: "rs",
+    roles: teacherRoles,
+    eligible,
+    target,
+    completed,
+    remaining,
+    percentage,
+    breakdown: {
+      totalDuties: perRs.totalDuties,
+      totalInvigilatorDuties: perRs.totalInvigilatorDuties,
+      eligibleTeachers: perRs.eligibleTeachers,
+      professorCount: perRs.professorCount,
+      associateCount: perRs.associateCount,
+      professorBase: perRs.professorBase,
+      associateBase: perRs.associateBase,
+      avgClassroomCapacity: perRs.avgClassroomCapacity,
+    },
+  };
+};
+
+// ---------- DCS (Deputy Chief Superintendent) target + progress ----------
+
+/**
+ * Institution-wide DCS duty total. Reuses the invigilator institution walk —
+ * every semester breakdown already carries (courses, students, examTypes) — and
+ * re-divides by 300 (the DCS-per-student divisor) instead of the average room
+ * capacity. Ceil per semester, same as the invigilator engine.
+ *
+ *   Semester DCS duties = ceil((courses × students × examTypes) / 300)
+ *   Total               = Σ over every semester of every active department
+ */
+const calculateDcsInstitutionDuty = async (options = {}) => {
+  const institution = options.institution || (await calculateInstitutionDuty());
+
+  let total = 0;
+  for (const dept of institution.departments) {
+    for (const sem of dept.semesters) {
+      const b = sem.breakdown || {};
+      if (b.courses > 0 && b.students > 0 && b.examTypes > 0) {
+        total += Math.ceil(
+          (b.courses * b.students * b.examTypes) / DCS_STUDENTS_PER_DUTY
+        );
+      }
+    }
+  }
+
+  return { total, avgClassroomCapacity: institution.avgClassroomCapacity };
+};
+
+const countDcsEligibleTeachers = () =>
+  User.countDocuments({
+    roles: "dcs",
+    isActive: true,
+    designation: { $in: DCS_ELIGIBLE_DESIGNATIONS },
+  });
+
+/**
+ * Flat per-DCS target: total DCS duties split evenly across the HOD/Dean pool.
+ * No weighting — DCS is a single designation.
+ */
+const calculateDcsDutyPerTeacher = async (options = {}) => {
+  const dcsInstitution =
+    options.dcsInstitution || (await calculateDcsInstitutionDuty(options));
+  const eligibleCount =
+    options.eligibleCount ?? (await countDcsEligibleTeachers());
+
+  return {
+    target:
+      eligibleCount > 0 ? Math.round(dcsInstitution.total / eligibleCount) : 0,
+    totalDuties: dcsInstitution.total,
+    eligibleTeachers: eligibleCount,
+    avgClassroomCapacity: dcsInstitution.avgClassroomCapacity,
+  };
+};
+
+const isDcsEligibleDesignation = (designation) =>
+  DCS_ELIGIBLE_DESIGNATIONS.includes((designation || "").trim());
+
+/** True once a DCS group's schedule has ended (mirrors the claim lifecycle gate). */
+const scheduleHasEnded = (schedule) => {
+  if (!schedule?.date) return false;
+  const now = new Date();
+  const day = new Date(schedule.date);
+  day.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  if (day < today) return true;
+  if (day.getTime() === today.getTime()) {
+    const [eh, em] = (schedule.endTime || "").split(":").map(Number);
+    if (Number.isFinite(eh) && Number.isFinite(em)) {
+      const endMin = eh * 60 + em;
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      return nowMin >= endMin;
+    }
+  }
+  return false;
+};
+
+/**
+ * Completed DCS groups for a teacher: claimed groups whose schedule has ended.
+ * DCS is a group role and `DCSGroup` is persisted, so we count groups directly
+ * (no room-chunking needed, unlike RS) — the circle matches the group cards.
+ */
+const countCompletedDcsGroupsForTeacher = async (teacherId) => {
+  const groups = await DCSGroup.find({
+    assignedTeacher: teacherId,
+    status: "claimed",
+  }).populate({ path: "schedule", select: "date endTime" });
+
+  return groups.filter((g) => scheduleHasEnded(g.schedule)).length;
+};
+
+const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
+  const teacher = await User.findById(teacherId);
+  if (!teacher) throw new AppError("Teacher not found", 404);
+
+  const perDcs = options.perDcs || (await calculateDcsDutyPerTeacher());
+
+  const teacherRoles = teacher.roles || [];
+  const eligible =
+    teacherRoles.includes("dcs") && isDcsEligibleDesignation(teacher.designation);
+
+  const target = eligible ? perDcs.target : 0;
+  const completed = await countCompletedDcsGroupsForTeacher(teacherId);
+  const remaining = Math.max(0, target - completed);
+  const percentage =
+    target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
+
+  return {
+    teacherId: teacher._id,
+    name: teacher.name,
+    email: teacher.email,
+    department: teacher.department,
+    designation: teacher.designation,
+    role: "dcs",
+    roles: teacherRoles,
+    eligible,
+    target,
+    completed,
+    remaining,
+    percentage,
+    breakdown: {
+      totalDuties: perDcs.totalDuties,
+      eligibleTeachers: perDcs.eligibleTeachers,
+      avgClassroomCapacity: perDcs.avgClassroomCapacity,
     },
   };
 };
@@ -430,4 +758,17 @@ module.exports = {
   calculateTeacherProgress,
   calculateAllTeachersProgress,
   recalculateAll,
+  // RS (Room Superintendent)
+  RS_ELIGIBLE_DESIGNATIONS,
+  getRsEligibleTeacherPool,
+  calculateRsDutyPerTeacher,
+  calculateRsTeacherProgress,
+  countCompletedRsGroupsForTeacher,
+  // DCS (Deputy Chief Superintendent)
+  DCS_ELIGIBLE_DESIGNATIONS,
+  calculateDcsInstitutionDuty,
+  countDcsEligibleTeachers,
+  calculateDcsDutyPerTeacher,
+  calculateDcsTeacherProgress,
+  countCompletedDcsGroupsForTeacher,
 };

@@ -1,5 +1,6 @@
 export type NotificationType =
   | "duty_assigned"
+  | "duty_group_assigned"
   | "duty_cancelled"
   | "request_submitted"
   | "request_approved"

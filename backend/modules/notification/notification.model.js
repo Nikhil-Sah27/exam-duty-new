@@ -12,6 +12,7 @@ const notificationSchema = new mongoose.Schema(
       required: [true, "Notification type is required"],
       enum: [
         "duty_assigned",
+        "duty_group_assigned",
         "duty_cancelled",
         "request_submitted",
         "request_approved",

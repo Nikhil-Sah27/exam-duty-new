@@ -1,4 +1,5 @@
-import { Mail, Phone, UserRound, DoorOpen } from "lucide-react";
+import { UserRound, DoorOpen } from "lucide-react";
+import ContactActions from "@/shared/components/ContactActions";
 import { useInvigilatorContacts } from "../hooks/useInvigilatorContacts";
 import type {
   InvigilatorContact,
@@ -142,23 +143,8 @@ function ContactLine({ inv }: { inv: InvigilatorContact }) {
           </span>
         )}
       </div>
-      <div className="ml-4 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-600">
-        <a
-          href={`mailto:${inv.email}`}
-          className="flex items-center gap-1 hover:text-blue-600"
-        >
-          <Mail className="h-3 w-3" />
-          {inv.email}
-        </a>
-        {inv.phone && (
-          <a
-            href={`tel:${inv.phone}`}
-            className="flex items-center gap-1 hover:text-blue-600"
-          >
-            <Phone className="h-3 w-3" />
-            {inv.phone}
-          </a>
-        )}
+      <div className="ml-4 mt-1">
+        <ContactActions phone={inv.phone} email={inv.email} />
       </div>
     </li>
   );

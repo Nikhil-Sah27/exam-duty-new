@@ -3,6 +3,8 @@ import {
   fetchAllTeachersProgress,
   fetchInstitutionDutySummary,
   fetchMyDutyProgress,
+  fetchMyRsDutyProgress,
+  fetchMyDcsDutyProgress,
   fetchTeacherDutyProgress,
   type AllTeachersFilters,
 } from "../services/dutyCalculationApi";
@@ -18,6 +20,8 @@ export const DUTY_CALC_ROOT = ["duty-calculation"] as const;
 export const DUTY_CALC_KEYS = {
   root: DUTY_CALC_ROOT,
   myProgress: [...DUTY_CALC_ROOT, "my-progress"] as const,
+  myRsProgress: [...DUTY_CALC_ROOT, "my-rs-progress"] as const,
+  myDcsProgress: [...DUTY_CALC_ROOT, "my-dcs-progress"] as const,
   teacherProgress: (id: string) =>
     [...DUTY_CALC_ROOT, "teacher-progress", id] as const,
   allTeachers: (filters: AllTeachersFilters) =>
@@ -30,6 +34,32 @@ export function useMyDutyProgress() {
   return useQuery({
     queryKey: DUTY_CALC_KEYS.myProgress,
     queryFn: fetchMyDutyProgress,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Widget hook for the RS dashboard. Shares the `duty-calculation` root key, so
+ * every mutation that already invalidates duty targets (teacher CRUD, dept /
+ * semester / course changes) auto-refreshes this too — no extra wiring.
+ */
+export function useMyRsDutyProgress() {
+  return useQuery({
+    queryKey: DUTY_CALC_KEYS.myRsProgress,
+    queryFn: fetchMyRsDutyProgress,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Widget hook for the DCS dashboard. Shares the `duty-calculation` root key, so
+ * teacher / department / semester / course mutations auto-refresh it — no extra
+ * wiring, same as the invigilator and RS widgets.
+ */
+export function useMyDcsDutyProgress() {
+  return useQuery({
+    queryKey: DUTY_CALC_KEYS.myDcsProgress,
+    queryFn: fetchMyDcsDutyProgress,
     staleTime: 30_000,
   });
 }

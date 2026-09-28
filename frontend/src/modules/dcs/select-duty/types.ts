@@ -22,6 +22,7 @@ export interface DcsGroupTeacher {
   email: string;
   phone: string | null;
   department: string | null;
+  designation: string | null;
 }
 
 export interface DcsGroup {

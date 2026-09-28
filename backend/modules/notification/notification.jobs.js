@@ -24,6 +24,52 @@ const utcDayStart = (offsetDays) => {
 
 const utcDateKey = (d) => d.toISOString().slice(0, 10); // YYYY-MM-DD
 
+// Building-aware room label for reminders. Matches the app-wide convention
+// ("<Building> — <RoomNumber>"). Falls back to the legacy `room` string label
+// when a duty has no roomRef (e.g. older records).
+const buildRoomLabel = (duty) => {
+  const room = duty.roomRef;
+  const buildingName = room?.building?.name;
+  const roomNumber = room?.roomNumber;
+  if (buildingName && roomNumber) return `${buildingName} — ${roomNumber}`;
+  if (roomNumber) return roomNumber;
+  return duty.room || "";
+};
+
+/**
+ * Collapse a teacher's duties into "duty-units": an RS/DCS group is many
+ * room-duties sharing a schedule + role, so it counts once; each invigilator
+ * duty counts once. Keyed on (schedule, role) — a teacher can hold at most one
+ * group per role per schedule (the time-slot conflict guard enforces it), so
+ * this partition matches the group cards on the dashboard.
+ */
+const collapseIntoUnits = (duties) => {
+  const unitMap = new Map();
+  for (const d of duties) {
+    const scheduleKey = (d.examSchedule || d.exam || d._id).toString();
+    const key = `${scheduleKey}|${d.role}`;
+    if (!unitMap.has(key)) unitMap.set(key, []);
+    unitMap.get(key).push(d);
+  }
+  // Order units by earliest start (each unit's rooms share one start time).
+  return [...unitMap.values()].sort((a, b) =>
+    a[0].startTime < b[0].startTime ? -1 : a[0].startTime > b[0].startTime ? 1 : 0
+  );
+};
+
+/**
+ * Label for a single reminder unit. One room → the building-aware room label;
+ * a group → "<Building> · N rooms" (or just "N rooms" when it spans buildings).
+ */
+const reminderUnitLabel = (unit) => {
+  if (unit.length === 1) return buildRoomLabel(unit[0]);
+  const buildings = new Set(
+    unit.map((d) => d.roomRef?.building?.name).filter(Boolean)
+  );
+  const rooms = `${unit.length} rooms`;
+  return buildings.size === 1 ? `${[...buildings][0]} · ${rooms}` : rooms;
+};
+
 /**
  * Remind every teacher who has an assigned duty tomorrow. Aggregated to one
  * notification per teacher per day (with a count), keyed on the date.
@@ -36,7 +82,13 @@ const runDutyReminderSweep = async () => {
   const duties = await Duty.find({
     status: "assigned",
     date: { $gte: start, $lt: end },
-  }).sort({ startTime: 1 });
+  })
+    .populate({
+      path: "roomRef",
+      select: "roomNumber building",
+      populate: { path: "building", select: "name" },
+    })
+    .sort({ startTime: 1 });
 
   const byTeacher = new Map();
   for (const d of duties) {
@@ -48,16 +100,19 @@ const runDutyReminderSweep = async () => {
 
   let created = 0;
   for (const [teacherId, list] of byTeacher) {
-    const first = list[0];
+    // Count groups, not rooms — a DCS/RS group of N rooms is ONE duty-unit.
+    const units = collapseIntoUnits(list);
+    const firstUnit = units[0];
+    const first = firstUnit[0];
     const result = await emitIfAbsent("duty_reminder", {
       recipient: teacherId,
       dedupeKey: `duty_reminder:${teacherId}:${dayKey}`,
       data: {
-        room: first.room,
+        room: reminderUnitLabel(firstUnit),
         date: first.date,
         startTime: first.startTime,
         endTime: first.endTime,
-        count: list.length,
+        count: units.length,
       },
     });
     if (result) created += 1;

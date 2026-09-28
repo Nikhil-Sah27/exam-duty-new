@@ -45,7 +45,8 @@ export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
         const q = filters.search.toLowerCase();
         if (
           !u.name.toLowerCase().includes(q) &&
-          !u.email.toLowerCase().includes(q)
+          !u.email.toLowerCase().includes(q) &&
+          !(u.phone || "").toLowerCase().includes(q)
         )
           return false;
       }
@@ -109,6 +110,7 @@ export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
             <thead className="border-b border-gray-100 bg-gray-50/80">
               <tr className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                 <th className="px-5 py-3">Teacher</th>
+                <th className="px-5 py-3">Contact</th>
                 <th className="px-5 py-3">Role</th>
                 <th className="px-5 py-3">Department</th>
                 <th className="px-5 py-3">Designation</th>

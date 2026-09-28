@@ -8,6 +8,8 @@ router.use(protect);
 
 // ── Per-teacher ────────────────────────────────────────────────────────────
 router.get("/my-progress", controller.getMyProgress);
+router.get("/my-rs-progress", controller.getMyRsProgress);
+router.get("/my-dcs-progress", controller.getMyDcsProgress);
 router.get("/teacher/:teacherId/progress", controller.getTeacherProgress);
 
 // ── Cohort + institution analytics ─────────────────────────────────────────

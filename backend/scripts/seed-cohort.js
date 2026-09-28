@@ -116,7 +116,8 @@ async function seed() {
       name: user.name,
       email: user.email,
       password: hashedPassword,
-      phone: null,
+      // Placeholder contact so DCS/CS directories always have a number to show.
+      phone: `+91 ${9800000000 + (skipped + Object.values(byDesignation).reduce((a, b) => a + b, 0))}`,
       roles: user.roles,
       department: user.department,
       designation: user.designation,

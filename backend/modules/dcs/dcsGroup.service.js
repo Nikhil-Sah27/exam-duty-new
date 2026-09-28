@@ -307,25 +307,22 @@ const _performClaim = async (
   });
 
   if (notify) {
-    // Fire one notification per created duty so the DCS teacher sees each
-    // room appear on their bell. Mirrors the RS admin-assign-group behaviour.
-    const created = await Promise.all(
-      createdIds.map((id) => Duty.findById(id).select("room date startTime endTime"))
-    );
-    for (const d of created) {
-      if (!d) continue;
-      emit("duty_assigned", {
-        recipient: assigneeId,
-        refModel: "Duty",
-        refId: d._id,
-        data: {
-          room: d.room,
-          date: d.date,
-          startTime: d.startTime,
-          endTime: d.endTime,
-        },
-      });
-    }
+    // ONE notification for the whole group — a DCS supervises the group as a
+    // unit, so per-room alerts were just noise (5 rooms → 5 bells).
+    emit("duty_group_assigned", {
+      recipient: assigneeId,
+      refModel: "Duty",
+      refId: createdIds[0] || null,
+      data: {
+        roleLabel: "DCS",
+        roomCount: createdIds.length,
+        date: group.schedule.date,
+        startTime: group.schedule.startTime,
+        endTime: group.schedule.endTime,
+        examLabel: group.examGroup?.examType,
+        semester: group.examGroup?.semester,
+      },
+    });
   }
 
   const finalGroup = await dcsGroupRepository.findById(groupId);
@@ -413,7 +410,7 @@ const getRoomInvigilators = async (groupId) => {
       examRoom: examRoom._id,
       status: "assigned",
     })
-      .populate("teacher", "name email phone roles department");
+      .populate("teacher", "name email phone roles department designation");
 
     // The same examRoom can have RS + Invigilator + DCS duties — surface only
     // invigilators (the people physically watching this room). RS coverage is
@@ -433,6 +430,7 @@ const getRoomInvigilators = async (groupId) => {
         email: u.email,
         phone: u.phone || null,
         department: u.department || null,
+        designation: u.designation || null,
       })),
     });
   }

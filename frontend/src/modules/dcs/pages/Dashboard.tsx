@@ -10,6 +10,7 @@ import {
 import { getMyDcsGroups } from "../select-duty/services/dcsDutyService";
 import type { DcsGroup } from "../select-duty/types";
 import DcsDutyModal from "../upcoming-duties/components/DcsDutyModal";
+import DcsDutyStatsHeroInline from "@/modules/duty-calculation/components/DcsDutyStatsHeroInline";
 import RoleImportantNotificationProvider from "@/modules/dashboard/important-notifications/RoleImportantNotificationProvider";
 
 /**
@@ -61,9 +62,6 @@ export default function Dashboard() {
     [groups, groupById],
   );
 
-  const totalRooms = upcoming.reduce((sum, g) => sum + g.rooms.length, 0);
-  const totalStudents = upcoming.reduce((sum, g) => sum + (g.students ?? 0), 0);
-
   return (
     <div className="space-y-6">
       <DashboardHero
@@ -71,11 +69,7 @@ export default function Dashboard() {
         title={`Welcome${user ? `, ${user.name}` : ""}`}
         subtitle="Your supervision overview — upcoming groups, classes under your watch, and a record of completed duties."
         gradient="from-blue-600 via-indigo-600 to-violet-600"
-        stats={[
-          { label: "Upcoming", value: upcoming.length },
-          { label: "Rooms", value: totalRooms },
-          { label: "Students", value: totalStudents },
-        ]}
+        rightContent={<DcsDutyStatsHeroInline />}
         primaryAction={{ label: "Select Duty", href: "/dcs/select-duty" }}
         secondaryAction={{ label: "Upcoming Duties", href: "/dcs/upcoming-duties" }}
       />

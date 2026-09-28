@@ -9,6 +9,22 @@ const getMyProgress = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: progress });
 });
 
+/** RS progress for the currently-authenticated user. Used by the RS dashboard widget. */
+const getMyRsProgress = catchAsync(async (req, res) => {
+  const progress = await dutyCalculationService.calculateRsTeacherProgress(
+    req.user.id
+  );
+  res.status(200).json({ success: true, data: progress });
+});
+
+/** DCS progress for the currently-authenticated user. Used by the DCS dashboard widget. */
+const getMyDcsProgress = catchAsync(async (req, res) => {
+  const progress = await dutyCalculationService.calculateDcsTeacherProgress(
+    req.user.id
+  );
+  res.status(200).json({ success: true, data: progress });
+});
+
 /** Progress for a specific teacher — admin analytics + drill-in views. */
 const getTeacherProgress = catchAsync(async (req, res) => {
   const progress = await dutyCalculationService.calculateTeacherProgress(
@@ -60,6 +76,8 @@ const recalculateAll = catchAsync(async (req, res) => {
 
 module.exports = {
   getMyProgress,
+  getMyRsProgress,
+  getMyDcsProgress,
   getTeacherProgress,
   getAllTeachersProgress,
   getInstitutionSummary,

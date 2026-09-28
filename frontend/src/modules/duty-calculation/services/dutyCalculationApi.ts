@@ -29,6 +29,20 @@ export const fetchMyDutyProgress = async (): Promise<TeacherDutyProgress> => {
   return res.data.data;
 };
 
+export const fetchMyRsDutyProgress = async (): Promise<TeacherDutyProgress> => {
+  const res = await api.get<ApiSingle<TeacherDutyProgress>>(
+    "/duty-calculation/my-rs-progress"
+  );
+  return res.data.data;
+};
+
+export const fetchMyDcsDutyProgress = async (): Promise<TeacherDutyProgress> => {
+  const res = await api.get<ApiSingle<TeacherDutyProgress>>(
+    "/duty-calculation/my-dcs-progress"
+  );
+  return res.data.data;
+};
+
 export const fetchTeacherDutyProgress = async (
   teacherId: string
 ): Promise<TeacherDutyProgress> => {

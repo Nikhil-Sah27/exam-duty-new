@@ -46,6 +46,13 @@ const FEED_MAP: Partial<Record<NotificationType, FeedMeta>> = {
     highlight: true,
     action: "duties",
   },
+  duty_group_assigned: {
+    accent: "violet",
+    priority: "high",
+    category: "Assigned by CS",
+    highlight: true,
+    action: "duties",
+  },
   duty_swapped: {
     accent: "violet",
     priority: "high",

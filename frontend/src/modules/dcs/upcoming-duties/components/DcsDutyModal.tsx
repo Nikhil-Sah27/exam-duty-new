@@ -6,14 +6,13 @@ import {
   DoorOpen,
   Users,
   Crown,
-  Mail,
-  Phone,
   UserRound,
 } from "lucide-react";
 import type { DcsGroup, DcsRoomContact } from "../../select-duty/types";
 import { getDcsGroupContacts } from "../../select-duty/services/dcsDutyService";
 import { useExamGroupDetails } from "@/modules/shared/exams/hooks/useSharedExamData";
 import CourseSummary from "@/modules/shared/exams/components/CourseSummary";
+import ContactActions from "@/shared/components/ContactActions";
 
 function formatLongDate(s: string): string {
   return new Date(s).toLocaleDateString("en-IN", {
@@ -182,35 +181,30 @@ export default function DcsDutyModal({ open, group, onClose }: DcsDutyModalProps
                   )}
 
                   {!contactsQuery.isLoading && invigilators.length > 0 && (
-                    <ul className="mt-2 space-y-1.5 border-t border-gray-100 pt-2">
+                    <ul className="mt-2 space-y-2 border-t border-gray-100 pt-2">
                       {invigilators.map((inv) => (
-                        <li key={inv._id} className="text-xs">
-                          <div className="flex items-center gap-1.5 font-semibold text-gray-800">
-                            <UserRound className="h-3 w-3 text-gray-400" />
+                        <li
+                          key={inv._id}
+                          className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5"
+                        >
+                          <div className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-gray-800">
+                            <UserRound className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
                             {inv.name}
+                            {inv.designation && (
+                              <span className="rounded bg-indigo-50 px-1.5 py-0 text-[10px] font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                                {inv.designation}
+                              </span>
+                            )}
                             {inv.department && (
-                              <span className="rounded bg-gray-100 px-1 py-0 text-[10px] font-semibold text-gray-600">
+                              <span className="rounded bg-white px-1.5 py-0 text-[10px] font-semibold text-gray-600 ring-1 ring-gray-200">
                                 {inv.department}
                               </span>
                             )}
                           </div>
-                          <div className="ml-4 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-600">
-                            <a
-                              href={`mailto:${inv.email}`}
-                              className="flex items-center gap-1 hover:text-blue-600"
-                            >
-                              <Mail className="h-3 w-3" />
-                              {inv.email}
-                            </a>
-                            {inv.phone && (
-                              <a
-                                href={`tel:${inv.phone}`}
-                                className="flex items-center gap-1 hover:text-blue-600"
-                              >
-                                <Phone className="h-3 w-3" />
-                                {inv.phone}
-                              </a>
-                            )}
+                          {/* Call / WhatsApp / email — the DCS must be able to
+                              reach the invigilator on the spot. */}
+                          <div className="mt-1.5">
+                            <ContactActions phone={inv.phone} email={inv.email} />
                           </div>
                         </li>
                       ))}
@@ -247,7 +241,9 @@ function Stat({
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
       <div className="flex items-center gap-1.5 text-gray-400">
-        <span className="h-3.5 w-3.5">{icon}</span>
+        <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">
+          {icon}
+        </span>
         <p className="text-[10px] font-semibold uppercase tracking-widest">{label}</p>
       </div>
       <p className="mt-0.5 truncate text-sm font-bold text-gray-800">{value}</p>

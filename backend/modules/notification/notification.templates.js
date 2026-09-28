@@ -32,6 +32,33 @@ const templates = {
     message: `You have been assigned duty at ${room} on ${formatDate(date)} (${startTime}–${endTime})`,
   }),
 
+  // A whole room group (RS / DCS) assigned in one go. Fires ONCE per group —
+  // never per room — so a 5-room group is a single bell entry, not five.
+  duty_group_assigned: ({
+    roleLabel,
+    roomCount,
+    date,
+    startTime,
+    endTime,
+    examLabel,
+    semester,
+  }) => {
+    const scope =
+      examLabel && semester != null
+        ? `${examLabel} — Semester ${semester}: `
+        : examLabel
+          ? `${examLabel}: `
+          : "";
+    const rooms = `${roomCount} room${roomCount === 1 ? "" : "s"}`;
+    const article = roleLabel === "RS" ? "an" : "a";
+    return {
+      title: "New Duty Assigned",
+      message: `${scope}You've been assigned ${article} ${roleLabel} group of ${rooms} on ${formatDate(
+        date
+      )} (${startTime}–${endTime}).`,
+    };
+  },
+
   duty_cancelled: ({ room, date }) => ({
     title: "Duty Cancelled",
     message: `Your duty at ${room} on ${formatDate(date)} has been cancelled`,

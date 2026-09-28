@@ -32,6 +32,7 @@ interface NotifTypeMeta {
 
 const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   duty_assigned: { tone: "violet", highlight: true },
+  duty_group_assigned: { tone: "violet", highlight: true },
   duty_swapped: { tone: "violet", highlight: true },
   exam_deleted_duty_release: { tone: "red", highlight: false },
   duty_cancelled: { tone: "red", highlight: false },

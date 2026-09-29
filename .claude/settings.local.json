@@ -135,7 +135,8 @@
       "Bash(ls -la backend/modules/)",
       "Bash(find backend *)",
       "PowerShell(Get-ChildItem -Path \"D:\\\\exam-duty\\\\backend\" -Directory | Where-Object { $_.Name -ne 'node_modules' })",
-      "PowerShell(head *)"
+      "PowerShell(head *)",
+      "Bash(git *)"
     ]
   }
 }

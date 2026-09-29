@@ -6,19 +6,28 @@ import { useUpcomingExamPopup } from "../../hooks/useUpcomingExamPopup";
 import { useDraggable } from "./useDraggable";
 import UpcomingExamFlipCard from "./UpcomingExamFlipCard";
 
+// Module-scoped so the dismissal outlives dashboard remounts (route
+// navigation) but not a full page reload. Keyed by the JWT: a fresh login
+// issues a new token, so the popup naturally reappears after re-login too.
+let dismissedForToken: string | null = null;
+
 /**
  * Floating glassmorphism notification card shown at the bottom of the CS
- * Dashboard whenever a CS user opens or refreshes the page and there are
- * upcoming exams. Purely additive — rendered via a portal so it floats above
- * the dashboard without altering any existing layout.
+ * Dashboard when there are upcoming exams. Once dismissed it stays hidden
+ * until the next page refresh or login — navigating away and back to the
+ * Dashboard does not bring it back. Purely additive — rendered via a portal
+ * so it floats above the dashboard without altering any existing layout.
  *
  * Front: Upcoming Exams Timeline. Back: Upcoming Exam Dates calendar. Clicking
  * the card flips between them; the × button closes it (and never flips).
  */
 export default function UpcomingExamPopup() {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { exams, hasExams } = useUpcomingExamPopup();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(
+    () => token === null || dismissedForToken !== token,
+  );
   const [mounted, setMounted] = useState(false);
   // Drag-to-reposition. Starts null → the card keeps its default bottom-center
   // spot until the CS drags the grip handle, then floats at fixed coordinates.
@@ -36,6 +45,7 @@ export default function UpcomingExamPopup() {
 
   const close = (e: MouseEvent) => {
     e.stopPropagation();
+    dismissedForToken = token;
     setOpen(false);
   };
 

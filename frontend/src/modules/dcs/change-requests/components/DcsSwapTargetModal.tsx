@@ -4,8 +4,8 @@ import type { DcsDutyGroup } from "@/modules/duties/services/dcsGroupingService"
 import {
   useDcsSwapTargets,
   useSubmitDcsSwap,
-} from "@/modules/change-requests/hooks/useDcsChangeRequests";
-import DcsGroupRequestCard from "@/modules/change-requests/components/DcsGroupRequestCard";
+} from "../hooks/useDcsChangeRequests";
+import DcsGroupRequestCard from "./DcsGroupRequestCard";
 
 const formatDate = (s: string): string =>
   new Date(s).toLocaleDateString("en-IN", {

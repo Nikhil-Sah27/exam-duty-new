@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import type { RSUpcomingGroup } from "@/modules/rs/upcoming-duties/utils/rsUpcomingGrouping";
 import { getTypeColor } from "@/modules/shared/exams/utils/examStatusUtils";
-import { formatTime } from "@/modules/invigilator/upcoming-duties/utils/upcomingDutyUtils";
+import { formatTime } from "@/modules/shared/duties/utils/upcomingDutyUtils";
 
 function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-IN", {

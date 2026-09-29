@@ -8,7 +8,7 @@ import {
   getSemester,
   getExamType,
   formatTime,
-} from "../utils/upcomingDutyUtils";
+} from "@/modules/shared/duties/utils/upcomingDutyUtils";
 import UpcomingDutyStatusBadge, {
   type UpcomingDutyStatus,
 } from "./UpcomingDutyStatusBadge";

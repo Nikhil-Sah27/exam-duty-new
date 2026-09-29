@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Hourglass, Loader2 } from "lucide-react";
+import { CheckCircle2, ClipboardList, Download, Hourglass, Loader2 } from "lucide-react";
+import { downloadCsv } from "@/shared/lib/csv";
 import { useAllTeachersProgress } from "../hooks/useDutyProgress";
 import type { AllTeachersFilters } from "../services/dutyCalculationApi";
 import type { TeacherDutyProgress } from "../types";
@@ -9,6 +10,8 @@ interface DutyAnalyticsTableProps {
   initialFilters?: AllTeachersFilters;
   /** Hide the filter row (e.g. when the table is embedded in a wider layout). */
   hideFilters?: boolean;
+  /** Show a CSV export button (used by the Reports page). */
+  enableExport?: boolean;
 }
 
 /**
@@ -19,9 +22,29 @@ interface DutyAnalyticsTableProps {
 export default function DutyAnalyticsTable({
   initialFilters = {},
   hideFilters = false,
+  enableExport = false,
 }: DutyAnalyticsTableProps) {
   const [filters, setFilters] = useState<AllTeachersFilters>(initialFilters);
   const { data, isLoading, error } = useAllTeachersProgress(filters);
+
+  const exportCsv = () => {
+    if (!data) return;
+    downloadCsv(
+      "teacher-workload.csv",
+      ["Teacher", "Email", "Designation", "Department", "Eligible", "Target", "Completed", "Remaining", "%"],
+      data.teachers.map((t) => [
+        t.name,
+        t.email,
+        t.designation ?? "",
+        t.department ?? "",
+        t.eligible ? "Yes" : "No",
+        t.target,
+        t.completed,
+        t.remaining,
+        t.percentage,
+      ]),
+    );
+  };
 
   const totals = useMemo(() => {
     if (!data) return { target: 0, completed: 0, remaining: 0, teachers: 0 };
@@ -80,6 +103,16 @@ export default function DutyAnalyticsTable({
             />
             Eligible only
           </label>
+
+          {enableExport && data && (
+            <button
+              onClick={exportCsv}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </button>
+          )}
         </div>
       )}
 

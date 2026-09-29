@@ -1,22 +1,15 @@
 import type { Duty } from "@/modules/duties/types";
+import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 
 /**
- * "Upcoming" = active duty with a date that is today or in the future.
- * Cancelled and completed duties are excluded. Same-day-but-already-finished
- * (e.g., a 09:30 duty when it's now 14:00) is kept so the user can still
- * reference what they had this morning; we only drop strictly-past dates.
+ * "Upcoming" = assigned duty whose end time hasn't passed yet. A duty that
+ * finished earlier today (e.g. a 09:30–11:00 slot when it's now 14:00) drops
+ * off into Completed, matching the dashboard and DCS/RS behaviour.
  */
 export function filterUpcomingDuties(duties: Duty[]): Duty[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   return duties
     .filter((d) => d.status === "assigned")
-    .filter((d) => {
-      const dutyDay = new Date(d.date);
-      dutyDay.setHours(0, 0, 0, 0);
-      return dutyDay >= today;
-    });
+    .filter((d) => isDutyUpcoming(d.date, d.endTime));
 }
 
 export function sortByNearestFirst(duties: Duty[]): Duty[] {

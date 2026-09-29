@@ -38,6 +38,7 @@ src/
 │   ├── infrastructure/      # Buildings + rooms
 │   ├── change-requests/     # Admin review + approve/reject
 │   ├── notifications/       # Bell + list
+│   ├── duty-calculation/    # Targets + progress widgets (invigilator / RS / DCS)
 │   ├── duties/              # Shared types + admin duty ops
 │   ├── invigilator/         # /invigilator/*  (single-room grain)
 │   ├── rs/                  # /rs/*           (group grain — chunks of ≤5 rooms)
@@ -75,6 +76,9 @@ Each role has its own routed subtree under `modules/<role>/routes/*Routes.tsx`.
 - `invigilator/duties/utils/dutySelectionUtils.ts` — building-aware duty match. `dutyMatchesSlot` compares `duty.examRoom.room._id` before falling back to the room string, so `Academic Block 004` never shadows `Lab Block 004`.
 - `shared/exams/utils/examStatusUtils.ts` — mirror helpers for the shared exam views.
 - `shared/change-requests/components/ChangeRequestCard.tsx` — renders all three scopes (`duty`, `dcs_group`, `rs_group`) with source→target group blocks.
+- `shared/duties/utils/dutyTiming.ts` — `isDutyUpcoming(date, endTime)`, the single source of truth for the upcoming/completed split (end-time aware, so a finished-today duty drops to Completed). Used by the dashboards and all three Upcoming Duties pages.
+- `shared/components/ContactActions.tsx` — reusable Call (`tel:`) + WhatsApp (`wa.me`) + email row; the one contact affordance across DCS/RS invigilator cards, the CS teacher table, the teacher banner, and the Duty-Status modal.
+- `duty-calculation/components/HeroDutyCircles.tsx` — shared presentational Completed/Remaining/Assigned circles; the invigilator/RS/DCS hero widgets are thin wrappers over it, and all share the `["duty-calculation"]` React Query root so a single invalidation refreshes every role's target.
 
 ## Testing UI Changes
 

@@ -1,108 +1,24 @@
+import { Calendar, Clock, Crown, DoorOpen, Shield, Users } from "lucide-react";
+import type { DutyGroupSummary } from "./duty-group-summary/dutyGroupSummaryTypes";
 import {
-  Building2,
-  Calendar,
-  Clock,
-  Crown,
-  DoorOpen,
-  Shield,
-  Users,
-} from "lucide-react";
-import type { DcsGroup } from "@/modules/dcs/select-duty/types";
-import type { RSDutyGroup } from "@/modules/rs/select-duty/types";
-import type { AssigneePublic } from "@/modules/exams/types";
-import { getTeacherDisplayId } from "../utils/assignmentStatusUtils";
+  deptColor,
+  formatDate,
+  formatTime,
+} from "./duty-group-summary/dutyGroupSummaryUtils";
+import {
+  AssigneePanel,
+  RoomsByBuildingPanel,
+  Stat,
+} from "./duty-group-summary/DutyGroupSummarySections";
 
-const DEPT_COLORS: Record<string, string> = {
-  CSE: "bg-blue-100 text-blue-700",
-  ECE: "bg-purple-100 text-purple-700",
-  ISE: "bg-emerald-100 text-emerald-700",
-  ME: "bg-orange-100 text-orange-700",
-  MECH: "bg-orange-100 text-orange-700",
-  CE: "bg-amber-100 text-amber-700",
-  EEE: "bg-rose-100 text-rose-700",
-  AIML: "bg-indigo-100 text-indigo-700",
-  MBA: "bg-teal-100 text-teal-700",
-};
-
-function deptColor(d: string): string {
-  return DEPT_COLORS[d.toUpperCase()] || "bg-gray-100 text-gray-700";
-}
-
-function formatDate(s: string): string {
-  return new Date(s).toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatTime(t: string): string {
-  const [h, m] = t.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${period}`;
-}
-
-interface SummaryRoom {
-  examRoomId: string;
-  roomNumber: string;
-  floor?: number;
-  buildingName: string;
-}
-
-interface SummaryBuildingBucket {
-  buildingName: string;
-  rooms: SummaryRoom[];
-}
-
-/**
- * Group a flat rooms array by building so the chip block can show
- * "Academic Block: 103, 401 / Lab Block: 205" rather than a flat list
- * of bare room numbers. Stable order: alphabetical by building name.
- */
-function groupSummaryRoomsByBuilding(
-  rooms: readonly SummaryRoom[],
-): SummaryBuildingBucket[] {
-  const map = new Map<string, SummaryBuildingBucket>();
-  for (const r of rooms) {
-    const key = r.buildingName || "—";
-    const bucket = map.get(key);
-    if (bucket) bucket.rooms.push(r);
-    else map.set(key, { buildingName: key, rooms: [r] });
-  }
-  return [...map.values()].sort((a, b) =>
-    a.buildingName.localeCompare(b.buildingName),
-  );
-}
-
-export interface DutyGroupSummary {
-  kind: "DCS" | "RS";
-  title: string;
-  groupIndex?: number;
-  /** Human total such as "1/4" for DCS; omitted for RS. */
-  groupTotal?: string;
-  buildingName: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  rooms: Array<{
-    examRoomId: string;
-    roomNumber: string;
-    floor?: number;
-    /** Always supplied so the chip can render "{Block} · {Room}" — required
-     *  per spec to disambiguate rooms whose numbers repeat across buildings. */
-    buildingName: string;
-  }>;
-  departments: string[];
-  studentCount?: number;
-  capacity?: number;
-  /** Who currently owns the group, if anyone. */
-  assignedTo?: AssigneePublic | null;
-  /** True when the viewer themselves own this group. */
-  isMine?: boolean;
-  /** True when somebody else owns it (occupied / cannot select). */
-  isOccupied?: boolean;
-}
+export type { DutyGroupSummary } from "./duty-group-summary/dutyGroupSummaryTypes";
+// Adapters live beside the card (DutyGroup*-prefixed so the shared-layer
+// lint exemption for dcs/rs imports still applies); re-exported here so
+// existing call sites keep importing from this file.
+export {
+  dcsGroupToSummary,
+  rsGroupToSummary,
+} from "./DutyGroupSummaryAdapters";
 
 /**
  * Read-only at-a-glance card for a DCS / RS duty group. Used inside the
@@ -188,41 +104,7 @@ export default function DutyGroupSummaryCard({
           />
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            Rooms in Group
-          </p>
-          {/* Group by building so users see at a glance "Academic Block:
-              103, 401, 403 / Lab Block: 205" rather than a flat list of
-              ambiguous room numbers. */}
-          <div className="space-y-2">
-            {groupSummaryRoomsByBuilding(summary.rooms).map((b) => (
-              <div key={b.buildingName} className="space-y-1">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  <Building2 className="h-2.5 w-2.5" />
-                  {b.buildingName}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {b.rooms.map((r) => (
-                    <span
-                      key={r.examRoomId}
-                      className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700 ring-1 ring-gray-200"
-                      title={`${b.buildingName} — Room ${r.roomNumber}${r.floor != null ? ` · Floor ${r.floor}` : ""}`}
-                    >
-                      <DoorOpen className="h-2.5 w-2.5 text-gray-400" />
-                      {r.roomNumber}
-                      {r.floor != null && (
-                        <span className="text-[9px] font-semibold text-gray-400">
-                          · F{r.floor}
-                        </span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RoomsByBuildingPanel rooms={summary.rooms} />
 
         {summary.departments.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -238,39 +120,10 @@ export default function DutyGroupSummaryCard({
         )}
 
         {summary.assignedTo && (
-          <div
-            className={`rounded-lg border px-3 py-2 text-xs shadow-sm ${
-              summary.isMine
-                ? "border-blue-200 bg-blue-50 text-blue-800"
-                : "border-red-200 bg-red-50 text-red-800"
-            }`}
-            title={[
-              summary.assignedTo.name,
-              summary.assignedTo.designation || "",
-              summary.assignedTo.department || "",
-              summary.assignedTo.phone || summary.assignedTo.email,
-            ]
-              .filter(Boolean)
-              .join("\n")}
-          >
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-              {summary.isMine ? "Owned by you" : "Assigned to"}
-            </p>
-            <p className="mt-0.5 text-sm font-bold">
-              {summary.assignedTo.name}
-            </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] opacity-90">
-              <span className="font-semibold">
-                ID: {getTeacherDisplayId(summary.assignedTo)}
-              </span>
-              {summary.assignedTo.department && (
-                <span>· {summary.assignedTo.department}</span>
-              )}
-              {summary.assignedTo.phone && (
-                <span>· {summary.assignedTo.phone}</span>
-              )}
-            </p>
-          </div>
+          <AssigneePanel
+            assignedTo={summary.assignedTo}
+            isMine={summary.isMine}
+          />
         )}
 
         {note && (
@@ -285,106 +138,4 @@ export default function DutyGroupSummaryCard({
       </div>
     </article>
   );
-}
-
-function Stat({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 shadow-sm">
-      <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-        {icon}
-        {label}
-      </p>
-      <p className="mt-0.5 truncate text-xs font-bold text-gray-800">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-/**
- * Adapter: project a DcsGroup into the common summary shape used by the
- * card. Keeps the card decoupled from DCS-specific field naming so the same
- * component can render RS groups too.
- */
-export function dcsGroupToSummary(
-  group: DcsGroup,
-  myUserId: string | null | undefined,
-  /**
-   * Cross-schedule display ordinal. When omitted the function falls back to
-   * the backend per-schedule `groupIndex` — fine for single-card surfaces
-   * but produces "Group #1" on every card across multiple schedules.
-   */
-  displayOrdinal?: number | null,
-): DutyGroupSummary {
-  const assignedToMe = Boolean(
-    group.assignedTeacher && group.assignedTeacher._id === myUserId,
-  );
-  const occupied = Boolean(group.assignedTeacher) && !assignedToMe;
-  const assignedTo: AssigneePublic | null = group.assignedTeacher
-    ? {
-        _id: group.assignedTeacher._id,
-        name: group.assignedTeacher.name,
-        email: group.assignedTeacher.email,
-        phone: group.assignedTeacher.phone ?? null,
-        roles: ["dcs"],
-        department: group.assignedTeacher.department ?? null,
-        designation: null,
-      }
-    : null;
-  const ordinal = displayOrdinal ?? group.groupIndex;
-  return {
-    kind: "DCS",
-    title: `DCS Duty Group #${ordinal}`,
-    groupIndex: group.groupIndex,
-    groupTotal: `${group.groupIndex}/${group.dcsRequired}`,
-    buildingName: group.assignedRooms[0]?.room.building?.name ?? "—",
-    date: group.schedule.date,
-    startTime: group.schedule.startTime,
-    endTime: group.schedule.endTime,
-    rooms: group.assignedRooms.map((r) => ({
-      examRoomId: r._id,
-      roomNumber: r.room.roomNumber,
-      floor: r.room.floor,
-      buildingName: r.room.building?.name ?? "—",
-    })),
-    departments: group.assignedDepartments,
-    studentCount: group.assignedStudents,
-    assignedTo,
-    isMine: assignedToMe,
-    isOccupied: occupied,
-  };
-}
-
-export function rsGroupToSummary(group: RSDutyGroup): DutyGroupSummary {
-  return {
-    kind: "RS",
-    title: `${group.buildingName} — ${group.rangeLabel}`,
-    buildingName: group.buildingName,
-    date: group.date,
-    startTime: group.startTime,
-    endTime: group.endTime,
-    rooms: group.rooms.map((r) => ({
-      examRoomId: r.examRoomId,
-      roomNumber: r.roomNumber,
-      // RS groups are always single-building (partitioned by building during
-      // grouping), so every room inherits the group's building name.
-      buildingName: group.buildingName,
-    })),
-    departments: group.departments,
-    capacity: group.rooms.reduce((sum, r) => sum + r.capacity, 0),
-    // RS groups are derived client-side and don't carry a single assignee —
-    // every room has its own duty. The classroom modal still tells the
-    // viewer if the slot is occupied via the per-role assignee on flags.
-    assignedTo: null,
-    isMine: false,
-    isOccupied: group.allAssigned,
-  };
 }

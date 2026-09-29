@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { LayoutGrid, List } from "lucide-react";
 import { useDutySelection } from "../hooks/useDutySelection";
-import DutyFilterBar from "../components/DutyFilterBar";
+import DutyFilterBar from "@/modules/shared/duties/components/DutyFilterBar";
 import DutySlotCard from "../components/DutySlotCard";
 import DutySelectionTable from "../components/DutySelectionTable";
 import SelectedDutySummary from "../components/SelectedDutySummary";

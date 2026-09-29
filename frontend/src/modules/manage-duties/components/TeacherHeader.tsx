@@ -1,6 +1,7 @@
 import { Teacher } from "../types";
 import { getRoleLabel, ROLE_BADGE_COLORS_LIGHT } from "@/shared/constants/roles";
 import type { UserRole } from "@/shared/lib/types";
+import ContactActions from "@/shared/components/ContactActions";
 import AssignDutyRoleButton from "./AssignDutyRoleButton";
 
 interface TeacherHeaderProps {
@@ -26,6 +27,9 @@ export default function TeacherHeader({ teacher }: TeacherHeaderProps) {
           <div>
             <h1 className="text-xl font-bold">{teacher.name}</h1>
             <p className="mt-0.5 text-sm text-gray-300">{teacher.email}</p>
+            <div className="mt-2">
+              <ContactActions phone={teacher.phone} />
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {(teacher.roles || []).map((r: UserRole) => (
                 <span

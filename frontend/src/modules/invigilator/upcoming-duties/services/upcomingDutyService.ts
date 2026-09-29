@@ -4,7 +4,7 @@ import {
   filterUpcomingDuties,
   groupUpcomingDuties,
   type DateGroup,
-} from "../utils/upcomingDutyUtils";
+} from "@/modules/shared/duties/utils/upcomingDutyUtils";
 
 /**
  * Read-only service for the Upcoming Duties module. Wraps the existing

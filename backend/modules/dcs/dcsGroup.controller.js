@@ -1,4 +1,5 @@
 const dcsGroupService = require("./dcsGroup.service");
+const auditService = require("../audit/audit.service");
 const catchAsync = require("../../shared/utils/catchAsync");
 
 const listGroups = catchAsync(async (req, res) => {
@@ -18,6 +19,14 @@ const getById = catchAsync(async (req, res) => {
 
 const claim = catchAsync(async (req, res) => {
   const result = await dcsGroupService.claimGroup(req.params.id, req.user.id);
+  auditService.logSafe({
+    action: "CLAIM_DCS_GROUP",
+    entity: "DCSGroup",
+    entityId: result.group?._id || req.params.id,
+    performedBy: req.user.id,
+    ipAddress: req.ip,
+    details: { actorRole: req.user.activeRole, dutyCount: result.dutyIds?.length || 0 },
+  });
   res.status(200).json({
     success: true,
     data: result.group,
@@ -31,6 +40,18 @@ const adminClaim = catchAsync(async (req, res) => {
     req.body?.teacher,
     req.user.id,
   );
+  auditService.logSafe({
+    action: "ADMIN_CLAIM_DCS_GROUP",
+    entity: "DCSGroup",
+    entityId: result.group?._id || req.params.id,
+    performedBy: req.user.id,
+    ipAddress: req.ip,
+    details: {
+      actorRole: req.user.activeRole,
+      teacher: req.body?.teacher,
+      dutyCount: result.dutyIds?.length || 0,
+    },
+  });
   res.status(200).json({
     success: true,
     data: result.group,
@@ -44,6 +65,14 @@ const release = catchAsync(async (req, res) => {
     req.user.id,
     req.body?.reason
   );
+  auditService.logSafe({
+    action: "RELEASE_DCS_GROUP",
+    entity: "DCSGroup",
+    entityId: group?._id || req.params.id,
+    performedBy: req.user.id,
+    ipAddress: req.ip,
+    details: { actorRole: req.user.activeRole, reason: req.body?.reason || null },
+  });
   res.status(200).json({ success: true, data: group });
 });
 

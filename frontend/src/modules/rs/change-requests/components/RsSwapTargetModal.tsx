@@ -6,7 +6,7 @@ import type { Duty } from "@/modules/duties/types";
 import { useAvailableRsGroups } from "../hooks/useAvailableRsGroups";
 import { useCreateChangeRequest } from "@/modules/shared/change-requests/hooks/useChangeRequests";
 import { getTypeColor } from "@/modules/shared/exams/utils/examStatusUtils";
-import { formatTime } from "@/modules/invigilator/upcoming-duties/utils/upcomingDutyUtils";
+import { formatTime } from "@/modules/shared/duties/utils/upcomingDutyUtils";
 
 function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-IN", {

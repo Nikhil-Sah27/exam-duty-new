@@ -4,8 +4,8 @@ import type { DcsDutyGroup } from "@/modules/duties/services/dcsGroupingService"
 import {
   useMyDcsGroupAssignments,
   useMyDcsChangeRequests,
-} from "@/modules/change-requests/hooks/useDcsChangeRequests";
-import DcsGroupRequestCard from "@/modules/change-requests/components/DcsGroupRequestCard";
+} from "../hooks/useDcsChangeRequests";
+import DcsGroupRequestCard from "../components/DcsGroupRequestCard";
 import ChangeRequestCard from "@/modules/shared/change-requests/components/ChangeRequestCard";
 import DcsSwapTargetModal from "../components/DcsSwapTargetModal";
 

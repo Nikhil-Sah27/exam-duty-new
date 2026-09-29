@@ -34,8 +34,10 @@ Role eligibility is centralized in `backend/shared/utils/roleResolver.js` — a 
 | **HOD/Dean** | `dcs` |
 | **Professor** | `rs` |
 | **Associate Professor** | `rs`, `invigilator` |
-| **Assistant Professor** | `rs`, `invigilator` |
+| **Assistant Professor** | `invigilator` |
 | **Other** | Caller picks exactly one of `cs` / `dcs` / `rs` / `invigilator` |
+
+Assistant Professors are **Invigilator-only** — RS duty is carried by Professors and Associate Professors. (The frontend mirror lives at `frontend/src/shared/utils/roleResolver.ts`; keep the two in sync. A one-time migration, `backend/scripts/strip-rs-from-assistant-professors.js`, removed `rs` from existing Assistant Professors while preserving `invigilator`.)
 
 ## Tech Stack
 
@@ -93,8 +95,22 @@ Duty per invigilator  = round(institution duties / eligible invigilators)
 
 Only **Assistant** and **Associate Professors** (active, invigilator role) are eligible to carry a target. Distribution uses a **70/30 weighting** — an Associate's base target is `round(0.7 × assistant base)` — with any remainder duties handed to assistants one at a time in a stable `_id` order so the same teachers absorb extras across recomputes.
 
-- Backend: per-teacher progress (`/my-progress`, `/teacher/:id/progress`), cohort (`/all-teachers`), institution summary (`/institution`), semester/department drill-down, and `POST /recalculate`.
-- Frontend (`frontend/src/modules/duty-calculation/`): `useMyDutyProgress` feeds `DutyStatsHeroInline`, a translucent Completed → Remaining → Assigned widget slotted into the invigilator dashboard hero; admin analytics widgets/tables consume the cohort and institution endpoints.
+The same engine also derives **RS** and **DCS** targets from the same live data:
+
+```
+Total RS duties       = round(institution invigilator duties / 5)   # one RS ≈ 5 rooms
+Per-RS split          = distribute across Professors (base x) + Associate Professors (0.7x)
+
+Semester DCS duties   = ceil((courses × students × examTypes) / 300) # one DCS ≈ 300 students
+Total DCS duties      = Σ semester DCS duties
+Duty per DCS          = round(total DCS duties / HOD-Dean count)     # flat, no weighting
+```
+
+- **RS** — eligible pool is Professors + Associate Professors with the `rs` role; the 70/30 distributor is reused with Professor as the base role. Completed is counted in **groups** (RS claims a room group; per-room duties are collapsed by `schedule + building`, chunked by 5) so the number matches the group cards.
+- **DCS** — eligible pool is HOD/Dean; target is a flat split. Completed is counted as claimed **DCS groups** whose schedule has ended (from the persistent `DCSGroup` collection). *Note:* this dashboard target is an aggregate `/300` figure and won't exactly equal the count of generated DCS groups (which uses a per-schedule `ceil(students/300)` — see [DCS Group Sizing](#dcs-group-sizing)).
+
+- Backend: per-teacher progress (`/my-progress`, `/my-rs-progress`, `/my-dcs-progress`, `/teacher/:id/progress`), cohort (`/all-teachers`), institution summary (`/institution`), semester/department drill-down, and `POST /recalculate`.
+- Frontend (`frontend/src/modules/duty-calculation/`): `useMyDutyProgress` / `useMyRsDutyProgress` / `useMyDcsDutyProgress` feed `DutyStatsHeroInline` / `RsDutyStatsHeroInline` / `DcsDutyStatsHeroInline` — thin role widgets over a shared presentational `HeroDutyCircles` (translucent Completed → Remaining → Assigned circles) slotted into each role's dashboard hero. All three share the `["duty-calculation"]` query root, so the mutations that already invalidate it (teacher CRUD, department/semester/course changes) auto-refresh every widget with no extra wiring. Admin analytics widgets/tables consume the cohort and institution endpoints.
 
 ### Change Requests
 Every role can propose a change; **CS reviews (approves/rejects)** — DCS is an operational duty role and does not gate change requests. `request_submitted` notifications fan out to active CS users only; approve/reject fires `request_approved` / `request_rejected` back to the requester. Approval is atomic — either the whole change lands or nothing does.
@@ -125,9 +141,13 @@ Exams that overlap in time can share leftover seats. During finalize, consumer e
 ### Notifications
 Typed in-app notifications with a central emitter (`backend/modules/notification/notification.emitter.js`):
 
-`duty_assigned`, `duty_cancelled`, `request_submitted`, `request_approved`, `request_rejected`, `duty_swapped`, `exam_deleted_duty_release`, `announcement`.
+`duty_assigned`, `duty_group_assigned`, `duty_cancelled`, `request_submitted`, `request_approved`, `request_rejected`, `duty_swapped`, `duty_reminder`, `target_reached`, `exam_created`, `exam_deleted_duty_release`, `announcement`.
 
-Notifications reference either a `Duty` or a `ChangeRequest` for deep-linking (broadcast `announcement`s reference neither). Unread count and read-all endpoints back the UI bell.
+Notifications reference either a `Duty` or a `ChangeRequest` for deep-linking (broadcast `announcement`s reference neither). Unread count and read-all endpoints back the UI bell. Message text is stored at emit time, so wording is written to read correctly whenever it's opened later.
+
+- **Room labels are building-aware** — assignment/reminder messages use the app-wide `"<Building> — <Room>"` label (via `buildRoomLabel`), so `Academic Block — 004` and `BSN Block — 004` never collide.
+- **Group roles get one notification per group, not per room** — CS assigning an RS/DCS group fires a single `duty_group_assigned` ("…assigned a DCS group of 4 rooms…"), never one alert per room.
+- **Daily reminder counts groups, not rooms** — the `duty_reminder` sweep (`notification.jobs.js`) collapses a teacher's duties into duty-units (an RS/DCS group counts once) and anchors the message to the **absolute date** rather than the word "tomorrow", so a stored reminder never goes stale when the day rolls over.
 
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
@@ -444,7 +464,9 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 ### Duty Calculation (`/duty-calculation`)
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/my-progress` | Current user's target / completed / remaining. |
+| GET | `/my-progress` | Current user's invigilator target / completed / remaining. |
+| GET | `/my-rs-progress` | Current user's RS target / completed (groups) / remaining. |
+| GET | `/my-dcs-progress` | Current user's DCS target / completed (groups) / remaining. |
 | GET | `/teacher/:teacherId/progress` | A specific teacher's progress. |
 | GET | `/all-teachers` | Cohort progress (`?role`, `?department`, `?eligibleOnly`). |
 | GET | `/institution` | Institution-wide duty summary. |
@@ -498,6 +520,12 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 
 ## Recent Enhancements
 
+- **RS & DCS duty dashboards** — the duty-calculation engine now derives RS targets (`invigilator total ÷ 5`, Professor/Associate 70/30 split) and DCS targets (`Σ ceil(courses×students×examTypes / 300)`, flat across HOD/Dean). New `RsDutyStatsHeroInline` / `DcsDutyStatsHeroInline` widgets reuse a shared `HeroDutyCircles`; completed is counted in **groups** for both. Endpoints: `GET /duty-calculation/my-rs-progress`, `/my-dcs-progress`.
+- **Assistant Professor is Invigilator-only** — RS removed from the Assistant Professor designation in both `roleResolver` copies, with a migration (`strip-rs-from-assistant-professors.js`) for existing records.
+- **Contact everywhere (Call + WhatsApp)** — a shared `ContactActions` component (tap-to-dial + `wa.me`, inlined WhatsApp glyph) surfaces highlighted phone/email in the DCS & RS invigilator cards, the CS teacher table (new Contact column + phone search), the Manage-Duties teacher banner, and the Duty-Status modal. `backfill-user-phones.js` fills seeded accounts that had no number.
+- **Group-aware notifications** — one `duty_group_assigned` per RS/DCS group instead of per room; building-aware room labels; and a `duty_reminder` sweep that counts groups and uses absolute dates so reminders never read "tomorrow" once the day passes.
+- **End-time-aware upcoming/completed split** — a shared `isDutyUpcoming(date, endTime)` (`shared/duties/utils/dutyTiming.ts`) moves a duty from Upcoming to Completed the moment its end time passes, consistently across dashboards and the invigilator/RS/DCS Upcoming Duties pages.
+- **CS dashboard popup policy** — change-request and assignment-alert popups show on every dashboard open; all other reminders show only once per page load (login/refresh), gated by a module-level seen-set.
 - **CS direct duty assignment from Exams** — the room-detail modal lets CS assign each vacant role inline: an invigilator per room, an RS group, or a DCS group, via dedicated `cs-assign/` panels. Reuses the shared eligibility (`GET /users?role=`), the RS grouping util, the persistent DCS groups, conflict validation, and notifications — no CS-specific duplication. Backed by `POST /duties/admin-assign-group` and `POST /dcs/groups/:id/admin-claim`.
 - **Duty-calculation engine** — per-semester → department → institution duty targets with Assistant/Associate 70/30 distribution, per-teacher progress endpoints, and dashboard/analytics widgets (`DutyStatsHeroInline`, progress circles, analytics tables).
 - **CS broadcast Notify** — a CS-only announcement composer (all / by-role / specific-teachers) that fans out `announcement` notifications through `emitToMany`.

@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { Navigate, Outlet } from "react-router-dom";
+import PageFallback from "@/shared/components/PageFallback";
 import AuthGuard from "@/shared/components/AuthGuard";
 import MainContent from "@/shared/components/MainContent";
 import { useAuthStore } from "@/shared/store/auth.store";
@@ -20,7 +22,7 @@ export default function InvigilatorLayout() {
       <InvigilatorHeader />
       <InvigilatorSidebar />
       <MainContent>
-        <Outlet />
+        <Suspense fallback={<PageFallback />}><Outlet /></Suspense>
       </MainContent>
     </AuthGuard>
   );

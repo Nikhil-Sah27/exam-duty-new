@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { LayoutGrid, List } from "lucide-react";
-import DutyFilterBar from "@/modules/invigilator/select-duty/components/DutyFilterBar";
+import DutyFilterBar from "@/modules/shared/duties/components/DutyFilterBar";
 import { useRSDutySelection } from "../hooks/useRSDutySelection";
 import RSDutyGroupSections from "../components/RSDutyGroupSections";
 import RSDutySelectionPanel from "../components/RSDutySelectionPanel";
 import DutyStatusLegend from "@/modules/shared/components/DutyStatusLegend";
-import type { DutyFilters } from "@/modules/invigilator/select-duty/types";
+import type { DutyFilters } from "@/modules/shared/duties/types";
 
 type ViewMode = "grid" | "table";
 

@@ -1,5 +1,5 @@
 import type { Duty } from "@/modules/duties/types";
-import type { DateGroup } from "../utils/upcomingDutyUtils";
+import type { DateGroup } from "@/modules/shared/duties/utils/upcomingDutyUtils";
 import UpcomingDutyGroup from "./UpcomingDutyGroup";
 
 interface UpcomingDutyListProps {

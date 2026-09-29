@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { Navigate, Outlet } from "react-router-dom";
+import PageFallback from "@/shared/components/PageFallback";
 import AuthGuard from "./AuthGuard";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
@@ -23,7 +25,7 @@ export default function ProtectedLayout() {
       <Navbar />
       <Sidebar />
       <MainContent>
-        <Outlet />
+        <Suspense fallback={<PageFallback />}><Outlet /></Suspense>
       </MainContent>
     </AuthGuard>
   );

@@ -4,7 +4,7 @@ import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamDa
 import {
   filterUpcomingDuties,
   groupUpcomingDuties,
-} from "../utils/upcomingDutyUtils";
+} from "@/modules/shared/duties/utils/upcomingDutyUtils";
 
 /**
  * Single source for the Upcoming Duties view.

@@ -84,19 +84,21 @@ const templates = {
     message: "A duty has been swapped to you. Check your duty list for details.",
   }),
 
-  // Daily reminder for duties happening the next day. Aggregated per teacher —
-  // `count` covers the case of multiple duties tomorrow.
+  // Reminder for an upcoming duty, generated the day before by the daily sweep.
+  // The message is anchored to the ABSOLUTE date (never "tomorrow"): a stored
+  // notification is read later than it's created, so relative wording goes stale
+  // the moment the day rolls over ("tomorrow" while the duty is actually today).
   duty_reminder: ({ room, date, startTime, endTime, count }) => {
     if (count && count > 1) {
       return {
-        title: "Duty Reminder — Tomorrow",
-        message: `You have ${count} duties tomorrow, ${formatLongDate(date)}. First one at ${formatTime12h(startTime)}.`,
+        title: "Upcoming Duty Reminder",
+        message: `You have ${count} duties on ${formatLongDate(date)}. First one at ${formatTime12h(startTime)}.`,
       };
     }
     const where = room ? ` · ${room}` : "";
     return {
-      title: "Duty Reminder — Tomorrow",
-      message: `You have a duty tomorrow, ${formatLongDate(date)} at ${formatTime12h(startTime)} – ${formatTime12h(endTime)}${where}.`,
+      title: "Upcoming Duty Reminder",
+      message: `You have a duty on ${formatLongDate(date)} at ${formatTime12h(startTime)} – ${formatTime12h(endTime)}${where}.`,
     };
   },
 

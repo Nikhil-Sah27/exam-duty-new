@@ -3,11 +3,11 @@ import { useParams, Link } from "react-router-dom";
 import { ChevronRight, LayoutGrid, List } from "lucide-react";
 import { useTeacherDetails } from "../hooks";
 import { useTeacherDutyProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
-import DutyFilterBar from "@/modules/invigilator/select-duty/components/DutyFilterBar";
+import DutyFilterBar from "@/modules/shared/duties/components/DutyFilterBar";
 import DutyStatusLegend from "@/modules/shared/components/DutyStatusLegend";
 import RSDutyGroupSections from "@/modules/rs/select-duty/components/RSDutyGroupSections";
 import RSDutySelectionPanel from "@/modules/rs/select-duty/components/RSDutySelectionPanel";
-import type { DutyFilters } from "@/modules/invigilator/select-duty/types";
+import type { DutyFilters } from "@/modules/shared/duties/types";
 import AssignDutyTeacherBanner from "./AssignDutyTeacherBanner";
 import { useAdminAssignRSGroups } from "../hooks/useAdminAssignRSGroups";
 

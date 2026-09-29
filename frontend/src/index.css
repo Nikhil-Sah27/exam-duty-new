@@ -111,6 +111,12 @@ body {
    dropped the chrome nav labels below WCAG AA. */
 
 /* Borders + divides */
+.dark .border-gray-50,
+.dark .border-slate-50 {
+  /* Very subtle separators (e.g. table row dividers). Left un-remapped these
+     stayed near-white (#f9fafb) and drew harsh bright lines on the dark table. */
+  border-color: #223047;
+}
 .dark .border-gray-100,
 .dark .border-slate-100,
 .dark .border-gray-200,

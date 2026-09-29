@@ -8,19 +8,10 @@ export type { AvailableDutySlot as DutySlot } from "@/modules/shared/exams/selec
 
 export type SlotState = "AVAILABLE" | "FULL" | "SELECTED" | "CONFLICT";
 
-export interface DutyFilters {
-  date: string;
-  examType: string;
-  department: string;
-  semester: string;
-}
-
-export const EMPTY_FILTERS: DutyFilters = {
-  date: "",
-  examType: "",
-  department: "",
-  semester: "",
-};
+// Filter shape + empty value moved to the shared duties module so the RS/DCS
+// select pages and the shared DutyFilterBar don't reach into this module.
+export type { DutyFilters } from "@/modules/shared/duties/types";
+export { EMPTY_FILTERS } from "@/modules/shared/duties/types";
 
 export interface SelectionValidation {
   ok: boolean;

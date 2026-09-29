@@ -1,11 +1,15 @@
+import { lazy } from "react";
 import { Navigate, Route } from "react-router-dom";
 import InvigilatorLayout from "../components/InvigilatorLayout";
-import Dashboard from "../pages/Dashboard";
-import InvigilatorExamsPage from "../exams/pages/InvigilatorExamsPage";
-import InvigilatorExamDetailsPage from "../exams/pages/InvigilatorExamDetailsPage";
-import SelectDutyPage from "../select-duty/pages/SelectDutyPage";
-import InvigilatorChangeRequestsPage from "../change-requests/pages/InvigilatorChangeRequestsPage";
-import UpcomingDutiesPage from "../upcoming-duties/pages/UpcomingDutiesPage";
+
+// Pages are lazy so the invigilator chunk only loads for invigilator users;
+// the layout stays eager because it renders immediately on entry.
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const InvigilatorExamsPage = lazy(() => import("../exams/pages/InvigilatorExamsPage"));
+const InvigilatorExamDetailsPage = lazy(() => import("../exams/pages/InvigilatorExamDetailsPage"));
+const SelectDutyPage = lazy(() => import("../select-duty/pages/SelectDutyPage"));
+const InvigilatorChangeRequestsPage = lazy(() => import("../change-requests/pages/InvigilatorChangeRequestsPage"));
+const UpcomingDutiesPage = lazy(() => import("../upcoming-duties/pages/UpcomingDutiesPage"));
 
 export const invigilatorRoutes = (
   <Route path="/invigilator" element={<InvigilatorLayout />}>

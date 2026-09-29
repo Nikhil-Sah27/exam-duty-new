@@ -1,5 +1,6 @@
 import type { Duty } from "@/modules/duties/types";
 import { compareRoomNumbers } from "@/modules/rs/select-duty/utils/rsDutyGroupingUtils";
+import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 
 /**
  * Aggregate the RS user's individual room duties back into the "room group"
@@ -71,18 +72,13 @@ export interface RSUpcomingSummary {
 }
 
 /**
- * "Upcoming" = active duty with a date that is today or in the future.
- * Cancelled and completed duties are excluded.
+ * "Upcoming" = assigned duty whose end time hasn't passed yet (a duty that
+ * finished earlier today drops off into Completed). Cancelled duties excluded.
  */
 export function filterUpcomingRSDuties(duties: readonly Duty[]): Duty[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return duties.filter((d) => {
-    if (d.status !== "assigned") return false;
-    const dutyDay = new Date(d.date);
-    dutyDay.setHours(0, 0, 0, 0);
-    return dutyDay >= today;
-  });
+  return duties.filter(
+    (d) => d.status === "assigned" && isDutyUpcoming(d.date, d.endTime),
+  );
 }
 
 function partitionKey(d: Duty): string | null {

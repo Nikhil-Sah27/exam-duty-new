@@ -1,11 +1,15 @@
+import { lazy } from "react";
 import { Navigate, Route } from "react-router-dom";
 import RSLayout from "../components/RSLayout";
-import Dashboard from "../pages/Dashboard";
-import InvigilatorExamsPage from "@/modules/invigilator/exams/pages/InvigilatorExamsPage";
-import InvigilatorExamDetailsPage from "@/modules/invigilator/exams/pages/InvigilatorExamDetailsPage";
-import RSSelectDutyPage from "@/modules/rs/select-duty/pages/SelectDutyPage";
-import RSUpcomingDutiesPage from "@/modules/rs/upcoming-duties/pages/RSUpcomingDutiesPage";
-import RsChangeRequestsPage from "@/modules/rs/change-requests/pages/RsChangeRequestsPage";
+
+// Pages are lazy so the RS chunk only loads for RS users; the layout stays
+// eager because it renders immediately on entry.
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const InvigilatorExamsPage = lazy(() => import("@/modules/invigilator/exams/pages/InvigilatorExamsPage"));
+const InvigilatorExamDetailsPage = lazy(() => import("@/modules/invigilator/exams/pages/InvigilatorExamDetailsPage"));
+const RSSelectDutyPage = lazy(() => import("@/modules/rs/select-duty/pages/SelectDutyPage"));
+const RSUpcomingDutiesPage = lazy(() => import("@/modules/rs/upcoming-duties/pages/RSUpcomingDutiesPage"));
+const RsChangeRequestsPage = lazy(() => import("@/modules/rs/change-requests/pages/RsChangeRequestsPage"));
 
 /**
  * RS reuses the Invigilator pages for exams + change-requests, but has its

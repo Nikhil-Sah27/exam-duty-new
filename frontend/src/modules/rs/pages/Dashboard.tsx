@@ -6,7 +6,7 @@ import DashboardDutySection from "@/modules/shared/dashboard/components/Dashboar
 import {
   normalizeRsGroupsCompleted,
   normalizeRsGroupsUpcoming,
-} from "@/modules/shared/dashboard/utils/dashboardNormalizers";
+} from "../upcoming-duties/utils/rsDashboardNormalizers";
 import {
   groupRSDutiesIntoUpcomingGroups,
   type RSUpcomingGroup,

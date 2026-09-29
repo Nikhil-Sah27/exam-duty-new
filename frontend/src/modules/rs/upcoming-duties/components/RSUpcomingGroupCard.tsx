@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type { RSUpcomingGroup } from "../utils/rsUpcomingGrouping";
 import { getTypeColor } from "@/modules/shared/exams/utils/examStatusUtils";
-import { formatTime } from "@/modules/invigilator/upcoming-duties/utils/upcomingDutyUtils";
+import { formatTime } from "@/modules/shared/duties/utils/upcomingDutyUtils";
 
 const DEPT_COLORS: Record<string, string> = {
   CSE: "bg-blue-100 text-blue-700",

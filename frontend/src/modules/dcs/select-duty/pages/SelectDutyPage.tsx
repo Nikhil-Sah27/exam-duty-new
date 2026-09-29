@@ -1,6 +1,6 @@
 import { Crown } from "lucide-react";
-import DutyFilterBar from "@/modules/invigilator/select-duty/components/DutyFilterBar";
-import type { DutyFilters } from "@/modules/invigilator/select-duty/types";
+import DutyFilterBar from "@/modules/shared/duties/components/DutyFilterBar";
+import type { DutyFilters } from "@/modules/shared/duties/types";
 import { useDcsDutySelection } from "../hooks/useDcsDutySelection";
 import DcsGroupSections from "../components/DcsGroupSections";
 import DcsSelectionPanel from "../components/DcsSelectionPanel";

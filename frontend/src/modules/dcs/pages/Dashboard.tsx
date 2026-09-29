@@ -6,7 +6,7 @@ import DashboardDutySection from "@/modules/shared/dashboard/components/Dashboar
 import {
   normalizeDcsCompleted,
   normalizeDcsUpcoming,
-} from "@/modules/shared/dashboard/utils/dashboardNormalizers";
+} from "../upcoming-duties/utils/dcsDashboardNormalizers";
 import { getMyDcsGroups } from "../select-duty/services/dcsDutyService";
 import type { DcsGroup } from "../select-duty/types";
 import DcsDutyModal from "../upcoming-duties/components/DcsDutyModal";

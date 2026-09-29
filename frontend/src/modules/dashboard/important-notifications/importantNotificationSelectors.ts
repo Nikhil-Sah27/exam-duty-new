@@ -75,16 +75,13 @@ export function getTomorrowExamNotification(
     return null;
   }
   const examCount = target.exams.length;
-  const classCount = target.totalClasses;
   return {
     id: `tomorrow-exam-${dateKey(target.date)}`,
     priority: "medium",
     accent: "blue",
     category: "EXAM REMINDER",
     title: "Tomorrow's Exams",
-    message: `${examCount} exam${examCount !== 1 ? "s" : ""} · ${classCount} class${
-      classCount !== 1 ? "es" : ""
-    } scheduled for tomorrow.`,
+    message: `${examCount} exam${examCount !== 1 ? "s" : ""} scheduled for tomorrow.`,
     actionLabel: "View exams",
     actionHref: "/exams",
   };

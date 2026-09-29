@@ -1,7 +1,7 @@
 import { Clock } from "lucide-react";
 import type { Duty } from "@/modules/duties/types";
-import type { DateGroup } from "../utils/upcomingDutyUtils";
-import { formatLongDate, formatTime } from "../utils/upcomingDutyUtils";
+import type { DateGroup } from "@/modules/shared/duties/utils/upcomingDutyUtils";
+import { formatLongDate, formatTime } from "@/modules/shared/duties/utils/upcomingDutyUtils";
 import UpcomingDutyCard from "./UpcomingDutyCard";
 
 interface UpcomingDutyGroupProps {

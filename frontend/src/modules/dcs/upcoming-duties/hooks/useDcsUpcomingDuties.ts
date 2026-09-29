@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMyDcsGroups } from "../../select-duty/services/dcsDutyService";
+import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 import type { DcsGroup } from "../../select-duty/types";
 
 export interface DcsUpcomingEntry {
@@ -14,19 +15,14 @@ export interface DcsUpcomingDateGroup {
 }
 
 /**
- * "Upcoming" filter: today and later, dropping released groups. Sorted by
- * date then start time so the earliest duty surfaces first.
+ * "Upcoming" filter: claimed groups whose end time hasn't passed yet (a group
+ * that finished earlier today drops off). Sorted by date then start time so the
+ * earliest duty surfaces first.
  */
 function filterAndSort(groups: DcsGroup[]): DcsGroup[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   return groups
     .filter((g) => g.status === "claimed")
-    .filter((g) => {
-      const d = new Date(g.schedule.date);
-      d.setHours(0, 0, 0, 0);
-      return d >= today;
-    })
+    .filter((g) => isDutyUpcoming(g.schedule.date, g.schedule.endTime))
     .sort((a, b) => {
       const da = new Date(a.schedule.date).getTime();
       const db = new Date(b.schedule.date).getTime();

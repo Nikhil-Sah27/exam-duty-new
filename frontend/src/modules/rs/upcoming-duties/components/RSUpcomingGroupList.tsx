@@ -6,7 +6,7 @@ import type {
 import {
   formatLongDate,
   formatTime,
-} from "@/modules/invigilator/upcoming-duties/utils/upcomingDutyUtils";
+} from "@/modules/shared/duties/utils/upcomingDutyUtils";
 import RSUpcomingGroupCard from "./RSUpcomingGroupCard";
 
 interface RSUpcomingGroupListProps {

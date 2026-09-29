@@ -5,7 +5,7 @@ import { getTypeColor } from "@/modules/shared/exams/utils/examStatusUtils";
 import {
   formatLongDate,
   formatTime,
-} from "@/modules/invigilator/upcoming-duties/utils/upcomingDutyUtils";
+} from "@/modules/shared/duties/utils/upcomingDutyUtils";
 import InvigilatorContactsSection from "@/modules/shared/duties/components/InvigilatorContactsSection";
 
 interface RSUpcomingGroupModalProps {

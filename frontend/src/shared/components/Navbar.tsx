@@ -44,7 +44,7 @@ export default function Navbar() {
   const hasMultipleRoles = (user?.roles?.length || 0) > 1;
 
   return (
-    <header className="fixed left-0 top-0 z-10 flex h-16 w-full items-center justify-between bg-gray-800 px-6 text-white shadow-md">
+    <header className="fixed left-0 top-0 z-40 flex h-16 w-full items-center justify-between bg-gray-800 px-6 text-white shadow-md">
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}

@@ -37,12 +37,40 @@ const logSafe = (entry) => {
 };
 
 /**
+ * Actions the CS Audit Log intentionally hides: routine self-claims by
+ * teachers. CS cares about who *assigned* or *approved* duties, not every
+ * teacher picking up an open slot themselves — those would drown the log.
+ * Excluded unconditionally so they never surface, filtered or not.
+ */
+const HIDDEN_ACTIONS = [
+  "SELF_ASSIGN_DUTY",
+  "SELF_ASSIGN_DUTY_GROUP",
+  "CLAIM_DCS_GROUP",
+];
+
+/**
  * Paginated, filterable read used by the CS Audit Log screen.
  * Filters: action, entity, performedBy, from/to (createdAt range).
  */
 const list = async ({ action, entity, performedBy, from, to, page = 1, limit = 25 } = {}) => {
   const filter = {};
-  if (action) filter.action = action;
+  // `action` may be a single action or a comma-separated list (e.g. the "Duty
+  // assigned by CS" filter matches both the single and group admin-assign
+  // actions). Hidden self-claim actions are never selectable; with no action
+  // filter, show everything except them.
+  const requestedActions = action
+    ? String(action)
+        .split(",")
+        .map((a) => a.trim())
+        .filter((a) => a && !HIDDEN_ACTIONS.includes(a))
+    : [];
+  if (requestedActions.length > 1) {
+    filter.action = { $in: requestedActions };
+  } else if (requestedActions.length === 1) {
+    filter.action = requestedActions[0];
+  } else {
+    filter.action = { $nin: HIDDEN_ACTIONS };
+  }
   if (entity) filter.entity = entity;
   if (performedBy) filter.performedBy = performedBy;
   if (from || to) {

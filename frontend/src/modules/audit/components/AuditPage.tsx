@@ -3,35 +3,52 @@ import { ChevronLeft, ChevronRight, Loader2, RotateCcw } from "lucide-react";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { ACTION_META, BADGE_TONES, summarizeDetails } from "../utils/auditDisplay";
 import type { AuditLogEntry } from "../types";
+import AuditActionSelect from "./AuditActionSelect";
 
 const PAGE_SIZE = 25;
 
-// Grouped options for the action filter — keeps the dropdown scannable.
-const ACTION_GROUPS: { label: string; actions: string[] }[] = [
+// Grouped options for the action filter — keeps the dropdown scannable. Notes:
+//  - Teacher self-claims (SELF_ASSIGN_* / CLAIM_DCS_GROUP) are omitted: the
+//    backend hides them, so filtering by them would return nothing.
+//  - "Duty assigned by CS" covers every CS admin-assign action — single duty, RS
+//    group, and DCS group (the value is a comma list the backend matches with
+//    $in) — so they all filter together under one option.
+//  - "Duty cancelled" is omitted: CS can't cancel duties from this screen.
+const ACTION_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
   {
     label: "Duties",
-    actions: [
-      "SELF_ASSIGN_DUTY",
-      "SELF_ASSIGN_DUTY_GROUP",
-      "ADMIN_ASSIGN_DUTY",
-      "ADMIN_ASSIGN_DUTY_GROUP",
-      "CANCEL_DUTY",
+    options: [
+      {
+        value: "ADMIN_ASSIGN_DUTY,ADMIN_ASSIGN_DUTY_GROUP,ADMIN_CLAIM_DCS_GROUP",
+        label: "Duty assigned by CS",
+      },
     ],
   },
   {
-    label: "DCS Groups",
-    actions: ["CLAIM_DCS_GROUP", "ADMIN_CLAIM_DCS_GROUP", "RELEASE_DCS_GROUP"],
+    label: "Change Requests",
+    options: [
+      { value: "SUBMIT_CHANGE_REQUEST", label: "Change request submitted" },
+      { value: "APPROVE_CHANGE_REQUEST", label: "Change request approved" },
+      { value: "REJECT_CHANGE_REQUEST", label: "Change request rejected" },
+    ],
   },
   {
-    label: "Change Requests",
-    actions: ["SUBMIT_CHANGE_REQUEST", "APPROVE_CHANGE_REQUEST", "REJECT_CHANGE_REQUEST"],
+    label: "Exams",
+    options: [
+      { value: "CREATE_EXAM", label: "Exam created" },
+      { value: "DELETE_EXAM", label: "Exam deleted" },
+    ],
   },
-  { label: "Exams", actions: ["CREATE_EXAM", "DELETE_EXAM"] },
   {
     label: "Teachers",
-    actions: ["CREATE_USER", "UPDATE_USER", "DEACTIVATE_USER", "REACTIVATE_USER"],
+    options: [
+      { value: "CREATE_USER", label: "Teacher created" },
+      { value: "UPDATE_USER", label: "Teacher updated" },
+      { value: "DEACTIVATE_USER", label: "Teacher deactivated" },
+      { value: "REACTIVATE_USER", label: "Teacher reactivated" },
+    ],
   },
-  { label: "Announcements", actions: ["SEND_BROADCAST"] },
+  { label: "Announcements", options: [{ value: "SEND_BROADCAST", label: "Announcement sent" }] },
 ];
 
 export default function AuditPage() {
@@ -74,25 +91,14 @@ export default function AuditPage() {
           Filters
         </label>
 
-        <select
+        <AuditActionSelect
           value={action}
-          onChange={(e) => {
-            setAction(e.target.value);
+          onChange={(v) => {
+            setAction(v);
             setPage(1);
           }}
-          className="rounded-lg border border-gray-200 px-2 py-1 text-xs"
-        >
-          <option value="">All actions</option>
-          {ACTION_GROUPS.map((g) => (
-            <optgroup key={g.label} label={g.label}>
-              {g.actions.map((a) => (
-                <option key={a} value={a}>
-                  {ACTION_META[a]?.label ?? a}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          groups={ACTION_GROUPS}
+        />
 
         <input
           type="date"

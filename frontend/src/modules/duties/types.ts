@@ -43,6 +43,13 @@ export interface Duty {
     email: string;
     department: string;
   };
+  /**
+   * Which role slot this duty fills. A teacher can hold several roles, so the
+   * duty records which one was claimed — used to decide whether to render a
+   * duty as part of an RS/DCS group vs. a standalone invigilator row. Optional
+   * to stay tolerant of legacy duties created before the field existed.
+   */
+  role?: "dcs" | "rs" | "invigilator";
   room: string;
   date: string;
   startTime: string;

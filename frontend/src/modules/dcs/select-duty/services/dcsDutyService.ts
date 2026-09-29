@@ -22,6 +22,8 @@ export const listDcsGroups = async (params?: {
   examGroup?: string;
   schedule?: string;
   status?: "open" | "claimed" | "released";
+  /** Filter to groups claimed by a specific teacher (CS Manage Duties view). */
+  assignedTeacher?: string;
 }): Promise<DcsGroup[]> => {
   const res = await api.get<ListResponse<DcsGroup>>("/dcs/groups", { params });
   return res.data.data;

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronRight, LayoutGrid, List } from "lucide-react";
 import { useTeacherDetails } from "../hooks";
-import { useTeacherDutyProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
+import { useTeacherRsDutyProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
 import DutyFilterBar from "@/modules/shared/duties/components/DutyFilterBar";
 import DutyStatusLegend from "@/modules/shared/components/DutyStatusLegend";
 import RSDutyGroupSections from "@/modules/rs/select-duty/components/RSDutyGroupSections";
 import RSDutySelectionPanel from "@/modules/rs/select-duty/components/RSDutySelectionPanel";
 import type { DutyFilters } from "@/modules/shared/duties/types";
 import AssignDutyTeacherBanner from "./AssignDutyTeacherBanner";
+import TargetReachedNotice from "./TargetReachedNotice";
 import { useAdminAssignRSGroups } from "../hooks/useAdminAssignRSGroups";
 
 type ViewMode = "grid" | "table";
@@ -27,7 +28,7 @@ export default function AssignRSDutyPage() {
   const { data: teacher, isLoading: teacherLoading } = useTeacherDetails(
     teacherId!,
   );
-  const { data: progress } = useTeacherDutyProgress(teacherId);
+  const { data: progress } = useTeacherRsDutyProgress(teacherId);
 
   const {
     groups,
@@ -78,6 +79,15 @@ export default function AssignRSDutyPage() {
 
       <AssignDutyTeacherBanner teacher={teacher} progress={progress ?? null} />
 
+      {progress?.reached ? (
+        <TargetReachedNotice
+          teacherName={teacher.name}
+          role="rs"
+          target={progress.target}
+          assigned={progress.assigned}
+        />
+      ) : (
+        <>
       <div>
         <h2 className="text-xl font-bold text-gray-800">Select a Room Group</h2>
         <p className="mt-1 text-sm text-gray-500">
@@ -170,6 +180,8 @@ export default function AssignRSDutyPage() {
           />
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

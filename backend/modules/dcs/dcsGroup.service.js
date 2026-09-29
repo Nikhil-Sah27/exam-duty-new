@@ -12,6 +12,9 @@ const Semester = require("../department/semester.model");
 const User = require("../auth/auth.model");
 const Duty = require("../duty/duty.model");
 const { emit } = require("../notification/notification.emitter");
+const {
+  assertTargetNotReached,
+} = require("../duty-calculation/dutyCalculation.service");
 
 const {
   calculateRequiredDCS,
@@ -174,6 +177,9 @@ const listGroups = async (query = {}) => {
   if (query.examGroup) filter.examGroup = query.examGroup;
   if (query.schedule) filter.schedule = query.schedule;
   if (query.status) filter.status = query.status;
+  // CS views a specific teacher's claimed groups (Manage Duties) by filtering
+  // on the persisted assignee — backed by the { assignedTeacher, status } index.
+  if (query.assignedTeacher) filter.assignedTeacher = query.assignedTeacher;
   return dcsGroupRepository.findAll(filter);
 };
 
@@ -343,8 +349,10 @@ const claimGroup = (groupId, userId) =>
  * is the target teacher; every created duty gets a `duty_assigned`
  * notification.
  */
-const adminClaimGroup = (groupId, targetTeacherId, adminId) => {
+const adminClaimGroup = async (groupId, targetTeacherId, adminId) => {
   if (!targetTeacherId) throw new AppError("Teacher ID is required", 400);
+  // CS can't assign a DCS group once the teacher has met their DCS target.
+  await assertTargetNotReached(targetTeacherId, "dcs");
   return _performClaim(groupId, {
     assigneeId: targetTeacherId,
     assignedById: adminId,

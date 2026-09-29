@@ -7,6 +7,7 @@ import { useExamGroups } from "@/modules/exams/hooks";
 import ExamFilters from "@/modules/exams/components/ExamFilters";
 import ExamGroupSection from "@/modules/shared/exams/components/ExamGroupSection";
 import AssignDutyTeacherBanner from "./AssignDutyTeacherBanner";
+import TargetReachedNotice from "./TargetReachedNotice";
 
 /**
  * Step 1 of the CS "assign duty" wizard — render the same visual exam
@@ -50,36 +51,47 @@ export default function AssignDutyExamsPage() {
 
       <AssignDutyTeacherBanner teacher={teacher} progress={progress ?? null} />
 
-      {(groups || []).length > 0 && (
-        <ExamFilters
-          selectedType={filterType}
-          selectedSemester={filterSemester}
-          onTypeChange={setFilterType}
-          onSemesterChange={setFilterSemester}
+      {progress?.reached ? (
+        <TargetReachedNotice
+          teacherName={teacher.name}
+          role="invigilator"
+          target={progress.target}
+          assigned={progress.assigned}
         />
-      )}
-
-      {groupsLoading ? (
-        <p className="text-gray-500">Loading exam groups...</p>
       ) : (
-        <ExamGroupSection
-          exams={groups || []}
-          selectedType={filterType}
-          selectedSemester={filterSemester}
-          getCardHref={(g) =>
-            `/manage-duties/${teacher._id}/assign/exams/${g._id}`
-          }
-          emptyState={
-            <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 text-center">
-              <p className="text-sm text-gray-500">
-                No exams match the current filters.
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                Ask the exam admin to create schedules first.
-              </p>
-            </div>
-          }
-        />
+        <>
+          {(groups || []).length > 0 && (
+            <ExamFilters
+              selectedType={filterType}
+              selectedSemester={filterSemester}
+              onTypeChange={setFilterType}
+              onSemesterChange={setFilterSemester}
+            />
+          )}
+
+          {groupsLoading ? (
+            <p className="text-gray-500">Loading exam groups...</p>
+          ) : (
+            <ExamGroupSection
+              exams={groups || []}
+              selectedType={filterType}
+              selectedSemester={filterSemester}
+              getCardHref={(g) =>
+                `/manage-duties/${teacher._id}/assign/exams/${g._id}`
+              }
+              emptyState={
+                <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 text-center">
+                  <p className="text-sm text-gray-500">
+                    No exams match the current filters.
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Ask the exam admin to create schedules first.
+                  </p>
+                </div>
+              }
+            />
+          )}
+        </>
       )}
     </div>
   );

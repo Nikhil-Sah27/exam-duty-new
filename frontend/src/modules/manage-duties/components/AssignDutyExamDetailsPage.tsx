@@ -11,6 +11,7 @@ import ExamHeader from "@/modules/exams/components/ExamHeader";
 import StatusLegend from "@/modules/exams/components/StatusLegend";
 import Timetable from "@/modules/exams/components/Timetable";
 import AssignDutyTeacherBanner from "./AssignDutyTeacherBanner";
+import TargetReachedNotice from "./TargetReachedNotice";
 import { AssignmentTeacherProvider } from "../context/AssignmentTeacherContext";
 
 function getStatus(startDate: string, endDate: string): ExamGroupStatus {
@@ -88,12 +89,23 @@ export default function AssignDutyExamDetailsPage() {
 
         <ExamHeader group={group} status={status} />
 
-        <StatusLegend />
+        {progress?.reached ? (
+          <TargetReachedNotice
+            teacherName={teacher.name}
+            role="invigilator"
+            target={progress.target}
+            assigned={progress.assigned}
+          />
+        ) : (
+          <>
+            <StatusLegend />
 
-        <Timetable
-          schedules={group.schedules || []}
-          dutyStatusMap={dutyStatusMap}
-        />
+            <Timetable
+              schedules={group.schedules || []}
+              dutyStatusMap={dutyStatusMap}
+            />
+          </>
+        )}
       </div>
     </AssignmentTeacherProvider>
   );

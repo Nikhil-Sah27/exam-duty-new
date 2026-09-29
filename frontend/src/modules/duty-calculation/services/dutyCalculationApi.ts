@@ -52,6 +52,24 @@ export const fetchTeacherDutyProgress = async (
   return res.data.data;
 };
 
+export const fetchTeacherRsDutyProgress = async (
+  teacherId: string
+): Promise<TeacherDutyProgress> => {
+  const res = await api.get<ApiSingle<TeacherDutyProgress>>(
+    `/duty-calculation/teacher/${teacherId}/rs-progress`
+  );
+  return res.data.data;
+};
+
+export const fetchTeacherDcsDutyProgress = async (
+  teacherId: string
+): Promise<TeacherDutyProgress> => {
+  const res = await api.get<ApiSingle<TeacherDutyProgress>>(
+    `/duty-calculation/teacher/${teacherId}/dcs-progress`
+  );
+  return res.data.data;
+};
+
 export interface AllTeachersFilters {
   role?: "cs" | "dcs" | "rs" | "invigilator";
   department?: string;

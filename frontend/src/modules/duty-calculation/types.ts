@@ -33,6 +33,14 @@ export interface TeacherDutyProgress {
   eligible: boolean;
   target: number;
   completed: number;
+  /**
+   * Active duties/groups occupying a target slot — upcoming + ongoing +
+   * completed (everything except cancelled). Drives the "target reached" gate,
+   * distinct from `completed` (which only counts duties whose time has passed).
+   */
+  assigned: number;
+  /** True once `assigned >= target` (and target > 0) — CS assignment is blocked. */
+  reached: boolean;
   remaining: number;
   percentage: number;
   breakdown: DutyCalculationBreakdown;

@@ -8,6 +8,9 @@ const examRoomRepo = require("../exam/examRoom.repository");
 const examGroupRepo = require("../exam/examGroup.repository");
 const { emit } = require("../notification/notification.emitter");
 const { buildRoomLabel } = require("../exam-cleanup/utils/examCleanupUtils");
+const {
+  assertTargetNotReached,
+} = require("../duty-calculation/dutyCalculation.service");
 
 // ---------- Conflict validation ----------
 
@@ -194,6 +197,9 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
   validateTimeRange(startTime, endTime);
   await validateTeacher(teacherId);
   const dutyRole = await resolveRoleForAssignment(teacherId, callerActiveRole, requestedRole, isSelfAssigned);
+  // CS can't assign past a teacher's computed target for this role. Self-claim
+  // is intentionally exempt — the requirement is about CS-driven assignment.
+  if (!isSelfAssigned) await assertTargetNotReached(teacherId, dutyRole);
   await validateConflicts(teacherId, room, date, startTime, endTime, undefined, roomRef, dutyRole);
 
   const duty = await withOptionalTransaction((session) =>
@@ -352,6 +358,8 @@ const adminAssignDutyGroup = async (data, adminId) => {
   if (dutyRole !== "rs" && dutyRole !== "dcs") {
     throw new AppError("Group assignment is only valid for DCS and RS roles", 400);
   }
+  // Block CS group assignment once the teacher has met their role target.
+  await assertTargetNotReached(teacherId, dutyRole);
 
   const resolved = await Promise.all(
     uniqueRoomIds.map((roomId) => validateScheduleSlot(examSchedule, roomId)),

@@ -1,12 +1,12 @@
 import { Clock, CheckCircle2, Inbox } from "lucide-react";
 import { StatusBadge } from "@/shared/components";
 import { formatDate, capitalize } from "@/shared/lib/utils";
-import { TeacherDuty } from "../types";
+import type { Duty } from "@/modules/duties/types";
 
 interface DutySectionProps {
   title: string;
   variant: "upcoming" | "completed";
-  duties: TeacherDuty[];
+  duties: Duty[];
 }
 
 /**
@@ -16,7 +16,7 @@ interface DutySectionProps {
  * + examRoom` refs instead. Reading `d.exam.name` directly on a new-flow
  * duty crashes the whole page — this helper is what makes the row survive.
  */
-function getExamLabel(d: TeacherDuty): { title: string; subtitle: string } {
+function getExamLabel(d: Duty): { title: string; subtitle: string } {
   if (d.exam) {
     return {
       title: d.exam.name,
@@ -35,7 +35,7 @@ function getExamLabel(d: TeacherDuty): { title: string; subtitle: string } {
  * plain string in `d.room`. New-flow duties populate `examRoom.room.building`
  * so we can show "Building — 301" instead of a bare "301".
  */
-function getRoomLabel(d: TeacherDuty): string {
+function getRoomLabel(d: Duty): string {
   const room = d.examRoom?.room;
   if (room?.building?.name && room.roomNumber) {
     return `${room.building.name} — ${room.roomNumber}`;

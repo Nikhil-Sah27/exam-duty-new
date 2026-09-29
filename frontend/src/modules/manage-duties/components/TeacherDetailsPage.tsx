@@ -1,9 +1,13 @@
 import { useParams, Link } from "react-router-dom";
-import { useTeacherDetails, useTeacherDuties } from "../hooks";
 import { ChevronRight } from "lucide-react";
+import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
+import { useTeacherDetails, useTeacherDcsGroups } from "../hooks";
 import TeacherHeader from "./TeacherHeader";
 import DutyStatsBar from "./DutyStatsBar";
 import DutySection from "./DutySection";
+import TeacherRSDutyGroups from "./TeacherRSDutyGroups";
+import TeacherDCSDutyGroups from "./TeacherDCSDutyGroups";
+import { countDutyUnits } from "../utils/dutyUnitCounts";
 
 export default function TeacherDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,9 +17,11 @@ export default function TeacherDetailsPage() {
     isError: teacherError,
     error: tError,
   } = useTeacherDetails(id!);
-  const { data: duties, isLoading: dutiesLoading } = useTeacherDuties(id!);
+  const { data: dutiesData, isLoading: dutiesLoading } = useDutiesByTeacher(id);
+  const { data: dcsGroupsData, isLoading: dcsGroupsLoading } =
+    useTeacherDcsGroups(id!);
 
-  if (teacherLoading || dutiesLoading) {
+  if (teacherLoading || dutiesLoading || dcsGroupsLoading) {
     return <p className="text-gray-500">Loading...</p>;
   }
 
@@ -27,8 +33,34 @@ export default function TeacherDetailsPage() {
     return <p className="text-red-600">Teacher not found.</p>;
   }
 
-  const upcoming = (duties || []).filter((d) => d.status === "assigned");
-  const completed = (duties || []).filter((d) => d.status === "completed");
+  const duties = dutiesData ?? [];
+  const dcsGroups = dcsGroupsData ?? [];
+
+  // RS and DCS are group roles — a whole room-group counts as one duty, not one
+  // per class — so the tiles use group-aware counts, not raw room-duty counts.
+  const stats = countDutyUnits(duties);
+
+  // Grouped views own their role's duties: RS derives room-groups from the
+  // flat list; DCS renders its persisted groups. Everything else (invigilator
+  // duties, plus legacy duties with no role) falls back to the flat table.
+  // If DCS groups failed to load, DCS duties fall back to the flat table too
+  // so nothing silently disappears.
+  const rsDuties = duties.filter((d) => d.role === "rs");
+  const hasDcsGroups = dcsGroups.length > 0;
+  const flatDuties = duties.filter((d) => {
+    if (d.role === "rs") return false;
+    if (d.role === "dcs") return !hasDcsGroups;
+    return true;
+  });
+
+  const showDcs = hasDcsGroups;
+  const showRs = rsDuties.length > 0;
+  // Always render the flat table when there are flat duties, or as the default
+  // empty state when the teacher has no grouped duties either.
+  const showFlat = flatDuties.length > 0 || (!showDcs && !showRs);
+
+  const flatUpcoming = flatDuties.filter((d) => d.status === "assigned");
+  const flatCompleted = flatDuties.filter((d) => d.status === "completed");
 
   return (
     <div className="space-y-6">
@@ -49,22 +81,28 @@ export default function TeacherDetailsPage() {
 
       {/* Stats bar */}
       <DutyStatsBar
-        upcoming={upcoming.length}
-        completed={completed.length}
-        total={(duties || []).length}
+        upcoming={stats.active}
+        completed={stats.completed}
+        total={stats.total}
       />
 
-      {/* Duty sections */}
-      <DutySection
-        title="Upcoming Duties"
-        variant="upcoming"
-        duties={upcoming}
-      />
-      <DutySection
-        title="Completed Duties"
-        variant="completed"
-        duties={completed}
-      />
+      {/* Duty sections — grouped for RS/DCS, flat table otherwise */}
+      {showDcs && <TeacherDCSDutyGroups groups={dcsGroups} />}
+      {showRs && <TeacherRSDutyGroups duties={rsDuties} />}
+      {showFlat && (
+        <>
+          <DutySection
+            title="Upcoming Duties"
+            variant="upcoming"
+            duties={flatUpcoming}
+          />
+          <DutySection
+            title="Completed Duties"
+            variant="completed"
+            duties={flatCompleted}
+          />
+        </>
+      )}
     </div>
   );
 }

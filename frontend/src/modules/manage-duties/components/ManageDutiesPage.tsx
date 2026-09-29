@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { useTeachers } from "../hooks";
 import type { UserRole } from "@/shared/lib/types";
+import type { Duty } from "@/modules/duties/types";
 import { useDuties } from "@/modules/duties/hooks";
 import { TeacherFilters, TeacherWithStats } from "../types";
+import { countDutyUnits } from "../utils/dutyUnitCounts";
 import TeacherListItem from "./TeacherListItem";
 import TeacherFiltersBar from "./TeacherFiltersBar";
 
@@ -16,24 +18,22 @@ export default function ManageDutiesPage() {
     role: "",
   });
 
-  // Compute duty stats per teacher
+  // Compute duty stats per teacher. RS and DCS are group roles, so a whole
+  // room-group counts as one duty (not one per class) — see `countDutyUnits`.
   const teachersWithStats: TeacherWithStats[] = useMemo(() => {
     if (!teachers) return [];
 
-    const dutyMap = new Map<string, { active: number; completed: number; total: number }>();
-
+    const dutiesByTeacher = new Map<string, Duty[]>();
     (allDuties || []).forEach((d) => {
       const tid = d.teacher._id;
-      const stats = dutyMap.get(tid) || { active: 0, completed: 0, total: 0 };
-      stats.total++;
-      if (d.status === "assigned") stats.active++;
-      if (d.status === "completed") stats.completed++;
-      dutyMap.set(tid, stats);
+      const arr = dutiesByTeacher.get(tid) ?? [];
+      arr.push(d);
+      dutiesByTeacher.set(tid, arr);
     });
 
     return teachers.map((t) => ({
       ...t,
-      dutyStats: dutyMap.get(t._id) || { active: 0, completed: 0, total: 0 },
+      dutyStats: countDutyUnits(dutiesByTeacher.get(t._id) ?? []),
     }));
   }, [teachers, allDuties]);
 

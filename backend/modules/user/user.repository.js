@@ -29,6 +29,16 @@ const softDeleteById = (id) => {
   ).select(ALLOWED_FIELDS);
 };
 
+// Read a user by id regardless of active state. Passing `isActive` explicitly
+// disables the pre-find hook's auto active-only scoping, so soft-deleted users
+// are visible (needed to decide soft- vs hard-delete).
+const findByIdIncludingInactive = (id) =>
+  User.findOne({ _id: id, isActive: { $in: [true, false] } }).select(ALLOWED_FIELDS);
+
+// Permanently remove a user document. `deleteOne` is not a `find` op, so the
+// active-only pre-find hook doesn't apply — soft-deleted users are removable.
+const hardDeleteById = (id) => User.deleteOne({ _id: id });
+
 // Explicitly filters on isActive so the model's pre-find hook (which auto-scopes
 // queries to active users) does not hide the inactive record we want to update.
 const activateById = (id) => {
@@ -61,6 +71,8 @@ module.exports = {
   findById,
   updateById,
   softDeleteById,
+  findByIdIncludingInactive,
+  hardDeleteById,
   activateById,
   countByRole,
   findActiveIds,

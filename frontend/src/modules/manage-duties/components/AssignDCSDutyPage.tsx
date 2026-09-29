@@ -1,13 +1,14 @@
 import { useParams, Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useTeacherDetails } from "../hooks";
-import { useTeacherDutyProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
+import { useTeacherDcsDutyProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
 import DutyFilterBar from "@/modules/shared/duties/components/DutyFilterBar";
 import DutyStatusLegend from "@/modules/shared/components/DutyStatusLegend";
 import DcsGroupSections from "@/modules/dcs/select-duty/components/DcsGroupSections";
 import DcsSelectionPanel from "@/modules/dcs/select-duty/components/DcsSelectionPanel";
 import type { DutyFilters } from "@/modules/shared/duties/types";
 import AssignDutyTeacherBanner from "./AssignDutyTeacherBanner";
+import TargetReachedNotice from "./TargetReachedNotice";
 import { useAdminAssignDcsGroups } from "../hooks/useAdminAssignDcsGroups";
 
 /**
@@ -22,7 +23,7 @@ export default function AssignDCSDutyPage() {
   const { data: teacher, isLoading: teacherLoading } = useTeacherDetails(
     teacherId!,
   );
-  const { data: progress } = useTeacherDutyProgress(teacherId);
+  const { data: progress } = useTeacherDcsDutyProgress(teacherId);
 
   const {
     groups,
@@ -72,6 +73,15 @@ export default function AssignDCSDutyPage() {
 
       <AssignDutyTeacherBanner teacher={teacher} progress={progress ?? null} />
 
+      {progress?.reached ? (
+        <TargetReachedNotice
+          teacherName={teacher.name}
+          role="dcs"
+          target={progress.target}
+          assigned={progress.assigned}
+        />
+      ) : (
+        <>
       <div>
         <h2 className="text-xl font-bold text-gray-800">
           Select a Supervision Group
@@ -142,6 +152,8 @@ export default function AssignDCSDutyPage() {
           />
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

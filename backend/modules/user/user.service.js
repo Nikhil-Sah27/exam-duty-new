@@ -87,9 +87,18 @@ const updateUser = async (id, data) => {
 };
 
 const deleteUser = async (id) => {
-  const user = await userRepository.softDeleteById(id);
+  const user = await userRepository.findByIdIncludingInactive(id);
   if (!user) throw new AppError("User not found", 404);
-  return user;
+
+  // Deleting an already-deactivated teacher removes them permanently. The first
+  // delete of an active teacher only soft-deletes (deactivates) so history and
+  // reactivation are preserved; deleting again clears the record for good.
+  if (!user.isActive) {
+    await userRepository.hardDeleteById(id);
+    return user;
+  }
+
+  return userRepository.softDeleteById(id);
 };
 
 const activateUser = async (id) => {

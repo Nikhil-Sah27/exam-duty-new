@@ -14,13 +14,21 @@ import {
   type AssignByScheduleSlotPayload,
   type AssignGroupPayload,
 } from "../services";
-import { adminClaimDcsGroup } from "@/modules/dcs/select-duty/services/dcsDutyService";
+import {
+  adminClaimDcsGroup,
+  listDcsGroups,
+} from "@/modules/dcs/select-duty/services/dcsDutyService";
 import { DUTY_CALC_ROOT } from "@/modules/duty-calculation/hooks/useDutyProgress";
 import type { UserRole } from "@/shared/lib/types";
 
 const TEACHERS_KEY = ["manage-duties", "teachers"];
 const teacherDetailKey = (id: string) => ["manage-duties", "teacher", id];
 const teacherDutiesKey = (id: string) => ["manage-duties", "duties", id];
+const teacherDcsGroupsKey = (id: string) => [
+  "manage-duties",
+  "dcs-groups",
+  id,
+];
 const eligibleTeachersKey = (role: string) => [
   "manage-duties",
   "eligible-teachers",
@@ -65,6 +73,22 @@ export const useTeacherDuties = (teacherId: string) => {
   return useQuery({
     queryKey: teacherDutiesKey(teacherId),
     queryFn: () => getTeacherDuties(teacherId),
+    enabled: !!teacherId,
+  });
+};
+
+/**
+ * The persisted DCS groups a specific teacher has claimed. DCS grouping is
+ * server-owned (unlike RS groups, which are derived from the flat duty list),
+ * so the CS Manage Duties view fetches the same DcsGroup documents the DCS
+ * sees on their own Upcoming Duties page and renders them identically. The
+ * key lives under `manage-duties` so `invalidateAfterAssign` refreshes it.
+ */
+export const useTeacherDcsGroups = (teacherId: string) => {
+  return useQuery({
+    queryKey: teacherDcsGroupsKey(teacherId),
+    queryFn: () =>
+      listDcsGroups({ assignedTeacher: teacherId, status: "claimed" }),
     enabled: !!teacherId,
   });
 };

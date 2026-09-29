@@ -23,15 +23,15 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white p-1 w-fit">
+      <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 w-fit shadow-sm">
         {TABS.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-lg px-6 py-2.5 text-base font-semibold transition-all ${
               tab === t.value
-                ? "bg-gray-800 text-white"
-                : "text-gray-600 hover:bg-gray-50"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             {t.label}

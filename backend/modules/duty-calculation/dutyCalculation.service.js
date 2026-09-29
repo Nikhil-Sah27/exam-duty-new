@@ -7,6 +7,7 @@ const Room = require("../infrastructure/infrastructure.model");
 const ExamGroup = require("../exam/examGroup.model");
 const Duty = require("../duty/duty.model");
 const DCSGroup = require("../dcs/dcsGroup.model");
+const examGroupRepo = require("../exam/examGroup.repository");
 
 /**
  * Centralised duty-target calculation.
@@ -354,23 +355,40 @@ const completedDutyMatch = () => {
 const countCompletedDutiesForTeacher = async (teacherId) => {
   return Duty.countDocuments({
     teacher: teacherId,
+    // Role-scoped so a teacher's RS/DCS room duties never inflate their
+    // invigilator completed count (matches the role-scoped active counter).
+    role: "invigilator",
     ...completedDutyMatch(),
   });
 };
 
 /**
- * Count a teacher's completed RS **groups** (not rooms). RS claims whole room
- * groups (≤5 rooms per schedule + building), stored as one Duty per room. To
- * match the group cards on the dashboard — and the group-unit target
- * (total RS = invigilator ÷ 5) — we partition completed rs duties exactly like
- * the UI's `groupRSDutiesIntoUpcomingGroups` (schedule + date + slot + building)
- * and chunk each partition by 5.
+ * Count a teacher's *active* (non-cancelled) invigilator duties — i.e. every
+ * duty that counts toward "target reached": upcoming + ongoing + completed.
+ * Unlike the completed counter this is role-scoped, since target-reached
+ * enforcement is per-role.
  */
-const countCompletedRsGroupsForTeacher = async (teacherId) => {
+const countActiveDutiesForTeacher = (teacherId) =>
+  Duty.countDocuments({
+    teacher: teacherId,
+    role: "invigilator",
+    status: { $ne: "cancelled" },
+  });
+
+/**
+ * Count a teacher's RS **groups** (not rooms) matching `dutyMatch`. RS claims
+ * whole room groups (≤5 rooms per schedule + building), stored as one Duty per
+ * room. To match the group cards on the dashboard — and the group-unit target
+ * (total RS = invigilator ÷ 5) — we partition rs duties exactly like the UI's
+ * `groupRSDutiesIntoUpcomingGroups` (schedule + date + slot + building) and
+ * chunk each partition by 5. `dutyMatch` selects which duties count (completed
+ * vs. all active).
+ */
+const countRsGroupsForTeacher = async (teacherId, dutyMatch) => {
   const duties = await Duty.find({
     teacher: teacherId,
     role: "rs",
-    ...completedDutyMatch(),
+    ...dutyMatch,
   })
     .select("examSchedule roomRef date startTime endTime _id")
     .populate({ path: "roomRef", select: "building" });
@@ -395,6 +413,14 @@ const countCompletedRsGroupsForTeacher = async (teacherId) => {
   }
   return groups;
 };
+
+/** Completed RS groups — schedule already ended. Powers the progress circle. */
+const countCompletedRsGroupsForTeacher = (teacherId) =>
+  countRsGroupsForTeacher(teacherId, completedDutyMatch());
+
+/** Active (non-cancelled) RS groups — upcoming + ongoing + completed. */
+const countActiveRsGroupsForTeacher = (teacherId) =>
+  countRsGroupsForTeacher(teacherId, { status: { $ne: "cancelled" } });
 
 // ---------- Per-teacher progress ----------
 
@@ -431,6 +457,10 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
 
   const target = eligible ? resolveTeacherTarget(teacher, perInvigilator) : 0;
   const completed = await countCompletedDutiesForTeacher(teacherId);
+  // `assigned` counts everything that occupies a target slot (upcoming +
+  // ongoing + completed); `reached` gates CS assignment once it hits target.
+  const assigned = await countActiveDutiesForTeacher(teacherId);
+  const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
   const percentage =
     target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
@@ -441,10 +471,13 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
     email: teacher.email,
     department: teacher.department,
     designation: teacher.designation,
+    role: "invigilator",
     roles: teacherRoles,
     eligible,
     target,
     completed,
+    assigned,
+    reached,
     remaining,
     percentage,
     breakdown: {
@@ -533,6 +566,9 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
   // RS is a group role — count completed groups, not individual rooms, so the
   // circle matches the group cards and the group-unit target.
   const completed = await countCompletedRsGroupsForTeacher(teacherId);
+  // Active groups (upcoming + ongoing + completed) drive target-reached.
+  const assigned = await countActiveRsGroupsForTeacher(teacherId);
+  const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
   const percentage =
     target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
@@ -548,6 +584,8 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
     eligible,
     target,
     completed,
+    assigned,
+    reached,
     remaining,
     percentage,
     breakdown: {
@@ -655,6 +693,13 @@ const countCompletedDcsGroupsForTeacher = async (teacherId) => {
   return groups.filter((g) => scheduleHasEnded(g.schedule)).length;
 };
 
+/**
+ * All DCS groups a teacher currently holds (upcoming + ongoing + completed) —
+ * every claimed group counts toward the target, whether or not it has ended.
+ */
+const countActiveDcsGroupsForTeacher = (teacherId) =>
+  DCSGroup.countDocuments({ assignedTeacher: teacherId, status: "claimed" });
+
 const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
   const teacher = await User.findById(teacherId);
   if (!teacher) throw new AppError("Teacher not found", 404);
@@ -667,6 +712,9 @@ const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
 
   const target = eligible ? perDcs.target : 0;
   const completed = await countCompletedDcsGroupsForTeacher(teacherId);
+  // All claimed groups (upcoming + ongoing + completed) drive target-reached.
+  const assigned = await countActiveDcsGroupsForTeacher(teacherId);
+  const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
   const percentage =
     target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
@@ -682,6 +730,8 @@ const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
     eligible,
     target,
     completed,
+    assigned,
+    reached,
     remaining,
     percentage,
     breakdown: {
@@ -692,33 +742,118 @@ const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
   };
 };
 
+// ---------- Target-reached guard (CS assignment enforcement) ----------
+
+const ROLE_LABEL = { invigilator: "invigilator", rs: "RS", dcs: "DCS" };
+
+/**
+ * Compute a teacher's role-specific progress. Single lookup used by both the
+ * per-role progress endpoints and the assignment guard, so "reached" is defined
+ * in exactly one place.
+ */
+const getTeacherProgressForRole = (teacherId, role) => {
+  if (role === "rs") return calculateRsTeacherProgress(teacherId);
+  if (role === "dcs") return calculateDcsTeacherProgress(teacherId);
+  return calculateTeacherProgress(teacherId);
+};
+
+/**
+ * Throw a 409 when the teacher has already met their target for this role, so
+ * CS admin-assign paths can't push a teacher past their computed duty load.
+ * Ineligible teachers (target 0) are never blocked.
+ */
+const assertTargetNotReached = async (teacherId, role) => {
+  const progress = await getTeacherProgressForRole(teacherId, role);
+  if (progress.reached) {
+    const label = ROLE_LABEL[role] || role;
+    throw new AppError(
+      `${progress.name} has already completed their ${label} duty target (${progress.target}). No further duties can be assigned.`,
+      409,
+    );
+  }
+  return progress;
+};
+
 // ---------- Cohort view (admin analytics) ----------
 
-const calculateAllTeachersProgress = async ({
-  role,
-  department,
-  eligibleOnly,
-} = {}) => {
-  const filter = { isActive: true };
-  if (role) filter.roles = role;
-  if (department) filter.department = department;
-  if (eligibleOnly) filter.designation = { $in: ELIGIBLE_DESIGNATIONS };
+/**
+ * The single duty role a teacher is measured against in the cohort view when no
+ * role filter is applied — derived from designation so each teacher maps to one
+ * row: HOD/Dean → DCS, Professor → RS, Assistant/Associate Professor →
+ * invigilator (their base duty; Associate Professors also do RS, which surfaces
+ * when the RS role is explicitly filtered).
+ */
+const primaryDutyRoleForDesignation = (designation) => {
+  const d = (designation || "").trim();
+  if (isDcsEligibleDesignation(d)) return "dcs";
+  if (d === PROFESSOR_DESIGNATION) return "rs";
+  if (d === ASSISTANT_DESIGNATION || d === ASSOCIATE_DESIGNATION) {
+    return "invigilator";
+  }
+  return null;
+};
 
-  const [teachers, perInvigilator] = await Promise.all([
+/**
+ * Cohort workload table. Role-aware: a `role` filter narrows the roster to
+ * teachers holding that role AND measures every row against that role's target /
+ * completed / remaining. With no role filter each teacher is measured against
+ * their own primary duty role (see `primaryDutyRoleForDesignation`), so RS and
+ * DCS staff show their real group-based numbers instead of empty invigilator
+ * rows. CS accounts and non-teaching ("Other") designations are always excluded.
+ */
+const calculateAllTeachersProgress = async ({ role, department } = {}) => {
+  const filter = { isActive: true };
+  // CS is a pure admin role with no invigilation duties, so CS-only accounts
+  // never belong in the workload cohort. A specific role filter already excludes
+  // them (they don't hold that role); otherwise drop them explicitly.
+  if (role) filter.roles = role;
+  else filter.roles = { $ne: "cs" };
+  if (department) filter.department = department;
+  // "Other" (and missing) designations are non-teaching accounts with no duty
+  // target — keep them out of the workload report entirely.
+  filter.designation = { $nin: ["Other", null] };
+
+  // Precompute each role's distribution once and reuse it for every row, rather
+  // than recomputing inside every per-teacher call.
+  const [teachers, perInvigilator, perRs, perDcs] = await Promise.all([
     User.find(filter).sort({ name: 1 }),
     calculateDutyPerInvigilator(),
+    calculateRsDutyPerTeacher(),
+    calculateDcsDutyPerTeacher(),
   ]);
 
-  const rows = await Promise.all(
+  const progressForRole = (teacherId, r) => {
+    if (r === "rs") return calculateRsTeacherProgress(teacherId, { perRs });
+    if (r === "dcs") return calculateDcsTeacherProgress(teacherId, { perDcs });
+    return calculateTeacherProgress(teacherId, { perInvigilator });
+  };
+
+  // Which role(s) each teacher is measured against. A specific filter pins the
+  // whole cohort to that one role; otherwise a teacher gets one row per duty
+  // role they actually hold — so an Associate Professor (invigilator + RS) shows
+  // both workloads, each with its own target/completed/remaining.
+  const ROLE_ORDER = { invigilator: 0, rs: 1, dcs: 2 };
+  const rolesForTeacher = (teacher) => {
+    if (role) return [role];
+    const held = (teacher.roles || []).filter((r) => r in ROLE_ORDER);
+    const roles = held.length
+      ? held
+      : [primaryDutyRoleForDesignation(teacher.designation)].filter(Boolean);
+    return roles.sort((a, b) => ROLE_ORDER[a] - ROLE_ORDER[b]);
+  };
+
+  const rowGroups = await Promise.all(
     teachers.map((t) =>
-      calculateTeacherProgress(t._id, { perInvigilator }).catch(() => null)
+      Promise.all(
+        rolesForTeacher(t).map((r) => progressForRole(t._id, r).catch(() => null))
+      )
     )
   );
 
   const { assistantExtras, ...publicPerInvigilator } = perInvigilator;
   return {
     perInvigilator: publicPerInvigilator,
-    teachers: rows.filter(Boolean),
+    teachers: rowGroups.flat().filter(Boolean),
   };
 };
 
@@ -755,15 +890,20 @@ module.exports = {
   calculateInstitutionDuty,
   calculateDutyPerInvigilator,
   countCompletedDutiesForTeacher,
+  countActiveDutiesForTeacher,
   calculateTeacherProgress,
   calculateAllTeachersProgress,
   recalculateAll,
+  // Target-reached guard (CS assignment enforcement)
+  getTeacherProgressForRole,
+  assertTargetNotReached,
   // RS (Room Superintendent)
   RS_ELIGIBLE_DESIGNATIONS,
   getRsEligibleTeacherPool,
   calculateRsDutyPerTeacher,
   calculateRsTeacherProgress,
   countCompletedRsGroupsForTeacher,
+  countActiveRsGroupsForTeacher,
   // DCS (Deputy Chief Superintendent)
   DCS_ELIGIBLE_DESIGNATIONS,
   calculateDcsInstitutionDuty,
@@ -771,4 +911,5 @@ module.exports = {
   calculateDcsDutyPerTeacher,
   calculateDcsTeacherProgress,
   countCompletedDcsGroupsForTeacher,
+  countActiveDcsGroupsForTeacher,
 };

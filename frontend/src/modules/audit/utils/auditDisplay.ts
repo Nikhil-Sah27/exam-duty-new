@@ -6,10 +6,14 @@ export const ACTION_META: Record<string, { label: string; tone: string }> = {
   SELF_ASSIGN_DUTY: { label: "Duty claimed", tone: "emerald" },
   SELF_ASSIGN_DUTY_GROUP: { label: "Group claimed", tone: "emerald" },
   ADMIN_ASSIGN_DUTY: { label: "Duty assigned by CS", tone: "blue" },
-  ADMIN_ASSIGN_DUTY_GROUP: { label: "Group assigned by CS", tone: "blue" },
+  // A CS-assigned RS group is still a duty assignment from the CS's point of
+  // view — surface it as "Duty assigned by CS" rather than a separate "Group".
+  ADMIN_ASSIGN_DUTY_GROUP: { label: "Duty assigned by CS", tone: "blue" },
   CANCEL_DUTY: { label: "Duty cancelled", tone: "amber" },
   CLAIM_DCS_GROUP: { label: "DCS group claimed", tone: "emerald" },
-  ADMIN_CLAIM_DCS_GROUP: { label: "DCS group assigned by CS", tone: "blue" },
+  // A CS-assigned DCS group is a duty assignment from the CS's point of view —
+  // surface it the same as any other "Duty assigned by CS".
+  ADMIN_CLAIM_DCS_GROUP: { label: "Duty assigned by CS", tone: "blue" },
   RELEASE_DCS_GROUP: { label: "DCS group released", tone: "amber" },
   SUBMIT_CHANGE_REQUEST: { label: "Change request submitted", tone: "indigo" },
   APPROVE_CHANGE_REQUEST: { label: "Change request approved", tone: "emerald" },

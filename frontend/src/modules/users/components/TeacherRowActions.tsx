@@ -78,10 +78,14 @@ export default function TeacherRowActions({ user }: TeacherRowActionsProps) {
         open={confirmAction === "delete"}
         onClose={closeConfirm}
         onConfirm={handleDelete}
-        title="Delete User"
-        description={`This will permanently deactivate "${user.name}". This action cannot be undone.`}
+        title={user.isActive ? "Delete User" : "Permanently Delete User"}
+        description={
+          user.isActive
+            ? `This will deactivate "${user.name}". Delete them again once deactivated to remove the record permanently.`
+            : `This will permanently delete "${user.name}" and cannot be undone.`
+        }
         confirmWord="DELETE"
-        confirmLabel="Delete User"
+        confirmLabel={user.isActive ? "Delete User" : "Delete Permanently"}
         variant="danger"
         isLoading={deleteMutation.isPending}
       />

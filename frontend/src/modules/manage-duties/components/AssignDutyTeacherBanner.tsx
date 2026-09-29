@@ -49,8 +49,17 @@ export default function AssignDutyTeacherBanner({ teacher, progress }: Props) {
 
         <div className="ml-auto grid grid-cols-3 gap-3">
           <Tile label="Target" value={progress?.target} />
-          <Tile label="Assigned" value={progress?.completed} />
-          <Tile label="Remaining" value={progress?.remaining} />
+          {/* "Assigned" = active duties/groups (upcoming + ongoing + completed) —
+              the same count that drives the target-reached block. */}
+          <Tile label="Assigned" value={progress?.assigned} />
+          <Tile
+            label="Remaining"
+            value={
+              progress
+                ? Math.max(0, progress.target - progress.assigned)
+                : undefined
+            }
+          />
         </div>
       </div>
     </div>

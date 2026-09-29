@@ -33,6 +33,22 @@ const getTeacherProgress = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: progress });
 });
 
+/** RS progress for a specific teacher — CS assign-RS wizard. */
+const getTeacherRsProgress = catchAsync(async (req, res) => {
+  const progress = await dutyCalculationService.calculateRsTeacherProgress(
+    req.params.teacherId
+  );
+  res.status(200).json({ success: true, data: progress });
+});
+
+/** DCS progress for a specific teacher — CS assign-DCS wizard. */
+const getTeacherDcsProgress = catchAsync(async (req, res) => {
+  const progress = await dutyCalculationService.calculateDcsTeacherProgress(
+    req.params.teacherId
+  );
+  res.status(200).json({ success: true, data: progress });
+});
+
 /** Cohort table for the admin analytics page. Supports simple filters. */
 const getAllTeachersProgress = catchAsync(async (req, res) => {
   const { role, department, eligibleOnly } = req.query;
@@ -79,6 +95,8 @@ module.exports = {
   getMyRsProgress,
   getMyDcsProgress,
   getTeacherProgress,
+  getTeacherRsProgress,
+  getTeacherDcsProgress,
   getAllTeachersProgress,
   getInstitutionSummary,
   getSemesterBreakdown,

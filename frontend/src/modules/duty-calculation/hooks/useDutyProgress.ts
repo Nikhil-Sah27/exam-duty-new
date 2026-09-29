@@ -6,6 +6,8 @@ import {
   fetchMyRsDutyProgress,
   fetchMyDcsDutyProgress,
   fetchTeacherDutyProgress,
+  fetchTeacherRsDutyProgress,
+  fetchTeacherDcsDutyProgress,
   type AllTeachersFilters,
 } from "../services/dutyCalculationApi";
 
@@ -24,6 +26,10 @@ export const DUTY_CALC_KEYS = {
   myDcsProgress: [...DUTY_CALC_ROOT, "my-dcs-progress"] as const,
   teacherProgress: (id: string) =>
     [...DUTY_CALC_ROOT, "teacher-progress", id] as const,
+  teacherRsProgress: (id: string) =>
+    [...DUTY_CALC_ROOT, "teacher-rs-progress", id] as const,
+  teacherDcsProgress: (id: string) =>
+    [...DUTY_CALC_ROOT, "teacher-dcs-progress", id] as const,
   allTeachers: (filters: AllTeachersFilters) =>
     [...DUTY_CALC_ROOT, "all-teachers", filters] as const,
   institution: [...DUTY_CALC_ROOT, "institution"] as const,
@@ -68,6 +74,26 @@ export function useTeacherDutyProgress(teacherId: string | null | undefined) {
   return useQuery({
     queryKey: DUTY_CALC_KEYS.teacherProgress((teacherId as string) || ""),
     queryFn: () => fetchTeacherDutyProgress(teacherId as string),
+    enabled: Boolean(teacherId),
+    staleTime: 30_000,
+  });
+}
+
+/** A specific teacher's RS progress — CS Assign-RS wizard. */
+export function useTeacherRsDutyProgress(teacherId: string | null | undefined) {
+  return useQuery({
+    queryKey: DUTY_CALC_KEYS.teacherRsProgress((teacherId as string) || ""),
+    queryFn: () => fetchTeacherRsDutyProgress(teacherId as string),
+    enabled: Boolean(teacherId),
+    staleTime: 30_000,
+  });
+}
+
+/** A specific teacher's DCS progress — CS Assign-DCS wizard. */
+export function useTeacherDcsDutyProgress(teacherId: string | null | undefined) {
+  return useQuery({
+    queryKey: DUTY_CALC_KEYS.teacherDcsProgress((teacherId as string) || ""),
+    queryFn: () => fetchTeacherDcsDutyProgress(teacherId as string),
     enabled: Boolean(teacherId),
     staleTime: 30_000,
   });

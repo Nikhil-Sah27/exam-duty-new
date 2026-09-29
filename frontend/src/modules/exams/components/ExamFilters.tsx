@@ -3,11 +3,23 @@ import { ExamGroupType } from "../types";
 const EXAM_TYPES: ExamGroupType[] = ["IA1", "IA2", "IA3", "SEE"];
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
 
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "ongoing", label: "Ongoing" },
+  { value: "upcoming", label: "Upcoming" },
+  { value: "completed", label: "Completed" },
+];
+
+const SELECT_CLASS =
+  "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+
 interface ExamFiltersProps {
   selectedType: string;
   selectedSemester: string;
   onTypeChange: (type: string) => void;
   onSemesterChange: (semester: string) => void;
+  /** Status filter — rendered on the right only when `onStatusChange` is given. */
+  selectedStatus?: string;
+  onStatusChange?: (status: string) => void;
 }
 
 export default function ExamFilters({
@@ -15,43 +27,32 @@ export default function ExamFilters({
   selectedSemester,
   onTypeChange,
   onSemesterChange,
+  selectedStatus = "",
+  onStatusChange,
 }: ExamFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Exam Type Filter */}
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => onTypeChange("")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-            selectedType === ""
-              ? "bg-gray-800 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          All Types
-        </button>
+      <select
+        value={selectedType}
+        onChange={(e) => onTypeChange(e.target.value)}
+        className={SELECT_CLASS}
+        aria-label="Exam type"
+      >
+        <option value="">All Types</option>
         {EXAM_TYPES.map((type) => (
-          <button
-            key={type}
-            onClick={() => onTypeChange(type === selectedType ? "" : type)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              selectedType === type
-                ? "bg-gray-800 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
+          <option key={type} value={type}>
             {type}
-          </button>
+          </option>
         ))}
-      </div>
-
-      <div className="h-5 w-px bg-gray-200" />
+      </select>
 
       {/* Semester Filter */}
       <select
         value={selectedSemester}
         onChange={(e) => onSemesterChange(e.target.value)}
-        className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className={SELECT_CLASS}
+        aria-label="Semester"
       >
         <option value="">All Semesters</option>
         {SEMESTERS.map((s) => (
@@ -60,6 +61,23 @@ export default function ExamFilters({
           </option>
         ))}
       </select>
+
+      {/* Status Filter — pushed to the right */}
+      {onStatusChange && (
+        <select
+          value={selectedStatus}
+          onChange={(e) => onStatusChange(e.target.value)}
+          className={`ml-auto ${SELECT_CLASS}`}
+          aria-label="Status"
+        >
+          <option value="">All Status</option>
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

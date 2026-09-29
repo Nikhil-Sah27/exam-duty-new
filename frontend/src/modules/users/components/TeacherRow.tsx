@@ -90,24 +90,6 @@ export default function TeacherRow({ user }: TeacherRowProps) {
         {user.designation || <span className="text-gray-300">—</span>}
       </td>
 
-      {/* Status */}
-      <td className="px-5 py-3">
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-            user.isActive
-              ? "bg-green-50 text-green-700"
-              : "bg-amber-50 text-amber-700"
-          }`}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              user.isActive ? "bg-green-500" : "bg-amber-500"
-            }`}
-          />
-          {user.isActive ? "Active" : "Not active"}
-        </span>
-      </td>
-
       {/* Added date */}
       <td className="px-5 py-3 text-xs text-gray-400">
         {formatDate(user.createdAt)}

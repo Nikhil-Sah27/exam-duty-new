@@ -1,4 +1,8 @@
-import type { ExamGroup, ExamGroupStatus } from "../types/exam.types";
+import type {
+  ExamGroup,
+  ExamGroupStatus,
+  ExamGroupType,
+} from "../types/exam.types";
 import { getExamGroupStatus } from "./examStatusUtils";
 
 // Lower = earlier in render order. ONGOING first, then UPCOMING, then
@@ -77,3 +81,44 @@ export const STATUS_RENDER_ORDER: ExamGroupStatus[] = [
   "upcoming",
   "completed",
 ];
+
+// Within a status, SEE is listed first, then IA1 → IA2 → IA3.
+export const EXAM_TYPE_RENDER_ORDER: ExamGroupType[] = [
+  "SEE",
+  "IA1",
+  "IA2",
+  "IA3",
+];
+
+export interface ExamTypeGroup {
+  type: ExamGroupType;
+  exams: ExamGroup[];
+}
+
+export interface ExamStatusGroup {
+  status: ExamGroupStatus;
+  /** Total exams across all types in this status. */
+  total: number;
+  /** Type sub-groups in SEE → IA1 → IA2 → IA3 order; empty ones dropped. */
+  types: ExamTypeGroup[];
+}
+
+/**
+ * Group exams as Status → Type: Ongoing → Upcoming → Completed at the top level,
+ * and within each status SEE → IA1 → IA2 → IA3. Each type list keeps the
+ * within-status date order from `bucketByStatus`. Empty statuses/types are
+ * dropped so callers only render bands that have exams.
+ */
+export function groupExamsByStatusThenType<T extends ExamGroup>(
+  exams: T[],
+): ExamStatusGroup[] {
+  const byStatus = bucketByStatus(exams);
+  return STATUS_RENDER_ORDER.map((status) => {
+    const list = byStatus[status];
+    const types = EXAM_TYPE_RENDER_ORDER.map((type) => ({
+      type,
+      exams: list.filter((g) => g.examType === type),
+    })).filter((t) => t.exams.length > 0);
+    return { status, total: list.length, types };
+  }).filter((s) => s.total > 0);
+}

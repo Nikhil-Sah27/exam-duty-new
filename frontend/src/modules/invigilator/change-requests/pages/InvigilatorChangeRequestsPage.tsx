@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { ClipboardList } from "lucide-react";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { EmptyState } from "@/shared/components";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import { useMyChangeRequests } from "@/modules/shared/change-requests/hooks/useChangeRequests";
 import { hasPendingRequest } from "@/modules/shared/change-requests/utils/changeRequestValidation";
@@ -54,12 +56,11 @@ export default function InvigilatorChangeRequestsPage() {
           <p className="text-sm text-gray-500">Loading your duties...</p>
         )}
         {!dutiesQuery.isLoading && upcomingDuties.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-gray-200 py-10 text-center">
-            <p className="text-sm text-gray-500">No upcoming duties assigned to you.</p>
-            <p className="mt-1 text-xs text-gray-400">
-              Once a duty is assigned, you'll be able to request changes here.
-            </p>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title="No upcoming duties assigned to you"
+            description="Once a duty is assigned, you'll be able to request changes here."
+          />
         )}
         <div className="space-y-2">
           {upcomingDuties.map((d) => (

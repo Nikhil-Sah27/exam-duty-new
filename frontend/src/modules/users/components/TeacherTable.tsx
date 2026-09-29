@@ -114,7 +114,6 @@ export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
                 <th className="px-5 py-3">Role</th>
                 <th className="px-5 py-3">Department</th>
                 <th className="px-5 py-3">Designation</th>
-                <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3">Added</th>
                 <th className="px-5 py-3">Actions</th>
               </tr>

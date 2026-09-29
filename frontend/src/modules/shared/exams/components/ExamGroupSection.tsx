@@ -1,10 +1,9 @@
 import { ReactNode } from "react";
 import type { ExamGroup, ExamGroupStatus } from "../types/exam.types";
 import { useGroupedExams } from "../hooks/useGroupedExams";
-import { getExamGroupStatus, getTypeSubtitle } from "../utils/examStatusUtils";
 import ExamCard from "./ExamCard";
-import ExamStatusSection from "./ExamStatusSection";
-import ExamTypeHeader from "./ExamTypeHeader";
+import ExamStatusHeader from "./ExamStatusHeader";
+import ExamTypeSubHeader from "./ExamTypeSubHeader";
 
 interface ExamGroupSectionProps {
   /** Flat list of exam groups (already fetched by the parent). */
@@ -25,12 +24,7 @@ interface ExamGroupSectionProps {
   renderCard?: (group: ExamGroup, status: ExamGroupStatus) => ReactNode;
   /** Shown when no exams pass the filter (or there are none at all). */
   emptyState?: ReactNode;
-  /** Optional section subtitle overrides. */
-  cieTitle?: string;
-  cieSubtitle?: string;
-  seeTitle?: string;
-  seeSubtitle?: string;
-  /** Hide section headers entirely (compact embed in a dashboard). */
+  /** Hide the status/type headers entirely (compact embed in a dashboard). */
   compact?: boolean;
 }
 
@@ -41,13 +35,14 @@ const DEFAULT_EMPTY = (
 );
 
 /**
- * One-stop component for the CIE/SEE/IA1-3 + Ongoing/Upcoming/Completed
- * grouped exam listing. Use this everywhere exams are listed so every
- * dashboard stays visually and structurally identical to the CS view.
+ * One-stop grouped exam listing. Organises exams **Status → Type**: Ongoing →
+ * Upcoming → Completed at the top level, and within each status SEE → IA1 → IA2
+ * → IA3. Used everywhere exams are listed so every dashboard stays visually and
+ * structurally identical to the CS view.
  *
- * The card renderer defaults to the shared <ExamCard>, which auto-styles
- * SEE differently from CIE. Pages with bespoke needs (e.g. inline "Your
- * duty here" badge) can override via `renderCard`.
+ * The card renderer defaults to the shared <ExamCard>, which auto-styles SEE
+ * differently from CIE. Pages with bespoke needs (e.g. inline "Your duty here"
+ * badge) can override via `renderCard`.
  */
 export default function ExamGroupSection({
   exams,
@@ -57,21 +52,12 @@ export default function ExamGroupSection({
   onDelete,
   renderCard,
   emptyState,
-  cieTitle = "CIE — Internal Exams",
-  cieSubtitle = "IA1, IA2, IA3",
-  seeTitle = "SEE — Semester End Exams",
-  seeSubtitle = "External Examination",
   compact = false,
 }: ExamGroupSectionProps) {
-  const {
-    categorized,
-    cieBuckets,
-    seeBuckets,
-    showCIE,
-    showSEE,
-    statusOrder,
-    total,
-  } = useGroupedExams(exams, { selectedType, selectedSemester });
+  const { statusGroups, total } = useGroupedExams(exams, {
+    selectedType,
+    selectedSemester,
+  });
 
   if (total === 0) {
     return <>{emptyState ?? DEFAULT_EMPTY}</>;
@@ -89,86 +75,26 @@ export default function ExamGroupSection({
   );
   const cardFor = renderCard ?? defaultRender;
 
-  const cieCount =
-    categorized.cie.IA1.length +
-    categorized.cie.IA2.length +
-    categorized.cie.IA3.length;
-  const seeCount = categorized.see.length;
-
-  // When a filter pins us to one IA type, hide the sibling IA blocks so the
-  // page doesn't render empty bands.
-  const ia: ("IA1" | "IA2" | "IA3")[] =
-    selectedType === "IA1" || selectedType === "IA2" || selectedType === "IA3"
-      ? [selectedType]
-      : ["IA1", "IA2", "IA3"];
-
   return (
     <div className="space-y-10">
-      {showCIE && cieCount > 0 && (
-        <section className="space-y-5">
-          {!compact && (
-            <ExamTypeHeader
-              variant="cie"
-              title={cieTitle}
-              subtitle={cieSubtitle}
-              count={cieCount}
-            />
-          )}
+      {statusGroups.map((sg) => (
+        <section key={sg.status} className="space-y-5">
+          {!compact && <ExamStatusHeader status={sg.status} count={sg.total} />}
 
           <div className="space-y-8">
-            {ia.map((subType) => {
-              const list = categorized.cie[subType];
-              if (list.length === 0) return null;
-              const buckets = cieBuckets[subType];
-              return (
-                <div key={subType} className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold tracking-wide text-gray-700">
-                      {subType}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      · {getTypeSubtitle(subType)} ({list.length})
-                    </span>
-                    <div className="ml-1 h-px flex-1 bg-gray-100" />
-                  </div>
-                  {statusOrder.map((status) => (
-                    <ExamStatusSection
-                      key={status}
-                      status={status}
-                      exams={buckets[status]}
-                      renderCard={(g) => cardFor(g, getExamGroupStatus(g))}
-                    />
-                  ))}
+            {sg.types.map((tg) => (
+              <div key={tg.type} className="space-y-4">
+                {!compact && (
+                  <ExamTypeSubHeader type={tg.type} count={tg.exams.length} />
+                )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {tg.exams.map((g) => cardFor(g, sg.status))}
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {showSEE && seeCount > 0 && (
-        <section className="space-y-5">
-          {!compact && (
-            <ExamTypeHeader
-              variant="see"
-              title={seeTitle}
-              subtitle={seeSubtitle}
-              count={seeCount}
-            />
-          )}
-
-          <div className="space-y-6">
-            {statusOrder.map((status) => (
-              <ExamStatusSection
-                key={status}
-                status={status}
-                exams={seeBuckets[status]}
-                renderCard={(g) => cardFor(g, getExamGroupStatus(g))}
-              />
+              </div>
             ))}
           </div>
         </section>
-      )}
+      ))}
     </div>
   );
 }

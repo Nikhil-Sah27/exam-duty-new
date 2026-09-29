@@ -35,7 +35,10 @@ const STATE_STYLES: Record<
 > = {
   AVAILABLE: {
     border: "border-emerald-300",
-    bg: "bg-gradient-to-br from-emerald-50 via-white to-teal-50 hover:from-emerald-100 hover:via-emerald-50 hover:to-teal-100",
+    // Gradient stops kept to `-50` + `via-white` so the app's dark-mode CSS
+    // re-themes every stop; hover feedback comes from `hover:shadow-md` on the
+    // card instead of a `-100` gradient that would stay light on dark.
+    bg: "bg-gradient-to-br from-emerald-50 via-white to-teal-50",
     label: "Available",
     labelColor: "text-emerald-700",
     disabled: false,
@@ -43,7 +46,7 @@ const STATE_STYLES: Record<
   },
   SELECTED: {
     border: "border-blue-500 ring-2 ring-blue-200",
-    bg: "bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100",
+    bg: "bg-gradient-to-br from-blue-50 via-white to-indigo-50",
     label: "Selected",
     labelColor: "text-blue-700",
     disabled: false,
@@ -60,7 +63,7 @@ const STATE_STYLES: Record<
   },
   MINE: {
     border: "border-blue-400",
-    bg: "bg-gradient-to-br from-blue-100 via-sky-50 to-indigo-100 cursor-default",
+    bg: "bg-gradient-to-br from-indigo-50 via-white to-sky-50 cursor-default",
     label: "My Duty",
     labelColor: "text-blue-700",
     disabled: true,

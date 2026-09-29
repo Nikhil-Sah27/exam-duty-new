@@ -3,6 +3,7 @@ export { default as Input } from "./Input";
 export { default as Select } from "./Select";
 export { default as Modal } from "./Modal";
 export { default as StatusBadge } from "./StatusBadge";
+export { default as EmptyState } from "./EmptyState";
 export { default as ErrorAlert } from "./ErrorAlert";
 export { default as ConfirmDeleteModal } from "./ConfirmDeleteModal";
 export { default as ConfirmActionModal } from "./ConfirmActionModal";

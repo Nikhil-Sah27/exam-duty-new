@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarClock } from "lucide-react";
+import { EmptyState } from "@/shared/components";
 import type { DcsDutyGroup } from "@/modules/duties/services/dcsGroupingService";
 import {
   useMyDcsGroupAssignments,
@@ -76,15 +77,12 @@ export default function DcsChangeRequestsPage() {
         )}
 
         {!assignmentsQuery.isLoading && upcomingAssignments.length === 0 && (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 py-12 text-center">
-            <CalendarClock className="h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-500">
-              You have no upcoming DCS duty groups.
-            </p>
-            <p className="text-xs text-gray-400">
-              Visit Select Duty to pick a supervision group first.
-            </p>
-          </div>
+          <EmptyState
+            icon={CalendarClock}
+            accent="bg-blue-100 text-blue-600"
+            title="You have no upcoming DCS duty groups"
+            description="Visit Select Duty to pick a supervision group first."
+          />
         )}
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

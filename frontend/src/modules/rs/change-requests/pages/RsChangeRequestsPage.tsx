@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarClock } from "lucide-react";
+import { EmptyState } from "@/shared/components";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import { useMyChangeRequests } from "@/modules/shared/change-requests/hooks/useChangeRequests";
@@ -70,15 +71,12 @@ export default function RsChangeRequestsPage() {
         )}
 
         {!dutiesQuery.isLoading && upcomingGroups.length === 0 && (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 py-12 text-center">
-            <CalendarClock className="h-10 w-10 text-gray-300" />
-            <p className="text-sm font-medium text-gray-500">
-              You have no upcoming RS groups.
-            </p>
-            <p className="text-xs text-gray-400">
-              Visit Select Duty to pick a room group first.
-            </p>
-          </div>
+          <EmptyState
+            icon={CalendarClock}
+            accent="bg-emerald-100 text-emerald-600"
+            title="You have no upcoming RS groups"
+            description="Visit Select Duty to pick a room group first."
+          />
         )}
 
         <div className="space-y-2">

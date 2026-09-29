@@ -22,15 +22,32 @@ export default function ChangeRequestCard({
   const r = request;
   const isDcsSwap = r.scope === "dcs_group" || r.type === "dcs_swap";
   const isRsSwap = r.scope === "rs_group" || r.type === "rs_swap";
-  const typeLabel = isDcsSwap
-    ? "DCS Swap"
-    : isRsSwap
-      ? "RS Swap"
+
+  // Lead with the ROLE (duty-scoped requests are always invigilator; RS/DCS use
+  // group swaps), then the action — e.g. "INVIGILATOR MOVE", "RS SWAP",
+  // "DCS SWAP" — so every card names the role the way the DCS card already does.
+  const roleLabel = isDcsSwap ? "DCS" : isRsSwap ? "RS" : "Invigilator";
+  const actionLabel =
+    isDcsSwap || isRsSwap || r.type === "swap"
+      ? "Swap"
       : r.type === "move"
         ? "Move"
-        : r.type === "swap"
-          ? "Swap"
-          : "Drop";
+        : "Drop";
+  const badgeLabel = `${roleLabel} ${actionLabel}`;
+
+  // Chip colour by role (matches the block tints); left edge by review status,
+  // so a long list scans at a glance (green approved / red rejected / amber pending).
+  const roleChipColor = isDcsSwap
+    ? "bg-blue-600"
+    : isRsSwap
+      ? "bg-indigo-600"
+      : "bg-emerald-600";
+  const statusBorder =
+    r.status === "approved"
+      ? "border-l-emerald-400"
+      : r.status === "rejected"
+        ? "border-l-rose-400"
+        : "border-l-amber-400";
 
   const movingTo =
     r.type === "move" && r.requestedDate && r.requestedStartTime && r.requestedEndTime
@@ -48,12 +65,16 @@ export default function ChangeRequestCard({
       : null;
 
   return (
-    <article className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <article
+      className={`space-y-3 rounded-2xl border border-l-4 border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${statusBorder}`}
+    >
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] font-bold text-white">
-              {typeLabel.toUpperCase()}
+            <span
+              className={`rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide text-white ${roleChipColor}`}
+            >
+              {badgeLabel.toUpperCase()}
             </span>
             <ChangeRequestStatusBadge status={r.status} />
           </div>

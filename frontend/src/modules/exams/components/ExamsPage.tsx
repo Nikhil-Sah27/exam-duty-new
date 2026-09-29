@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useExamGroups, useDeleteExamGroup } from "../hooks";
+import { getExamGroupStatus } from "@/modules/shared/exams/utils/examStatusUtils";
 import type { ExamGroup } from "../types";
 import ExamGrid from "./ExamGrid";
 import ExamFilters from "./ExamFilters";
@@ -11,9 +12,20 @@ export default function ExamsPage() {
 
   const [filterType, setFilterType] = useState("");
   const [filterSemester, setFilterSemester] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ExamGroup | null>(null);
 
   const allGroups = groups || [];
+
+  // Status is derived from dates (ongoing/upcoming/completed), so filter here and
+  // let the grid group the survivors by type + status as usual.
+  const visibleGroups = useMemo(
+    () =>
+      filterStatus
+        ? allGroups.filter((g) => getExamGroupStatus(g) === filterStatus)
+        : allGroups,
+    [allGroups, filterStatus],
+  );
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -36,6 +48,8 @@ export default function ExamsPage() {
           selectedSemester={filterSemester}
           onTypeChange={setFilterType}
           onSemesterChange={setFilterSemester}
+          selectedStatus={filterStatus}
+          onStatusChange={setFilterStatus}
         />
       )}
 
@@ -44,7 +58,7 @@ export default function ExamsPage() {
         <p className="text-gray-500">Loading exam groups...</p>
       ) : (
         <ExamGrid
-          groups={allGroups}
+          groups={visibleGroups}
           selectedType={filterType}
           selectedSemester={filterSemester}
           onDelete={(group) => setDeleteTarget(group)}

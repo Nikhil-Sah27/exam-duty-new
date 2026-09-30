@@ -64,6 +64,7 @@ app.use("/api/audit", require("./modules/audit/audit.routes"));
 app.use("/api/dcs", require("./modules/dcs/dcsGroup.routes"));
 app.use("/api/seat-sharing", require("./modules/seat-sharing/seatSharing.routes"));
 app.use("/api/duty-calculation", require("./modules/duty-calculation/dutyCalculation.routes"));
+app.use("/api/messages", require("./modules/message/message.routes"));
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

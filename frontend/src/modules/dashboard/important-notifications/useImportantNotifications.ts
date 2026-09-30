@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
 import { useAllChangeRequests } from "@/modules/shared/change-requests/hooks/useChangeRequests";
+import { useCsUnread } from "@/modules/messages/hooks/useMessages";
 import { getImportantDashboardNotifications } from "./importantNotificationSelectors";
 import type { ImportantNotification } from "./types";
 
@@ -14,13 +15,15 @@ import type { ImportantNotification } from "./types";
 export function useImportantNotifications(): ImportantNotification[] {
   const { assignmentTarget } = useDashboardSummary();
   const { data: changeRequests } = useAllChangeRequests("pending");
+  const { data: unreadMessages = 0 } = useCsUnread(true);
 
   return useMemo(
     () =>
       getImportantDashboardNotifications({
         assignmentTarget,
         changeRequests: changeRequests ?? [],
+        unreadMessages,
       }),
-    [assignmentTarget, changeRequests],
+    [assignmentTarget, changeRequests, unreadMessages],
   );
 }

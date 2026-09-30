@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useNotifications } from "@/modules/notifications/hooks";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
+import { useMyUnread } from "@/modules/messages/hooks/useMessages";
 import { useImportantNotificationQueue } from "./useImportantNotificationQueue";
 import { usePersistedSeen } from "./usePersistedSeen";
 import ImportantNotificationContainer from "./ImportantNotificationContainer";
@@ -11,6 +12,7 @@ import {
   type OperationalRole,
 } from "./roleNotificationSelectors";
 import { buildDutyTodayNotifications } from "./dutyTodaySelectors";
+import { buildUnreadCsMessagesNotification } from "./messageNotificationSelectors";
 
 const OP_ROLES: OperationalRole[] = ["invigilator", "rs", "dcs"];
 
@@ -34,20 +36,24 @@ export default function RoleImportantNotificationProvider() {
   const isOpRole = OP_ROLES.includes(activeRole as OperationalRole);
   const role = activeRole as OperationalRole;
 
+  const { data: unreadMessages = 0 } = useMyUnread(isOpRole);
+
   const notifications = useMemo(() => {
     if (!isOpRole) return [];
     const now = Date.now();
     // "Duty today" reminders first (most urgent, re-shown every visit), then the
-    // feed-driven popups (assignments, tomorrow reminders, request outcomes…).
+    // "messages from CS" popup, then the feed-driven popups (assignments,
+    // tomorrow reminders, request outcomes…).
     return [
       ...buildDutyTodayNotifications({ role, duties: duties ?? [], now }),
+      ...buildUnreadCsMessagesNotification({ role, unread: unreadMessages }),
       ...buildRoleImportantNotifications({
         role,
         notifications: feed ?? [],
         now,
       }),
     ];
-  }, [isOpRole, role, feed, duties]);
+  }, [isOpRole, role, feed, duties, unreadMessages]);
 
   const { seen, markSeen } = usePersistedSeen(userId);
   const { current, visible, dismiss } = useImportantNotificationQueue(

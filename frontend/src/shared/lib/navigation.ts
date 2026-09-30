@@ -10,6 +10,7 @@ import {
   BarChart3,
   ScrollText,
   Megaphone,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import { UserRole } from "./types";
@@ -28,6 +29,7 @@ export const navItems: NavItem[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, roles: ADMIN_ROLES },
   { path: "/create-exams", label: "Create Exams", icon: FilePlus, roles: ADMIN_ROLES },
   { path: "/exams", label: "Exams", icon: FileText, roles: ADMIN_ROLES },
+  { path: "/messages", label: "Messages", icon: MessageSquare, roles: CS_ONLY },
   { path: "/requests", label: "Change Requests", icon: ArrowLeftRight, roles: ADMIN_ROLES },
   { path: "/manage-duties", label: "Manage Duties", icon: ClipboardList, roles: ADMIN_ROLES },
   { path: "/users", label: "Teachers", icon: Users, roles: ADMIN_ROLES },

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAppStore } from "@/shared/store/app.store";
 import { INVIGILATOR_CONFIG } from "@/modules/shared/role-config/roleConfig";
+import MessagesNavBadge from "@/modules/messages/components/MessagesNavBadge";
 
 export default function InvigilatorSidebar() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
@@ -32,6 +33,9 @@ export default function InvigilatorSidebar() {
             >
               <Icon className="h-4 w-4 shrink-0" />
               {item.label}
+              {item.path.endsWith("/messages") && (
+                <MessagesNavBadge variant="teacher" />
+              )}
             </Link>
           );
         })}

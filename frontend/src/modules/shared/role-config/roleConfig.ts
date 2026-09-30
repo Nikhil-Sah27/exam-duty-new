@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import type { RoomDutyFlags } from "@/modules/shared/exams/types/exam.types";
@@ -48,6 +49,7 @@ const buildNav = (basePath: string): RoleNavItem[] => [
   { path: `${basePath}/exams`, label: "Exams", icon: FileText },
   { path: `${basePath}/select-duty`, label: "Select Duty", icon: ClipboardCheck },
   { path: `${basePath}/upcoming-duties`, label: "Upcoming Duties", icon: CalendarClock },
+  { path: `${basePath}/messages`, label: "Messages", icon: MessageSquare },
   { path: `${basePath}/change-requests`, label: "Change Requests", icon: ArrowLeftRight },
 ];
 

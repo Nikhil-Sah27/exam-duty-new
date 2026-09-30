@@ -3,6 +3,7 @@ import { useAppStore } from "@/shared/store/app.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { getVisibleNavItems } from "@/shared/lib/navigation";
 import { ROLE_LABELS } from "@/shared/constants/roles";
+import MessagesNavBadge from "@/modules/messages/components/MessagesNavBadge";
 
 export default function Sidebar() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
@@ -42,6 +43,7 @@ export default function Sidebar() {
                 }`}
               />
               {item.label}
+              {item.path === "/messages" && <MessagesNavBadge variant="cs" />}
             </Link>
           );
         })}

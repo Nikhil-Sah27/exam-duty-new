@@ -122,9 +122,34 @@ export function getExamCancellationNotifications(): ImportantNotification[] {
   return [];
 }
 
+/**
+ * Unread direct messages from teachers. A single aggregated popup with the
+ * count. The id is intentionally STABLE (not count-based) so it surfaces once
+ * per page load / login and does NOT re-pop when more messages arrive mid-
+ * session — per the CS request, it should only appear on refresh or sign-in.
+ */
+export function getUnreadMessagesNotification(
+  unreadMessages: number,
+): ImportantNotification | null {
+  if (!unreadMessages || unreadMessages <= 0) return null;
+  return {
+    id: "unread-messages",
+    priority: "medium",
+    accent: "violet",
+    category: "MESSAGES",
+    title: unreadMessages === 1 ? "New Message" : "New Messages",
+    message: `You have ${unreadMessages} unread message${
+      unreadMessages !== 1 ? "s" : ""
+    } from teachers.`,
+    actionLabel: "Open messages",
+    actionHref: "/messages",
+  };
+}
+
 interface BuildInput {
   assignmentTarget: DashboardAssignmentTarget;
   changeRequests: ChangeRequest[];
+  unreadMessages: number;
 }
 
 /**
@@ -135,11 +160,14 @@ interface BuildInput {
 export function getImportantDashboardNotifications({
   assignmentTarget,
   changeRequests,
+  unreadMessages,
 }: BuildInput): ImportantNotification[] {
   const collected: ImportantNotification[] = [
     ...getExamCancellationNotifications(),
     ...getDutyChangeNotifications(changeRequests),
   ];
+  const messages = getUnreadMessagesNotification(unreadMessages);
+  if (messages) collected.push(messages);
   const tomorrow = getTomorrowExamNotification(assignmentTarget);
   if (tomorrow) collected.push(tomorrow);
   const alert = getAssignmentAlertNotification(assignmentTarget);

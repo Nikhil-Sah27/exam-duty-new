@@ -13,6 +13,7 @@ import { dcsRoutes } from "@/modules/dcs/routes/dcsRoutes";
 const DashboardPage = lazy(() => import("@/modules/dashboard/components/DashboardPage"));
 const CreateExamsPage = lazy(() => import("@/modules/create-exams/components/CreateExamsPage"));
 const ExamsPage = lazy(() => import("@/modules/exams/components/ExamsPage"));
+const CsMessagesPage = lazy(() => import("@/modules/messages/pages/CsMessagesPage"));
 const ExamDetails = lazy(() => import("@/modules/exams/components/ExamDetails"));
 const DutiesPage = lazy(() => import("@/modules/duties/components/DutiesPage"));
 const UsersPage = lazy(() => import("@/modules/users/components/UsersPage"));
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/create-exams" element={<CreateExamsPage />} />
           <Route path="/exams" element={<ExamsPage />} />
           <Route path="/exams/:id" element={<ExamDetails />} />
+          <Route path="/messages" element={<CsMessagesPage />} />
           <Route path="/duties" element={<DutiesPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/requests" element={<ChangeRequestsPage />} />

@@ -10,6 +10,7 @@ const InvigilatorExamDetailsPage = lazy(() => import("@/modules/invigilator/exam
 const RSSelectDutyPage = lazy(() => import("@/modules/rs/select-duty/pages/SelectDutyPage"));
 const RSUpcomingDutiesPage = lazy(() => import("@/modules/rs/upcoming-duties/pages/RSUpcomingDutiesPage"));
 const RsChangeRequestsPage = lazy(() => import("@/modules/rs/change-requests/pages/RsChangeRequestsPage"));
+const TeacherMessagesPage = lazy(() => import("@/modules/messages/pages/TeacherMessagesPage"));
 
 /**
  * RS reuses the Invigilator pages for exams + change-requests, but has its
@@ -26,6 +27,7 @@ export const rsRoutes = (
     <Route path="exams/:id" element={<InvigilatorExamDetailsPage />} />
     <Route path="select-duty" element={<RSSelectDutyPage />} />
     <Route path="upcoming-duties" element={<RSUpcomingDutiesPage />} />
+    <Route path="messages" element={<TeacherMessagesPage />} />
     <Route path="change-requests" element={<RsChangeRequestsPage />} />
   </Route>
 );

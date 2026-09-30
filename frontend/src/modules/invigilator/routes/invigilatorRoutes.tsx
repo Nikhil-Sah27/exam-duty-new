@@ -10,6 +10,7 @@ const InvigilatorExamDetailsPage = lazy(() => import("../exams/pages/Invigilator
 const SelectDutyPage = lazy(() => import("../select-duty/pages/SelectDutyPage"));
 const InvigilatorChangeRequestsPage = lazy(() => import("../change-requests/pages/InvigilatorChangeRequestsPage"));
 const UpcomingDutiesPage = lazy(() => import("../upcoming-duties/pages/UpcomingDutiesPage"));
+const TeacherMessagesPage = lazy(() => import("@/modules/messages/pages/TeacherMessagesPage"));
 
 export const invigilatorRoutes = (
   <Route path="/invigilator" element={<InvigilatorLayout />}>
@@ -19,6 +20,7 @@ export const invigilatorRoutes = (
     <Route path="exams/:id" element={<InvigilatorExamDetailsPage />} />
     <Route path="select-duty" element={<SelectDutyPage />} />
     <Route path="upcoming-duties" element={<UpcomingDutiesPage />} />
+    <Route path="messages" element={<TeacherMessagesPage />} />
     <Route path="change-requests" element={<InvigilatorChangeRequestsPage />} />
   </Route>
 );

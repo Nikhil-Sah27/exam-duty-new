@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAppStore } from "@/shared/store/app.store";
 import { RS_CONFIG } from "@/modules/shared/role-config/roleConfig";
+import MessagesNavBadge from "@/modules/messages/components/MessagesNavBadge";
 
 /**
  * Visual twin of InvigilatorSidebar — same styling, same Tailwind classes,
@@ -37,6 +38,9 @@ export default function RSSidebar() {
             >
               <Icon className="h-4 w-4 shrink-0" />
               {item.label}
+              {item.path.endsWith("/messages") && (
+                <MessagesNavBadge variant="teacher" />
+              )}
             </Link>
           );
         })}

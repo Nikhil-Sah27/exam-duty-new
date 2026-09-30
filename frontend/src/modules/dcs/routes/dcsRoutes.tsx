@@ -10,6 +10,7 @@ const InvigilatorExamDetailsPage = lazy(() => import("@/modules/invigilator/exam
 const DCSSelectDutyPage = lazy(() => import("../select-duty/pages/SelectDutyPage"));
 const DcsUpcomingDutiesPage = lazy(() => import("../upcoming-duties/pages/DcsUpcomingDutiesPage"));
 const DcsChangeRequestsPage = lazy(() => import("../change-requests/pages/DcsChangeRequestsPage"));
+const TeacherMessagesPage = lazy(() => import("@/modules/messages/pages/TeacherMessagesPage"));
 
 /**
  * DCS reuses the Invigilator pages for Exams, gets its own Select Duty
@@ -25,6 +26,7 @@ export const dcsRoutes = (
     <Route path="exams/:id" element={<InvigilatorExamDetailsPage />} />
     <Route path="select-duty" element={<DCSSelectDutyPage />} />
     <Route path="upcoming-duties" element={<DcsUpcomingDutiesPage />} />
+    <Route path="messages" element={<TeacherMessagesPage />} />
     <Route path="change-requests" element={<DcsChangeRequestsPage />} />
   </Route>
 );

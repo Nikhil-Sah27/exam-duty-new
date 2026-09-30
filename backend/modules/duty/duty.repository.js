@@ -102,8 +102,17 @@ const findInvigilatorDutiesForRooms = (examRoomIds) => {
   }).populate("teacher", "name email phone department");
 };
 
+/** Distinct teacher ids holding a live duty on any of these schedules. */
+const distinctTeachersForSchedules = (scheduleIds) => {
+  return Duty.distinct("teacher", {
+    examSchedule: { $in: scheduleIds },
+    status: "assigned",
+  });
+};
+
 module.exports = {
   create,
+  distinctTeachersForSchedules,
   findAll,
   findById,
   updateById,

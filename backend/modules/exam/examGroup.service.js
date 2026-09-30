@@ -3,6 +3,8 @@ const examGroupRepo = require("./examGroup.repository");
 const examScheduleRepo = require("./examSchedule.repository");
 const examRoomRepo = require("./examRoom.repository");
 const examDeletionService = require("../exam-cleanup/services/examDeletionService");
+const dutyService = require("../duty/duty.service");
+const { emitToMany } = require("../notification/notification.emitter");
 
 const ExamGroup = require("./examGroup.model");
 const Duty = require("../duty/duty.model");
@@ -52,6 +54,57 @@ const getGroupById = async (id) => {
   return group;
 };
 
+// Fields whose change invalidates what a teacher believes about their duty.
+// A cosmetic edit shouldn't page every invigilator, so only these fan out.
+const DUTY_RELEVANT_FIELDS = {
+  startDate: "dates",
+  endDate: "dates",
+  examType: "exam type",
+  semester: "semester",
+};
+
+/** Human-readable list of the duty-relevant fields that actually changed. */
+const describeChanges = (group, data) => {
+  const changed = new Set();
+  for (const [field, label] of Object.entries(DUTY_RELEVANT_FIELDS)) {
+    if (data[field] === undefined) continue;
+    const before = group[field];
+    const after = data[field];
+    const same =
+      before instanceof Date
+        ? new Date(after).getTime() === before.getTime()
+        : String(before) === String(after);
+    if (!same) changed.add(label);
+  }
+  return [...changed];
+};
+
+/**
+ * Tell everyone holding a live duty under this exam group that its details
+ * moved. Awaited (the caller's response should not return before the fan-out is
+ * durable) but failure-isolated: the edit itself must never fail because
+ * notification fan-out did.
+ */
+const notifyAffectedTeachers = async (group, changes) => {
+  try {
+    const schedules = await examScheduleRepo.findByExamGroup(group._id);
+    const scheduleIds = schedules.map((s) => s._id);
+    const recipients = await dutyService.getTeacherIdsForSchedules(scheduleIds);
+    if (recipients.length === 0) return;
+
+    await emitToMany("exam_updated", {
+      recipients,
+      data: {
+        examLabel: group.examType,
+        semester: group.semester,
+        changes,
+      },
+    });
+  } catch (err) {
+    console.error("[exam] failed to notify teachers of exam update:", err.message);
+  }
+};
+
 const updateGroup = async (id, data) => {
   const group = await examGroupRepo.findById(id);
   if (!group) throw new AppError("Exam group not found", 404);
@@ -62,7 +115,17 @@ const updateGroup = async (id, data) => {
     }
   }
 
-  return examGroupRepo.updateById(id, data);
+  const changes = describeChanges(group, data);
+  const updated = await examGroupRepo.updateById(id, data);
+
+  // Note: exam schedules have no update endpoint (create/delete only), so a
+  // per-slot time change arrives as a delete + recreate, which the deletion
+  // cascade already notifies about. This covers group-level edits.
+  if (changes.length > 0) {
+    await notifyAffectedTeachers(updated || group, changes);
+  }
+
+  return updated;
 };
 
 // Delegates to the centralized cascade so duties are released, change

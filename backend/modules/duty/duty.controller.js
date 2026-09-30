@@ -93,7 +93,10 @@ const getById = catchAsync(async (req, res) => {
 });
 
 const cancel = catchAsync(async (req, res) => {
-  const duty = await dutyService.cancelDuty(req.params.id, req.body.reason);
+  const duty = await dutyService.cancelDuty(req.params.id, req.body.reason, {
+    id: req.user.id,
+    activeRole: req.user.activeRole,
+  });
   auditService.logSafe({
     action: "CANCEL_DUTY",
     entity: "Duty",

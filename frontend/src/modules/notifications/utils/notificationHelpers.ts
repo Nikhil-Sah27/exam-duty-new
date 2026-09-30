@@ -34,6 +34,10 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   duty_assigned: { tone: "violet", highlight: true },
   duty_group_assigned: { tone: "violet", highlight: true },
   duty_swapped: { tone: "violet", highlight: true },
+  // The teacher chose this one, so it confirms rather than demands attention.
+  duty_self_claimed: { tone: "green", highlight: false },
+  // Teachers must re-check a duty whose exam moved under them.
+  exam_updated: { tone: "amber", highlight: true },
   exam_deleted_duty_release: { tone: "red", highlight: false },
   duty_cancelled: { tone: "red", highlight: false },
   duty_reminder: { tone: "amber", highlight: false },
@@ -43,6 +47,10 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   request_submitted: { tone: "blue", highlight: false },
   exam_created: { tone: "blue", highlight: false },
   announcement: { tone: "blue", highlight: false },
+  // CS-facing: a claim is informational, a release leaves a room to re-fill.
+  duty_claimed_by_teacher: { tone: "blue", highlight: false },
+  duty_released_by_teacher: { tone: "amber", highlight: false },
+  group_released: { tone: "amber", highlight: false },
 };
 
 const TONE_BORDER: Record<NotifTone, string> = {

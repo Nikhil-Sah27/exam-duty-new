@@ -1,30 +1,16 @@
 // Centralized notification templates.
 // Every notification type has its title and message defined here.
 // To change wording, edit this file — no other module needs to change.
+//
+// Date/time formatters live in shared/utils/datetime.js because the email
+// templates (modules/mail/mail.templates.js) render the same values and the two
+// channels must not drift apart.
 
-const formatDate = (date) => new Date(date).toLocaleDateString();
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-const formatLongDate = (date) => {
-  const d = new Date(date);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-};
-
-const formatTime12h = (hhmm) => {
-  if (!hhmm || typeof hhmm !== "string") return "";
-  const [hStr, mStr] = hhmm.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
-  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
-  const period = h >= 12 ? "PM" : "AM";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  const mm = m.toString().padStart(2, "0");
-  return `${hour12}:${mm} ${period}`;
-};
+const {
+  formatDate,
+  formatLongDate,
+  formatTime12h,
+} = require("../../shared/utils/datetime");
 
 const templates = {
   duty_assigned: ({ room, date, startTime, endTime }) => ({
@@ -56,6 +42,68 @@ const templates = {
       message: `${scope}You've been assigned ${article} ${roleLabel} group of ${rooms} on ${formatDate(
         date
       )} (${startTime}–${endTime}).`,
+    };
+  },
+
+  // Confirmation to a teacher who picked a duty themselves. Self-claim used to
+  // notify nobody at all, which meant a teacher had no record of what they'd
+  // committed to outside the app — and nothing to email them.
+  duty_self_claimed: ({ room, date, startTime, endTime, roleLabel, roomCount }) => {
+    const isGroup = roomCount != null && roomCount > 1;
+    const article = roleLabel === "RS" ? "an" : "a";
+    const what = isGroup
+      ? `${article} ${roleLabel} group of ${roomCount} rooms`
+      : `a duty at ${room}`;
+    return {
+      title: "Duty Confirmed",
+      message: `You selected ${what} on ${formatLongDate(date)} (${formatTime12h(
+        startTime
+      )} – ${formatTime12h(endTime)}). It's now on your upcoming duties.`,
+    };
+  },
+
+  // ── CS-facing awareness alerts ──────────────────────────────────────────
+  // CS had no feed of teacher-initiated changes: a self-claim or a release only
+  // showed up by opening Manage Duties and noticing the difference.
+
+  duty_claimed_by_teacher: ({ teacherName, roleLabel, room, date, roomCount }) => {
+    const article = roleLabel === "RS" ? "an" : "a";
+    const what =
+      roomCount != null && roomCount > 1
+        ? `${article} ${roleLabel} group of ${roomCount} rooms`
+        : `${room}`;
+    return {
+      title: "Duty Claimed",
+      message: `${teacherName} selected ${what} on ${formatLongDate(date)}.`,
+    };
+  },
+
+  duty_released_by_teacher: ({ teacherName, room, date, reason }) => ({
+    title: "Duty Released",
+    message: `${teacherName} released their duty at ${room} on ${formatLongDate(
+      date
+    )}${reason ? ` — ${reason}` : ""}. The room is now vacant.`,
+  }),
+
+  group_released: ({ teacherName, roleLabel, roomCount, date, reason }) => ({
+    title: `${roleLabel} Group Released`,
+    message: `${teacherName} released ${roleLabel === "RS" ? "an" : "a"} ${roleLabel} group of ${roomCount} room${
+      roomCount === 1 ? "" : "s"
+    } on ${formatLongDate(date)}${reason ? ` — ${reason}` : ""}. It is open again.`,
+  }),
+
+  // Sent to everyone holding a duty under an exam group whose details changed.
+  // Only duty-relevant edits trigger it (see examGroup.service.updateGroup) —
+  // a cosmetic rename shouldn't page every invigilator.
+  exam_updated: ({ examLabel, semester, changes }) => {
+    const label =
+      examLabel && semester != null
+        ? `${examLabel} — Semester ${semester}`
+        : examLabel || "An exam you have a duty for";
+    const what = changes && changes.length > 0 ? ` (${changes.join(", ")})` : "";
+    return {
+      title: "Exam Details Changed",
+      message: `${label} has been updated${what}. Please re-check your duty details.`,
     };
   },
 

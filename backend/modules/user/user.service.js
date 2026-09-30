@@ -126,4 +126,11 @@ const bootstrapAdmin = async () => {
   return userRepository.findById(user._id);
 };
 
-module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, activateUser, bootstrapAdmin };
+/**
+ * Ids of every active CS user — the recipient list for "a teacher did
+ * something you should know about" alerts. Other domains' services call this
+ * rather than querying User themselves (no cross-domain repository access).
+ */
+const getCsUserIds = () => userRepository.findActiveIds(["cs"]);
+
+module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, activateUser, bootstrapAdmin, getCsUserIds };

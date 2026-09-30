@@ -73,6 +73,16 @@ const FEED_MAP: Partial<Record<NotificationType, FeedMeta>> = {
     category: "Duty cancelled",
     action: "duties",
   },
+  // Very important — the exam moved under a duty the teacher already holds, so
+  // what they think they know is now wrong. `duty_self_claimed` is deliberately
+  // absent: the teacher just did it themselves, so a popup would only repeat it.
+  exam_updated: {
+    accent: "amber",
+    priority: "high",
+    category: "Exam details changed",
+    highlight: true,
+    action: "duties",
+  },
   // Reminder — a duty is happening tomorrow.
   duty_reminder: {
     accent: "amber",

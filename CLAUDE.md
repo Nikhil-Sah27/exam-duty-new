@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Exam Duty (Proctavo) — a role-based exam-invigilation planner. CS (Controller of Superintendents) is the admin role; there is no separate "admin". DCS and RS supervise *groups* of rooms; Invigilators handle single rooms. The README.md is comprehensive and current — consult it for the full domain model, API reference, and role workflows. `APP_FLOW.md` walks each role's screens; `CREDENTIALS.md` lists local test logins.
+Exam Duty (Proctavo) — a role-based exam-invigilation planner. CS (Controller of Superintendents) is the admin role; there is no separate "admin". DCS and RS supervise *groups* of rooms; Invigilators handle single rooms. The README.md is comprehensive and current — consult it for the full domain model, API reference, and role workflows. `APP_FLOW.md` walks each role's screens; `CREDENTIALS.md` lists local test logins; `NGROK_SETUP_GUIDE.md` covers exposing the app through a tunnel (needs the built frontend, not the dev server).
 
 ## Commands
 
 ```bash
+npm run install:all          # from repo root: install backend + frontend deps (root `npm run dev` needs both)
 npm run dev                  # from repo root: backend (nodemon, :5000) + frontend (vite, :5173) together
 cd backend && npm run dev    # backend only
 cd frontend && npm run dev   # frontend only
@@ -20,15 +21,33 @@ There is no backend unit-test framework. Tests are **API integration tests** in 
 
 ```bash
 cd tests && npm test               # full suite (runner.js, ~90 tests) — requires backend up + seeded admin
-node 07-duties.test.js             # run a single suite
+cd tests && npm run test:duties    # one suite (scripts 01-auth … 10-create-exams mirror the filenames)
+cd tests && node 07-duties.test.js # same thing — every suite self-runs via `require.main === module`
 API_URL=https://host/api npm test  # target a remote backend
 ```
 
 Prereqs for tests: MongoDB running, `node backend/scripts/seed-users.js` (creates `admin@examduty.com` / `Admin123`), backend started. CI (`.github/workflows/ci.yml`) runs both gates as blocking: frontend build/typecheck and the API suite against a throwaway Mongo.
 
-Backend env lives in `backend/.env` (`PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `CLIENT_ORIGINS` — comma-separated extra CORS origins). Email for the password-reset OTP is optional and configured via `GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` (+ `SMTP_SECURE`), with `EMAIL_FROM` overriding the sender — see `backend/shared/utils/mailer.js`. When none are set the transport is null and the OTP is logged to the server console instead, so the reset flow stays testable in dev. Frontend needs no env locally — axios defaults to `/api` (overridable via `VITE_API_URL`) through the Vite proxy to :5000.
+Test-suite gotchas: credentials come from `tests/config.js` (`API_URL` env overrides the base URL only) and shared assertions from `tests/helpers.js`. The suites **write to whatever DB the running backend points at** — run them against a throwaway Mongo, not a dev DB you care about. `runner.js` runs 01→10 in order and threads the admin token from the auth suite onward; a single suite logs in for itself, but later suites lean on data earlier ones created, so a lone failure is worth re-checking under the full runner.
+
+Backend env lives in `backend/.env` (`PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `CLIENT_ORIGINS` — comma-separated extra CORS origins; mail: `MAIL_ENABLED`, `MAIL_TRANSPORT` (**defaults to `console`, which renders without sending — leave it there locally and in CI**), `MAIL_USER`/`MAIL_PASS`/`MAIL_FROM`, `MAIL_HOST`/`MAIL_PORT` for plain SMTP, and `APP_URL` for email deep links). Frontend needs no env locally — axios defaults to `/api` (overridable via `VITE_API_URL`) through the Vite proxy to :5000.
+
+Password-reset OTP email is a *separate*, direct-send path (`backend/shared/utils/mailer.js`, not the outbox): `GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` (+ `SMTP_SECURE`), with `EMAIL_FROM` overriding the sender. When none are set the transport is null and the OTP is logged to the server console instead, so the reset flow stays testable in dev.
 
 Seed/maintenance scripts are in `backend/scripts/` (seed-users, seed-departments, seed-rooms, backfill-dcs-groups, dump-database/restore-database, etc.) — run with plain `node`.
+
+Bootstrapping an empty DB, in this order (later scripts assume the earlier docs exist):
+
+```bash
+cd backend
+node scripts/seed-users.js          # test logins for all four roles
+node scripts/seed-departments.js    # departments × semesters + core courses
+node scripts/seed-electives.js      # electives per (dept, semester)
+node scripts/fix-elective-groups.js # bundle those electives under ElectiveGroup docs
+node scripts/seed-rooms.js          # buildings + rooms
+```
+
+Faster alternative for a realistic dataset: `node scripts/restore-database.js ../db-dump.json --drop` (without `--drop` the existing `_id`s collide). `POST /users/bootstrap` is the unauthenticated escape hatch that creates the first CS when no users exist.
 
 ## Architecture
 
@@ -36,9 +55,15 @@ Two independent npm packages plus a test package: `backend/` (Express 4 + Mongoo
 
 **Backend** — every domain is a module under `backend/modules/<domain>/` with `.routes.js → .controller.js → .service.js → .repository.js → .model.js`. Routes are mounted in `backend/app.js`. No cross-domain repository calls — services call other domains' services. Cross-cutting code lives in `backend/shared/` (DB config, `protect` auth middleware in `shared/middleware/auth.js`, `roleResolver`, `withOptionalTransaction`).
 
-Less obvious backend modules: `notification` is the system-generated feed (emitter + scheduler); `notify` is a separate CS broadcast endpoint (`POST /api/notify`) — don't confuse the two. `seat-sharing` tracks rooms shared across overlapping exam schedules with atomic seat guards. `exam-cleanup` is service-only (no routes): cascading exam deletion — cancel duties, release seats, clean change requests, notify. `audit` is a CS-only who-did-what trail (fire-and-forget writes). `report` is a mounted placeholder with no endpoints yet.
+Three auth guards, not one: `protect` (valid token + `activeRole` re-validated against `roles`), `requireRole("cs", …)` (checks the token's **`activeRole`**, so a multi-role user must have selected that role to pass), and `allowUnselectedRole` — used *only* by `POST /auth/select-role`, the endpoint that promotes a `tempToken` into a role-bound token.
 
-**Frontend** — feature modules under `frontend/src/modules/<domain>/` each owning `components/`, `hooks/`, `services/`, `types.ts`. Role-specific route trees live in `modules/invigilator/`, `modules/rs/`, `modules/dcs/` (CS uses the top-level admin modules). Cross-role code goes in `modules/shared/`; imports flow one-way toward shared. App-wide primitives (AuthGuard, Modal, axios client, Zustand stores) are in `src/shared/`. Server state is React Query; client/auth state is Zustand.
+Error handling is centralized, so controllers never try/catch: wrap handlers in `catchAsync` and `throw new AppError(message, statusCode, details?)`. `shared/middleware/errorHandler.js` (mounted last in `app.js`) translates Mongoose failures — `ValidationError` → 400, duplicate key `11000` → 409 with a field-aware message, `CastError` → 400 — and every error response is `{ success: false, statusCode, message, details? }`. On the client, the axios response interceptor collapses that into `new Error(data.message)` and logs out on 401, so components only ever see `error.message` — never an axios error shape.
+
+Less obvious backend modules: `notification` is the system-generated feed (emitter + scheduler); `notify` is a separate CS broadcast endpoint (`POST /api/notify`) — don't confuse the two; `mail` is service-only (no routes): the email side of `notification`, a transactional outbox plus a dispatcher. `seat-sharing` tracks rooms shared across overlapping exam schedules with atomic seat guards. `exam-cleanup` is service-only (no routes): cascading exam deletion — cancel duties, release seats, clean change requests, notify. `audit` is a CS-only who-did-what trail (fire-and-forget writes). `report` is a mounted placeholder with no endpoints yet — the built-out **frontend** `modules/reports/` (duty roster, coverage charts, institution overview) is assembled from `duty-calculation` and exam endpoints, so don't read an empty backend `report` module as "reports aren't built".
+
+**Frontend** — feature modules under `frontend/src/modules/<domain>/` each owning `components/`, `hooks/`, `services/`, `types.ts`. Role-specific route trees live in `modules/invigilator/`, `modules/rs/`, `modules/dcs/` (CS uses the top-level admin modules). Cross-role code goes in `modules/shared/`; imports flow one-way toward shared. App-wide primitives (AuthGuard, Modal, axios client, Zustand stores) are in `src/shared/`. Server state is React Query; client/auth state is Zustand (`shared/store/auth.store.ts` holds `token`/`tempToken`, `app.store.ts` holds UI state like `sidebarOpen`).
+
+Frontend conventions worth knowing before adding UI: imports use the `@/` alias for `src/`, never deep relative paths. `App.tsx` lazy-imports every CS page and composes the role trees by spreading `invigilatorRoutes` / `rsRoutes` / `dcsRoutes` under one `ProtectedLayout` — a new page goes in its module's `routes/` file (or the lazy list) so it keeps its own chunk. Styling pulls tokens from the `@/shared/theme` barrel (`gradients`, `shadows`, `statusColors`/`examTypeColors`, `cardBase`/`innerPanel`, `chipVariants`/`buttonVariants`) rather than hand-rolled Tailwind, and both themes must work — dark mode is a supported surface, not an afterthought.
 
 ### Core invariants (violating these breaks real flows)
 
@@ -50,7 +75,9 @@ Less obvious backend modules: `notification` is the system-generated feed (emitt
 - **Per-role slot independence.** One physical room hosts a DCS, an RS, and an invigilator simultaneously; conflict scans filter by role.
 - **RS groups are derived, not persisted.** Partition key `${scheduleId}:${buildingId}:${chunkIndex}` (chunks of ≤5 rooms per building+slot, sorted numerically) must produce identical groups across Select Duty, Upcoming Duties, Change Requests, Dashboard, and CS assign panels — reuse `groupRoomsIntoRSGroups` (`frontend/src/modules/rs/select-duty/utils/rsDutyGroupingUtils.ts`), never re-derive ad hoc. DCS groups *are* persisted (`DCSGroup`, sized `ceil(students/300)` at exam finalize).
 - **Group operations are transactional.** Group claims/assignments/swap-approvals create one duty per room atomically via `withOptionalTransaction`.
-- **Notifications go through the emitter.** Any user-visible state change fires a typed notification via `backend/modules/notification/notification.emitter.js` — don't write `Notification` docs directly. Time-based notifications (`duty_reminder`, `target_reached`) come from an in-process scheduler (`notification.scheduler.js`) that runs idempotent sweeps (`notification.jobs.js`) every 6 hours using `emitIfAbsent` with dedupe keys — safe across nodemon restarts.
+- **Notifications go through the emitter.** Any user-visible state change fires a typed notification via `backend/modules/notification/notification.emitter.js` — don't write `Notification` docs directly. That single choke point is also where **email** fans out, so a new type gets an inbox channel for free; opt out (or in) per type in `modules/mail/mail.policy.js`, never at the call site.
+- **Email goes through the outbox, never straight to SMTP.** `emit` writes an `EmailOutbox` row in the *same transaction* as the notification and `mail.dispatcher.js` sends it afterwards. Both halves matter: `emit` is routinely called inside `withOptionalTransaction` (group claims, swap approvals), so a direct send would email a teacher about a duty a rollback then erased — and it would put SMTP latency and outages on the duty-assignment request path. Mail failures are swallowed by design; a queued email must never turn a successful assignment into a 500.
+- **Self-claim notifies too.** A teacher selecting a duty emits `duty_self_claimed` to them plus `duty_claimed_by_teacher` to CS (this path notified nobody before). `cancelDuty` takes an `actor` argument for exactly one reason: to distinguish a teacher releasing their own duty (which alerts CS) from a CS cancellation (which doesn't). Time-based notifications (`duty_reminder`, `target_reached`) come from an in-process scheduler (`notification.scheduler.js`) that runs idempotent sweeps (`notification.jobs.js`) every 6 hours using `emitIfAbsent` with dedupe keys — safe across nodemon restarts.
 - **Upcoming vs. completed is one function.** `isDutyUpcoming` in `frontend/src/modules/shared/duties/utils/dutyTiming.ts` (date in future, or today with end time not yet passed) is the single source of truth for the upcoming/completed split across all dashboards and Upcoming Duties pages — don't compare dates ad hoc.
 - **Soft deletes with pre-hooks.** `User`, `Exam`, and `ExamGroup` soft-delete; Mongoose pre-find hooks hide them automatically (bypass via `includeInactive` / the activate path).
 - **Duty targets are computed on demand** (`duty-calculation` module) — never cache them; distribution order is stable by `_id` so recomputes agree.

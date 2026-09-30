@@ -11,7 +11,8 @@ const Department = require("../department/department.model");
 const Semester = require("../department/semester.model");
 const User = require("../auth/auth.model");
 const Duty = require("../duty/duty.model");
-const { emit } = require("../notification/notification.emitter");
+const { emit, emitToMany } = require("../notification/notification.emitter");
+const userService = require("../user/user.service");
 const {
   assertTargetNotReached,
 } = require("../duty-calculation/dutyCalculation.service");
@@ -25,6 +26,25 @@ const {
 // as a tiebreaker — same algorithm as the RS frontend grouping. Inlined here
 // because the backend has no equivalent shared util and pulling in a new
 // shared module just for this would be overkill.
+/**
+ * Tell CS that a DCS took or released a group themselves. Fire-and-forget: CS
+ * awareness must never fail the teacher's own action.
+ */
+const notifyCsOfTeacherAction = async (type, { refId, data }) => {
+  try {
+    const recipients = await userService.getCsUserIds();
+    if (recipients.length === 0) return;
+    await emitToMany(type, {
+      recipients,
+      refModel: "Duty",
+      refId: refId || null,
+      data,
+    });
+  } catch (err) {
+    console.error(`[dcs] failed to notify CS (${type}):`, err.message);
+  }
+};
+
 const NUMERIC_PREFIX_RE = /^(\d+)/;
 const compareRoomNumbers = (a, b) => {
   const am = a.match(NUMERIC_PREFIX_RE);
@@ -211,15 +231,18 @@ const validateDcsUser = async (userId) => {
  * Core claim implementation shared by self-claim and admin-claim. Creates one
  * Duty per assigned room in a single transaction and marks the group as
  * `claimed` for `assigneeId`. `assignedById` is stamped on each Duty (either
- * the same user for self-claim, or the CS admin for admin-claim). When
- * `notify` is true, one `duty_assigned` notification per created duty fires
- * against the assignee's bell.
+ * the same user for self-claim, or the CS admin for admin-claim).
+ *
+ * Exactly ONE notification fires per claim, never one per room: a
+ * `duty_group_assigned` when CS assigned it (`notify: true`), or a
+ * `duty_self_claimed` confirmation plus a CS awareness alert when the DCS
+ * claimed it themselves.
  */
 const _performClaim = async (
   groupId,
   { assigneeId, assignedById, isSelfAssigned, notify }
 ) => {
-  await validateDcsUser(assigneeId);
+  const assignee = await validateDcsUser(assigneeId);
 
   const group = await dcsGroupRepository.findById(groupId);
   if (!group) throw new AppError("DCS group not found", 404);
@@ -312,21 +335,41 @@ const _performClaim = async (
     return dutyIds;
   });
 
+  // ONE notification for the whole group — a DCS supervises the group as a
+  // unit, so per-room alerts were just noise (5 rooms → 5 bells).
+  const groupData = {
+    roleLabel: "DCS",
+    roomCount: createdIds.length,
+    date: group.schedule.date,
+    startTime: group.schedule.startTime,
+    endTime: group.schedule.endTime,
+    examLabel: group.examGroup?.examType,
+    semester: group.examGroup?.semester,
+  };
+
   if (notify) {
-    // ONE notification for the whole group — a DCS supervises the group as a
-    // unit, so per-room alerts were just noise (5 rooms → 5 bells).
     emit("duty_group_assigned", {
       recipient: assigneeId,
       refModel: "Duty",
       refId: createdIds[0] || null,
+      data: groupData,
+    });
+  } else {
+    // Self-claim. Previously silent (notify: false meant nothing at all) — the
+    // DCS now gets a confirmation to hold onto, and CS learns the group is taken.
+    emit("duty_self_claimed", {
+      recipient: assigneeId,
+      refModel: "Duty",
+      refId: createdIds[0] || null,
+      data: groupData,
+    });
+    notifyCsOfTeacherAction("duty_claimed_by_teacher", {
+      refId: createdIds[0] || null,
       data: {
+        teacherName: assignee?.name || "A teacher",
         roleLabel: "DCS",
         roomCount: createdIds.length,
         date: group.schedule.date,
-        startTime: group.schedule.startTime,
-        endTime: group.schedule.endTime,
-        examLabel: group.examGroup?.examType,
-        semester: group.examGroup?.semester,
       },
     });
   }
@@ -394,6 +437,17 @@ const releaseGroup = async (groupId, userId, reason) => {
       },
       session
     );
+  });
+
+  notifyCsOfTeacherAction("group_released", {
+    refId: group.duties?.[0] || null,
+    data: {
+      teacherName: group.assignedTeacher?.name || "A teacher",
+      roleLabel: "DCS",
+      roomCount: group.duties?.length || 0,
+      date: group.schedule?.date,
+      reason: reason || null,
+    },
   });
 
   return dcsGroupRepository.findById(groupId);

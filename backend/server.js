@@ -6,6 +6,9 @@ const connectDB = require("./shared/config/db");
 const {
   startNotificationScheduler,
 } = require("./modules/notification/notification.scheduler");
+const {
+  startMailDispatcher,
+} = require("./modules/mail/mail.dispatcher");
 
 const PORT = process.env.PORT || 5000;
 
@@ -15,4 +18,8 @@ connectDB().then(() => {
   });
   // Daily duty-reminder / target-reached notification sweeps.
   startNotificationScheduler();
+  // Drains the email outbox written by notification.emitter. Defaults to the
+  // `console` transport, so nothing leaves the machine until MAIL_TRANSPORT is
+  // pointed at a real mail server.
+  startMailDispatcher();
 });

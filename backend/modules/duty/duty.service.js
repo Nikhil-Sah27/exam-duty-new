@@ -6,11 +6,32 @@ const User = require("../auth/auth.model");
 const examScheduleRepo = require("../exam/examSchedule.repository");
 const examRoomRepo = require("../exam/examRoom.repository");
 const examGroupRepo = require("../exam/examGroup.repository");
-const { emit } = require("../notification/notification.emitter");
+const { emit, emitToMany } = require("../notification/notification.emitter");
+const userService = require("../user/user.service");
 const { buildRoomLabel } = require("../exam-cleanup/utils/examCleanupUtils");
 const {
   assertTargetNotReached,
 } = require("../duty-calculation/dutyCalculation.service");
+
+/**
+ * Tell CS that a teacher took or gave back work themselves. Fire-and-forget and
+ * deliberately non-blocking: CS awareness must never be able to fail a
+ * teacher's claim or release.
+ */
+const notifyCsOfTeacherAction = async (type, { refId, data }) => {
+  try {
+    const recipients = await userService.getCsUserIds();
+    if (recipients.length === 0) return;
+    await emitToMany(type, {
+      recipients,
+      refModel: "Duty",
+      refId: refId || null,
+      data,
+    });
+  } catch (err) {
+    console.error(`[duty] failed to notify CS (${type}):`, err.message);
+  }
+};
 
 // ---------- Conflict validation ----------
 
@@ -224,12 +245,33 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
 
   const populated = await dutyRepository.findById(duty._id);
 
+  const roomLabel = buildRoomLabel(populated);
+
   if (!isSelfAssigned) {
     emit("duty_assigned", {
       recipient: teacherId,
       refModel: "Duty",
       refId: duty._id,
-      data: { room: buildRoomLabel(populated), date, startTime, endTime },
+      data: { room: roomLabel, date, startTime, endTime },
+    });
+  } else {
+    // Self-claim used to notify nobody. The teacher now gets a confirmation
+    // (and an email) recording what they committed to, and CS learns the room
+    // was taken without having to re-open Manage Duties.
+    emit("duty_self_claimed", {
+      recipient: teacherId,
+      refModel: "Duty",
+      refId: duty._id,
+      data: { room: roomLabel, date, startTime, endTime },
+    });
+    notifyCsOfTeacherAction("duty_claimed_by_teacher", {
+      refId: duty._id,
+      data: {
+        teacherName: populated?.teacher?.name || "A teacher",
+        roleLabel: ROLE_LABELS[dutyRole] || dutyRole,
+        room: roomLabel,
+        date,
+      },
     });
   }
 
@@ -325,6 +367,35 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
   const populated = await Promise.all(
     createdIds.map((id) => dutyRepository.findById(id)),
   );
+
+  // ONE notification for the whole group, matching the admin-assign path — a
+  // group is claimed and held as a single unit, so five rooms is one alert.
+  const examGroup = populated[0]?.examSchedule?.examGroup;
+  const roleLabel = activeRole === "dcs" ? "DCS" : "RS";
+  emit("duty_self_claimed", {
+    recipient: userId,
+    refModel: "Duty",
+    refId: createdIds[0] || null,
+    data: {
+      roleLabel,
+      roomCount: populated.length,
+      date,
+      startTime,
+      endTime,
+      examLabel: examGroup?.examType,
+      semester: examGroup?.semester,
+    },
+  });
+  notifyCsOfTeacherAction("duty_claimed_by_teacher", {
+    refId: createdIds[0] || null,
+    data: {
+      teacherName: populated[0]?.teacher?.name || "A teacher",
+      roleLabel,
+      roomCount: populated.length,
+      date,
+    },
+  });
+
   return populated;
 };
 
@@ -507,7 +578,13 @@ const getDutyById = async (id) => {
   return duty;
 };
 
-const cancelDuty = async (id, cancelReason) => {
+/**
+ * Cancel a duty. `actor` ({ id, activeRole }) is what separates a CS
+ * cancellation from a teacher releasing their own duty: the teacher gets the
+ * same confirmation either way, but a self-release additionally tells CS the
+ * room just went vacant.
+ */
+const cancelDuty = async (id, cancelReason, actor = {}) => {
   const duty = await dutyRepository.findById(id);
   if (!duty) throw new AppError("Duty not found", 404);
   if (duty.status === "cancelled") throw new AppError("Duty is already cancelled", 400);
@@ -519,17 +596,45 @@ const cancelDuty = async (id, cancelReason) => {
     cancelReason: cancelReason || null,
   });
 
+  const roomLabel = buildRoomLabel(duty);
+
   emit("duty_cancelled", {
     recipient: duty.teacher,
     refModel: "Duty",
     refId: duty._id,
-    data: { room: buildRoomLabel(duty), date: duty.date },
+    data: { room: roomLabel, date: duty.date },
   });
+
+  const teacherId = duty.teacher?._id || duty.teacher;
+  const selfReleased =
+    actor.activeRole !== "cs" && actor.id && String(actor.id) === String(teacherId);
+  if (selfReleased) {
+    notifyCsOfTeacherAction("duty_released_by_teacher", {
+      refId: duty._id,
+      data: {
+        teacherName: duty.teacher?.name || "A teacher",
+        room: roomLabel,
+        date: duty.date,
+        reason: cancelReason || null,
+      },
+    });
+  }
 
   return updated;
 };
 
+/**
+ * Distinct teachers holding a live duty on any of these schedules. Used by the
+ * exam module to fan an exam-details change out to exactly the people affected
+ * (services call services — the exam module must not touch this repository).
+ */
+const getTeacherIdsForSchedules = async (scheduleIds) => {
+  if (!Array.isArray(scheduleIds) || scheduleIds.length === 0) return [];
+  return dutyRepository.distinctTeachersForSchedules(scheduleIds);
+};
+
 module.exports = {
+  getTeacherIdsForSchedules,
   selfAssignDuty,
   selfAssignDutyGroup,
   adminAssignDuty,

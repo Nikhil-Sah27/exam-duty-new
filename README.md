@@ -141,16 +141,46 @@ Exams that overlap in time can share leftover seats. During finalize, consumer e
 ### Notifications
 Typed in-app notifications with a central emitter (`backend/modules/notification/notification.emitter.js`):
 
-`duty_assigned`, `duty_group_assigned`, `duty_cancelled`, `request_submitted`, `request_approved`, `request_rejected`, `duty_swapped`, `duty_reminder`, `target_reached`, `exam_created`, `exam_deleted_duty_release`, `announcement`.
+`duty_assigned`, `duty_group_assigned`, `duty_self_claimed`, `duty_cancelled`, `request_submitted`, `request_approved`, `request_rejected`, `duty_swapped`, `duty_reminder`, `target_reached`, `exam_created`, `exam_updated`, `exam_deleted_duty_release`, `announcement`, plus three CS-facing awareness alerts: `duty_claimed_by_teacher`, `duty_released_by_teacher`, `group_released`.
 
 Notifications reference either a `Duty` or a `ChangeRequest` for deep-linking (broadcast `announcement`s reference neither). Unread count and read-all endpoints back the UI bell. Message text is stored at emit time, so wording is written to read correctly whenever it's opened later.
 
 - **Room labels are building-aware** — assignment/reminder messages use the app-wide `"<Building> — <Room>"` label (via `buildRoomLabel`), so `Academic Block — 004` and `BSN Block — 004` never collide.
 - **Group roles get one notification per group, not per room** — CS assigning an RS/DCS group fires a single `duty_group_assigned` ("…assigned a DCS group of 4 rooms…"), never one alert per room.
 - **Daily reminder counts groups, not rooms** — the `duty_reminder` sweep (`notification.jobs.js`) collapses a teacher's duties into duty-units (an RS/DCS group counts once) and anchors the message to the **absolute date** rather than the word "tomorrow", so a stored reminder never goes stale when the day rolls over.
+- **Self-claim is confirmed, not silent** — a teacher who selects a duty (single room, RS group, or DCS group) gets a `duty_self_claimed` confirmation, and CS gets a `duty_claimed_by_teacher` alert. Releasing raises `duty_released_by_teacher` / `group_released` for CS so a vacated room doesn't go unnoticed. CS-initiated cancellation does **not** raise these — the actor is passed into `cancelDuty` to tell the two apart.
+- **Exam edits reach the people holding duties** — `PATCH /exam-groups/:id` fans out `exam_updated` to every teacher with a live duty under that group, but only when a *duty-relevant* field changed (dates, exam type, semester), so a cosmetic edit doesn't page everyone.
 - **"Duty today" popup for teachers** — on every dashboard load (login/refresh), Invigilator/RS/DCS get a glass popup if they hold an assigned duty **today whose time hasn't passed**. It's computed live from the viewer's own duties (not the feed) and keyed by a per-page-load nonce so it re-appears each visit; CS has its own separate popup provider.
 
 Teachers also see **co-assigned staff** for rooms where they hold a duty: the room-detail modal reveals the other roles' contacts (an invigilator sees that room's RS + DCS, etc.) so co-assigned staff can coordinate. Rooms where the viewer holds no duty keep occupied slots anonymous ("Occupied", no name) — only CS sees everyone everywhere.
+
+### Email Notifications
+Every notification is also delivered by email, hooked in at the single choke point (`notification.emitter.js`) so **every type — including ones added later — gets an email channel without touching its call site**.
+
+Delivery uses a **transactional outbox** (`backend/modules/mail/`): `emit` writes an `EmailOutbox` row in the *same transaction* as the notification, and `mail.dispatcher.js` drains it every 20s (plus an immediate nudge for non-transactional emits). That ordering is what makes it safe:
+
+- A rolled-back transaction takes its queued emails with it — no email about a duty that was never created.
+- SMTP latency and outages stay off the request path; assigning a duty never waits on, or fails because of, a mail server.
+- Every attempt is recorded with retries (1m → 5m → 15m → 1h, then `failed`), so "was this teacher actually told?" is answerable.
+
+Per-type policy lives in `modules/mail/mail.policy.js`. Duty lifecycle events, change-request outcomes, reminders, and announcements email immediately; CS awareness alerts and `target_reached` are in-app only; `exam_created` is held back from email because one publish reaches every eligible teacher (a daily digest is planned). A type with no entry defaults to emailing, with a startup warning — the intent is that anything worth a bell is worth an inbox.
+
+Transport is env-driven and defaults to **`console`**, which renders the mail and logs a one-line summary without sending:
+
+```env
+MAIL_ENABLED=true
+MAIL_TRANSPORT=console          # console | gmail | smtp
+MAIL_USER=you@gmail.com         # gmail/smtp only
+MAIL_PASS=<app password>        # Gmail needs an App Password (2FA required)
+MAIL_FROM="Proctavo <you@gmail.com>"
+MAIL_HOST=smtp.example.com      # smtp transport only
+MAIL_PORT=587
+APP_URL=https://proctavo.com    # deep links in emails
+```
+
+Keep `console` locally and in CI — the seeded accounts use fake `@examduty.com` addresses that would bounce. Gmail App Passwords cap at roughly 500 recipients/day (about 2,000 on Workspace), so a transactional provider is the better target for institution-wide broadcasts; both sit behind the same interface, making the switch env-only.
+
+Inspect delivery with `node scripts/mail-outbox-report.js` (`--failed` for errors only, `--retry` to re-queue failures).
 
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
@@ -333,6 +363,12 @@ MONGO_URI=mongodb://localhost:27017/exam-duty
 NODE_ENV=development
 JWT_SECRET=change-me
 JWT_EXPIRES_IN=7d
+
+# Email — `console` renders without sending. See "Email Notifications".
+MAIL_ENABLED=true
+MAIL_TRANSPORT=console
+MAIL_FROM="Proctavo <no-reply@proctavo.com>"
+APP_URL=http://localhost:5173
 ```
 
 **Frontend**

@@ -131,9 +131,9 @@ const templates = {
     };
   },
 
-  request_submitted: ({ type, date }) => ({
+  request_submitted: ({ type, date, by }) => ({
     title: "New Change Request",
-    message: `A ${type} request has been submitted for duty on ${formatDate(date)}`,
+    message: `${by || "A teacher"} requested a ${type} for their duty on ${formatDate(date)}. Review and approve it.`,
   }),
 
   request_approved: ({ type, reviewNote }) => ({

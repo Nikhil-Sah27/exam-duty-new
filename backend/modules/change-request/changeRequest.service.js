@@ -19,6 +19,13 @@ const getReviewerIds = async () => {
   return reviewers.map((r) => r._id);
 };
 
+// Requester's display name for the "New Change Request" notification/email, so
+// CS sees WHO wants the change (e.g. "Aarti Rao requested a move…").
+const getRequesterName = async (userId) => {
+  const u = await User.findById(userId).select("name");
+  return u?.name || "A teacher";
+};
+
 // ---------- Submit ----------
 
 // ---------- Time-conflict helper (used by move submit + replacement filtering) ----------
@@ -203,7 +210,11 @@ const submitDcsGroupSwap = async (
     recipients: reviewerIds,
     refModel: "ChangeRequest",
     refId: request._id,
-    data: { type: "DCS swap", date: target.schedule.date },
+    data: {
+      type: "DCS swap",
+      date: target.schedule.date,
+      by: await getRequesterName(userId),
+    },
   });
 
   return request;
@@ -414,7 +425,11 @@ const submitRsGroupSwap = async (
     recipients: reviewerIds,
     refModel: "ChangeRequest",
     refId: request._id,
-    data: { type: "RS swap", date: targetSchedule.date },
+    data: {
+      type: "RS swap",
+      date: targetSchedule.date,
+      by: await getRequesterName(userId),
+    },
   });
 
   return request;
@@ -539,7 +554,7 @@ const submitRequest = async (
     recipients: reviewerIds,
     refModel: "ChangeRequest",
     refId: request._id,
-    data: { type, date: duty.date },
+    data: { type, date: duty.date, by: await getRequesterName(userId) },
   });
 
   return request;

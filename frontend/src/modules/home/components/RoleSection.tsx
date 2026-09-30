@@ -39,24 +39,22 @@ const ROLES: RoleInfo[] = [
 /** The four roles Proctavo is built around. */
 export default function RoleSection() {
   return (
-    <section
-      id="roles"
-      className="relative mx-auto max-w-6xl px-5 py-20 sm:px-8"
-    >
-      <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          Built for every role
-        </h2>
-        <p className="mt-3 text-slate-400">
-          From the Controller down to a single-room invigilator, everyone gets a
-          workflow that fits.
-        </p>
-      </div>
+    <section id="roles" className="border-b border-white/10 bg-slate-950">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-20">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-wider text-indigo-400">
+            One app, four roles
+          </p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Everyone sees only what they need
+          </h2>
+        </div>
 
-      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {ROLES.map((r) => (
-          <RoleCard key={r.name} {...r} />
-        ))}
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {ROLES.map((r) => (
+            <RoleCard key={r.name} {...r} />
+          ))}
+        </div>
       </div>
     </section>
   );

@@ -19,6 +19,9 @@
  *   8. the dispatcher sends a calendar row
  */
 require("dotenv").config();
+// Console transport normally disables automatic syncing (see isAutoEnabled);
+// force it on so the fast-path check below exercises the real trigger.
+process.env.CALENDAR_INVITES = "true";
 
 const mongoose = require("mongoose");
 const User = require("../modules/auth/auth.model");

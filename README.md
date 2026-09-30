@@ -188,7 +188,7 @@ Every duty also lands in the teacher's own calendar (Google Calendar, Outlook, A
 It's a reconciliation, not a per-event hook (`backend/modules/calendar/`): the teacher's live upcoming duties are compared with what their calendar was last sent, and only the difference is emailed. It runs a few seconds after any duty notification and every 6 hours; the first run after deploy invites everyone for duties they already hold. Invites come **in addition to** the regular notification emails.
 
 ```env
-CALENDAR_INVITES=true           # false turns invites off
+CALENDAR_INVITES=               # unset: on with a real MAIL_TRANSPORT, off under console · true: force on · false: off
 APP_TIMEZONE=Asia/Kolkata       # duty times are local wall-clock times
 ```
 

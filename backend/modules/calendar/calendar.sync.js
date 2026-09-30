@@ -35,6 +35,16 @@ const ROLE_SHORT = { invigilator: "Invigilator", rs: "RS", dcs: "DCS" };
 const isEnabled = () =>
   String(process.env.CALENDAR_INVITES ?? "true") !== "false" && transport.isEnabled();
 
+/**
+ * Automatic syncing (fast path + sweep) needs a REAL transport unless forced
+ * with CALENDAR_INVITES=true. Under `console` the invites would be "sent" to a
+ * log and recorded as delivered — so when real mail is switched on later,
+ * nobody would get invites for the duties they already hold.
+ */
+const isAutoEnabled = () =>
+  isEnabled() &&
+  (String(process.env.CALENDAR_INVITES).toLowerCase() === "true" || transport.transportKind() !== "console");
+
 const appUrl = () => (process.env.APP_URL || "https://proctavo.com").replace(/\/$/, "");
 
 const uidDomain = () => {
@@ -255,7 +265,7 @@ const flush = async () => {
 
 const markDirty = (teacher) => {
   const teacherId = toId(teacher);
-  if (!teacherId || !isEnabled()) return;
+  if (!teacherId || !isAutoEnabled()) return;
   dirty.add(teacherId);
   if (!flushTimer) flushTimer = setTimeout(flush, DEBOUNCE_MS);
 };
@@ -265,7 +275,7 @@ const markDirty = (teacher) => {
 // for the duties they already hold.
 
 const runSweep = async () => {
-  if (!isEnabled()) return { teachers: 0, requested: 0, cancelled: 0 };
+  if (!isAutoEnabled()) return { teachers: 0, requested: 0, cancelled: 0 };
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 1);
   since.setUTCHours(0, 0, 0, 0);
@@ -295,4 +305,4 @@ const runSweep = async () => {
   return total;
 };
 
-module.exports = { syncTeacher, markDirty, runSweep, isEnabled, describeUnit, unitKey };
+module.exports = { syncTeacher, markDirty, runSweep, isEnabled, isAutoEnabled, describeUnit, unitKey };

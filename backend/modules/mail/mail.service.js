@@ -68,6 +68,23 @@ const enqueueManyForNotifications = async (entries, session = null) => {
   }
 };
 
+/**
+ * Queue a calendar invite (calendar_request / calendar_cancel) — an email with
+ * no in-app counterpart. Built by calendar.sync.js; the dispatcher renders the
+ * .ics at send time so it carries the recipient's current address.
+ */
+const enqueueCalendar = async (entry) => {
+  try {
+    if (!transport.isEnabled()) return null;
+    if (!entry?.recipient || !policy.shouldEnqueue(entry.type)) return null;
+    const row = await EmailOutbox.create(buildRow(entry));
+    return row;
+  } catch (err) {
+    console.error(`[mail] failed to enqueue ${entry?.type}:`, err.message);
+    return null;
+  }
+};
+
 /** Delivery counts by status — for the CS delivery log and ops scripts. */
 const stats = async () => {
   const rows = await EmailOutbox.aggregate([
@@ -81,6 +98,7 @@ const listForRecipient = (recipientId, limit = 50) =>
   EmailOutbox.find({ recipient: recipientId }).sort({ createdAt: -1 }).limit(limit);
 
 module.exports = {
+  enqueueCalendar,
   enqueueForNotification,
   enqueueManyForNotifications,
   stats,

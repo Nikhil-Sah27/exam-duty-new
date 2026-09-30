@@ -464,6 +464,23 @@ const releaseGroup = async (groupId, actor, reason) => {
       });
     }
   } else {
+    // The DCS gets the same "it's off your schedule" confirmation an
+    // invigilator gets for their own release — and their calendar a cancel.
+    if (group.assignedTeacher) {
+      emit("duty_group_cancelled", {
+        recipient: group.assignedTeacher._id,
+        refModel: "Duty",
+        refId: group.duties?.[0] || null,
+        data: {
+          roleLabel: "DCS",
+          roomCount: group.duties?.length || 0,
+          date: group.schedule?.date,
+          startTime: group.schedule?.startTime,
+          endTime: group.schedule?.endTime,
+          selfReleased: true,
+        },
+      });
+    }
     notifyCsOfTeacherAction("group_released", {
       refId: group.duties?.[0] || null,
       data: {

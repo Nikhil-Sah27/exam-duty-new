@@ -118,12 +118,18 @@ const templates = {
 
   // CS took a teacher off a whole RS / DCS group. Once per group, mirroring
   // duty_group_assigned.
-  duty_group_cancelled: ({ roleLabel, roomCount, date, startTime, endTime, reason }) => ({
-    title: "Duty Cancelled",
-    message: `You have been unassigned from ${roleLabel === "RS" ? "an" : "a"} ${roleLabel} group of ${roomCount} room${
+  // Also the confirmation to a DCS who released their own group (`selfReleased`).
+  duty_group_cancelled: ({ roleLabel, roomCount, date, startTime, endTime, reason, selfReleased }) => {
+    const group = `${roleLabel === "RS" ? "an" : "a"} ${roleLabel} group of ${roomCount} room${
       roomCount === 1 ? "" : "s"
-    } on ${formatDate(date)} (${startTime}–${endTime})${reason ? ` — ${reason}` : ""}`,
-  }),
+    } on ${formatDate(date)} (${startTime}–${endTime})`;
+    return {
+      title: "Duty Cancelled",
+      message: selfReleased
+        ? `You released ${group}. It is no longer on your schedule.`
+        : `You have been unassigned from ${group}${reason ? ` — ${reason}` : ""}`,
+    };
+  },
 
   request_submitted: ({ type, date }) => ({
     title: "New Change Request",

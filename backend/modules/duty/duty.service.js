@@ -700,12 +700,22 @@ const adminUnassignDutyGroup = async (dutyId, cancelReason, actor) => {
  * exam module to fan an exam-details change out to exactly the people affected
  * (services call services — the exam module must not touch this repository).
  */
+/** A teacher's live (assigned) duties, populated — the calendar sync's input. */
+const getAssignedDutiesForTeacher = (teacherId) =>
+  dutyRepository.findAll({ teacher: teacherId, status: "assigned" });
+
+/** Teachers with an assigned duty dated on/after `since`. */
+const getTeacherIdsWithDutiesSince = (since) =>
+  dutyRepository.distinctTeachersWithDutiesSince(since);
+
 const getTeacherIdsForSchedules = async (scheduleIds) => {
   if (!Array.isArray(scheduleIds) || scheduleIds.length === 0) return [];
   return dutyRepository.distinctTeachersForSchedules(scheduleIds);
 };
 
 module.exports = {
+  getAssignedDutiesForTeacher,
+  getTeacherIdsWithDutiesSince,
   getTeacherIdsForSchedules,
   selfAssignDuty,
   selfAssignDutyGroup,

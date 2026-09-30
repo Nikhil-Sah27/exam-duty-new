@@ -12,6 +12,7 @@ const User = require("../auth/auth.model");
 const policy = require("./mail.policy");
 const transport = require("./mail.transport");
 const { renderEmail } = require("./mail.templates");
+const { buildIcs, parseAddress } = require("../calendar/calendar.ics");
 
 const INTERVAL_MS = 20 * 1000;
 const INITIAL_DELAY_MS = 8 * 1000; // let the server settle, like the notification scheduler
@@ -87,8 +88,25 @@ const deliver = async (row) => {
     recipientName: user.name,
   });
 
+  // Calendar rows carry the event; the .ics is built here so it names the
+  // recipient's current address.
+  const cal = row.data?.calendar;
+  const icalEvent = cal
+    ? {
+        method: cal.method.toLowerCase(),
+        filename: cal.method === "CANCEL" ? "cancel.ics" : "invite.ics",
+        content: buildIcs({
+          ...cal,
+          start: new Date(cal.start),
+          end: new Date(cal.end),
+          organizer: parseAddress(transport.fromAddress()),
+          attendee: { name: user.name, email: user.email },
+        }),
+      }
+    : undefined;
+
   try {
-    const { messageId } = await transport.send({ to: user.email, subject, html, text });
+    const { messageId } = await transport.send({ to: user.email, subject, html, text, icalEvent });
     await markSent(row._id, messageId);
     return "sent";
   } catch (err) {

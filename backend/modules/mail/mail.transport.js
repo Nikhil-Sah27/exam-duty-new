@@ -74,8 +74,9 @@ const buildTransport = () => {
 const buildConsoleTransport = () => ({
   kind: "console",
   transporter: {
-    sendMail: async ({ to, subject }) => {
-      console.log(`[mail:console] → ${to} | ${subject}`);
+    sendMail: async ({ to, subject, icalEvent }) => {
+      const invite = icalEvent ? ` [+ calendar ${icalEvent.method.toUpperCase()}]` : "";
+      console.log(`[mail:console] → ${to} | ${subject}${invite}`);
       return { messageId: `console-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
     },
   },
@@ -87,7 +88,7 @@ const getTransport = () => {
 };
 
 /** Send one email. Throws on failure so the dispatcher can retry. */
-const send = async ({ to, subject, html, text }) => {
+const send = async ({ to, subject, html, text, icalEvent }) => {
   const { transporter } = getTransport();
   const info = await transporter.sendMail({
     from: fromAddress(),
@@ -95,6 +96,9 @@ const send = async ({ to, subject, html, text }) => {
     subject,
     text,
     html,
+    // A calendar invite rides as a text/calendar alternative, which is what
+    // makes Gmail / Outlook show it as an event rather than an attachment.
+    ...(icalEvent ? { icalEvent } : {}),
   });
   return { messageId: info?.messageId || null };
 };

@@ -18,6 +18,27 @@ const notificationRepository = require("./notification.repository");
 const templates = require("./notification.templates");
 const mailService = require("../mail/mail.service");
 const mailDispatcher = require("../mail/mail.dispatcher");
+const calendarSync = require("../calendar/calendar.sync");
+
+// Notifications that mean the recipient's duties just changed — their calendar
+// gets reconciled a few seconds later (after any transaction has committed).
+// The sync is state-based, so an over-eager trigger costs a no-op, never a
+// duplicate invite.
+const CALENDAR_TRIGGERS = new Set([
+  "duty_assigned",
+  "duty_group_assigned",
+  "duty_self_claimed",
+  "duty_cancelled",
+  "duty_group_cancelled",
+  "duty_swapped",
+  "exam_updated",
+  "exam_deleted_duty_release",
+  "request_approved",
+]);
+
+const touchCalendar = (type, recipient) => {
+  if (CALENDAR_TRIGGERS.has(type)) calendarSync.markDirty(recipient);
+};
 
 /**
  * Queue the email mirroring a just-written notification. Outside a transaction
@@ -58,6 +79,7 @@ const emit = async (
     { notification, type, recipient, title, message, data, dedupeKey },
     session,
   );
+  touchCalendar(type, recipient);
 
   return notification;
 };
@@ -106,6 +128,7 @@ const emitToMany = async (
     recipients.map((recipient) => ({ type, recipient, title, message, data })),
     session,
   );
+  recipients.forEach((recipient) => touchCalendar(type, recipient));
 
   return created;
 };
@@ -145,6 +168,7 @@ const bulkEmit = async (notifications, { session } = {}) => {
     })),
     session,
   );
+  rendered.forEach(({ type, recipient }) => touchCalendar(type, recipient));
 
   return created;
 };

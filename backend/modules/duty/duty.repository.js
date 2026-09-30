@@ -112,6 +112,10 @@ const findInvigilatorDutiesForRooms = (examRoomIds) => {
 };
 
 /** Distinct teacher ids holding a live duty on any of these schedules. */
+// Teachers holding an assigned duty on or after `since` — the calendar sweep's scope.
+const distinctTeachersWithDutiesSince = (since) =>
+  Duty.distinct("teacher", { status: "assigned", date: { $gte: since } });
+
 const distinctTeachersForSchedules = (scheduleIds) => {
   return Duty.distinct("teacher", {
     examSchedule: { $in: scheduleIds },
@@ -123,6 +127,7 @@ module.exports = {
   cancelMany,
   create,
   distinctTeachersForSchedules,
+  distinctTeachersWithDutiesSince,
   findAll,
   findById,
   updateById,

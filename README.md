@@ -182,6 +182,18 @@ Keep `console` locally and in CI — the seeded accounts use fake `@examduty.com
 
 Inspect delivery with `node scripts/mail-outbox-report.js` (`--failed` for errors only, `--retry` to re-queue failures).
 
+### Calendar Invites
+Every duty also lands in the teacher's own calendar (Google Calendar, Outlook, Apple) as a standard calendar invite emailed from the `MAIL_FROM` address — no calendar API access or per-teacher setup. One event per duty unit: an invigilator room, or a whole RS / DCS group. When a duty moves, the event moves; when it's unassigned, released, swapped away or its exam is deleted, a cancellation removes it.
+
+It's a reconciliation, not a per-event hook (`backend/modules/calendar/`): the teacher's live upcoming duties are compared with what their calendar was last sent, and only the difference is emailed. It runs a few seconds after any duty notification and every 6 hours; the first run after deploy invites everyone for duties they already hold. Invites come **in addition to** the regular notification emails.
+
+```env
+CALENDAR_INVITES=true           # false turns invites off
+APP_TIMEZONE=Asia/Kolkata       # duty times are local wall-clock times
+```
+
+Verify with `MAIL_TRANSPORT=console node scripts/verify-calendar.js` against a throwaway database.
+
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
 

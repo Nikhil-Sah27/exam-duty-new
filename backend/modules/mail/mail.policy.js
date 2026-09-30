@@ -25,6 +25,10 @@ const POLICY = {
   exam_deleted_duty_release: IMMEDIATE,
   exam_updated: IMMEDIATE,
 
+  // ── Calendar invites (calendar.sync.js) — the event itself, so always sent ─
+  calendar_request: IMMEDIATE,
+  calendar_cancel: IMMEDIATE,
+
   // ── Change requests ─────────────────────────────────────────────────────
   request_submitted: IMMEDIATE,
   request_approved: IMMEDIATE,
@@ -60,6 +64,8 @@ const NON_OPTIONAL = new Set([
   "duty_self_claimed",
   "duty_cancelled",
   "duty_group_cancelled",
+  "calendar_request",
+  "calendar_cancel",
   "duty_swapped",
   "exam_deleted_duty_release",
   "exam_updated",

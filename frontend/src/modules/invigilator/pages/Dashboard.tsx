@@ -3,6 +3,7 @@ import { useAuthStore } from "@/shared/store/auth.store";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import type { Duty } from "@/modules/duties/types";
 import DashboardHero from "@/modules/shared/dashboard/components/DashboardHero";
+import PendingConfirmations from "@/modules/shared/dashboard/components/PendingConfirmations";
 import DashboardDutySection from "@/modules/shared/dashboard/components/DashboardDutySection";
 import {
   normalizeDutiesCompleted,
@@ -70,6 +71,8 @@ export default function Dashboard() {
           href: "/invigilator/upcoming-duties",
         }}
       />
+
+      <PendingConfirmations />
 
       {dutiesQuery.isLoading && (
         <p className="text-sm text-gray-500">Loading your duties...</p>

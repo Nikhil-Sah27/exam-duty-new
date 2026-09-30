@@ -52,6 +52,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Last authenticated request, refreshed at most every 10 minutes by
+    // `protect` — feeds the CS responsiveness view.
+    lastActiveAt: {
+      type: Date,
+      default: null,
+    },
     // Password-reset OTP — hashed, short-lived, and never returned by default.
     resetOtpHash: { type: String, default: null, select: false },
     resetOtpExpires: { type: Date, default: null, select: false },

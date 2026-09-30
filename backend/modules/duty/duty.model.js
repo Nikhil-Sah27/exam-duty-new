@@ -84,9 +84,28 @@ const dutySchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    // The teacher has acknowledged this duty (REMINDERS_PLAN.md). CS-assigned
+    // duties start unconfirmed; ones the teacher chose — a self-claim, or a
+    // change request they raised — are confirmed at creation.
+    confirmedAt: {
+      type: Date,
+      default: null,
+    },
+    confirmedVia: {
+      type: String,
+      enum: ["self", "request", "email", "app", null],
+      default: null,
+    },
   },
   { timestamps: true }
 );
+
+dutySchema.pre("validate", function confirmSelfClaims() {
+  if (this.isNew && this.isSelfAssigned && !this.confirmedAt) {
+    this.confirmedAt = new Date();
+    this.confirmedVia = "self";
+  }
+});
 
 // Compound index — one teacher per time slot, one room per time slot
 dutySchema.index({ teacher: 1, date: 1, startTime: 1, status: 1 });

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/shared/store/auth.store";
 import DashboardHero from "@/modules/shared/dashboard/components/DashboardHero";
+import PendingConfirmations from "@/modules/shared/dashboard/components/PendingConfirmations";
 import DashboardDutySection from "@/modules/shared/dashboard/components/DashboardDutySection";
 import {
   normalizeDcsCompleted,
@@ -73,6 +74,8 @@ export default function Dashboard() {
         primaryAction={{ label: "Select Duty", href: "/dcs/select-duty" }}
         secondaryAction={{ label: "Upcoming Duties", href: "/dcs/upcoming-duties" }}
       />
+
+      <PendingConfirmations />
 
       {myGroupsQuery.isLoading && (
         <p className="text-sm text-gray-500">Loading your duties...</p>

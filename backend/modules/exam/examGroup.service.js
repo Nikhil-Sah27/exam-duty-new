@@ -373,6 +373,10 @@ const getDutyStatus = async (id) => {
       dcsDutyId: dcsDuty?._id || null,
       rsDutyId: rsDuty?._id || null,
       invigilatorDutyId: invigilatorDuty?._id || null,
+      // Has the holder confirmed? (REMINDERS_PLAN.md) — drives CS badges.
+      dcsConfirmed: Boolean(dcsDuty?.confirmedAt),
+      rsConfirmed: Boolean(rsDuty?.confirmedAt),
+      invigilatorConfirmed: Boolean(invigilatorDuty?.confirmedAt),
     };
   }
 

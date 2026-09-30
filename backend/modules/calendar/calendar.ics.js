@@ -7,38 +7,7 @@
  * the teacher's calendar at all.
  */
 
-const appTimezone = () => process.env.APP_TIMEZONE || "Asia/Kolkata";
-
-/** Milliseconds `tz` is ahead of UTC at the instant `utcMs`. */
-const tzOffsetMs = (utcMs, tz) => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(new Date(utcMs));
-  const get = (t) => Number(parts.find((p) => p.type === t).value);
-  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-  return asUtc - utcMs;
-};
-
-/**
- * Duty dates are stored as the calendar day at 00:00 UTC and times as local
- * "HH:MM" strings in the institution's timezone. Combine them into the real
- * instant. Two passes so a DST boundary on that day still lands correctly.
- */
-const localToUtc = (dateValue, hhmm, tz = appTimezone()) => {
-  const d = new Date(dateValue);
-  const [h, m] = String(hhmm || "00:00").split(":").map(Number);
-  const wall = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), h || 0, m || 0);
-  let utc = wall - tzOffsetMs(wall, tz);
-  utc = wall - tzOffsetMs(utc, tz);
-  return new Date(utc);
-};
+const { appTimezone, localToUtc } = require("../../shared/utils/datetime");
 
 /** 20261001T040000Z */
 const icsDate = (date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -110,9 +79,21 @@ const buildIcs = (e) => {
     };RSVP=FALSE:mailto:${e.attendee.email}`,
     `STATUS:${cancel ? "CANCELLED" : "CONFIRMED"}`,
     "TRANSP:OPAQUE",
+    // Same moments as the app's own reminders. Apple and Outlook honour these;
+    // Google Calendar ignores invite alarms and applies the user's default.
     ...(cancel
       ? []
-      : ["BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Exam duty in 1 hour", "TRIGGER:-PT1H", "END:VALARM"]),
+      : [
+          ["-P3D", "Exam duty in 3 days"],
+          ["-P1D", "Exam duty tomorrow"],
+          ["-PT30M", "Exam duty in 30 minutes"],
+        ].flatMap(([trigger, text]) => [
+          "BEGIN:VALARM",
+          "ACTION:DISPLAY",
+          `DESCRIPTION:${text}`,
+          `TRIGGER:${trigger}`,
+          "END:VALARM",
+        ])),
     "END:VEVENT",
     "END:VCALENDAR",
   ].filter(Boolean);

@@ -194,6 +194,14 @@ APP_TIMEZONE=Asia/Kolkata       # duty times are local wall-clock times
 
 Verify with `MAIL_TRANSPORT=console node scripts/verify-calendar.js` against a throwaway database.
 
+### Reminders, Confirmation & Responsiveness
+- **Reminders** go out **3 days, 1 day and 30 minutes** before every duty (in-app + email), once per duty unit — a whole RS/DCS group is one reminder. A stage is skipped if the duty was assigned after it, and messages always name the date rather than "tomorrow". Calendar invites carry the same three alarms (Google Calendar ignores invite alarms and uses the teacher's own default, which is why the app's reminders matter).
+- **Confirmation.** Duties CS assigns start *awaiting confirmation*; self-claimed duties (and change requests the teacher raised) are confirmed automatically. Teachers confirm with the **"Confirm I'll be there"** button in any duty email (a signed one-click link, no login) or on their dashboard; a whole group is confirmed at once. "Can't make it?" routes to the existing change-request flow.
+- **Nudges.** Unconfirmed 24h after assignment → the teacher is reminded to confirm. Still unconfirmed the day before → CS gets an in-app alert. Below selection target while an exam with open slots starts within 7 days (and again at 3) → "please select your duties". Nothing is ever auto-released.
+- **Reports → Responsiveness** (CS) lists, per teacher: upcoming duties, confirmed vs awaiting (with the oldest wait), average time to confirm, reminders received, selected vs target, and last activity, with a **Not responding** flag. Email opens are deliberately not tracked — they can't be measured reliably; confirmations can.
+
+Time-critical checks run on a 5-minute tick. Verify with `MAIL_TRANSPORT=console node scripts/verify-reminders.js` against a throwaway database.
+
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
 

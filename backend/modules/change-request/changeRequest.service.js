@@ -644,6 +644,9 @@ const approveDcsGroupSwap = async (request, reviewerId, reviewNote) => {
           endTime: target.schedule.endTime,
           assignedBy: reviewerId,
           isSelfAssigned: false,
+          // The requester asked for this group — nothing to confirm.
+          confirmedAt: new Date(),
+          confirmedVia: "request",
         },
         session
       );
@@ -778,6 +781,9 @@ const approveRsGroupSwap = async (request, reviewerId, reviewNote) => {
           endTime: targetSchedule.endTime,
           assignedBy: reviewerId,
           isSelfAssigned: false,
+          // The requester asked for this group — nothing to confirm.
+          confirmedAt: new Date(),
+          confirmedVia: "request",
         },
         session
       );
@@ -857,7 +863,8 @@ const approveRequest = async (id, reviewerId, reviewNote) => {
     if (request.type === "swap") {
       await Duty.findByIdAndUpdate(
         request.duty._id,
-        { teacher: request.swapWith._id },
+        // The new holder didn't ask for it, so they confirm it themselves.
+        { teacher: request.swapWith._id, confirmedAt: null, confirmedVia: null },
         sessionOpt
       );
     }
@@ -900,6 +907,9 @@ const approveRequest = async (id, reviewerId, reviewNote) => {
             assignedBy: reviewerId,
             isSelfAssigned: false,
             status: "assigned",
+            // The teacher asked for this move — nothing to confirm.
+            confirmedAt: new Date(),
+            confirmedVia: "request",
           },
         ],
         sessionOpt

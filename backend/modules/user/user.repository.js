@@ -56,6 +56,12 @@ const countByRole = (role) => {
 
 // Returns ObjectIds of active users. Optional role filter matches any user
 // whose `roles` array contains at least one of the given roles.
+/** { userId: lastActiveAt|null } */
+const findLastActive = async (ids) => {
+  const docs = await User.find({ _id: { $in: ids } }).select("lastActiveAt");
+  return Object.fromEntries(docs.map((d) => [String(d._id), d.lastActiveAt || null]));
+};
+
 const findActiveIds = async (roles) => {
   const filter = {};
   if (Array.isArray(roles) && roles.length > 0) {
@@ -76,4 +82,5 @@ module.exports = {
   activateById,
   countByRole,
   findActiveIds,
+  findLastActive,
 };

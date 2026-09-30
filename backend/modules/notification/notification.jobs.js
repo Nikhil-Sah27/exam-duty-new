@@ -145,12 +145,8 @@ const runTargetReachedSweep = async () => {
  * Run both sweeps. Each is isolated so one failing never blocks the other.
  */
 const runDailySweep = async () => {
-  try {
-    const n = await runDutyReminderSweep();
-    if (n > 0) console.log(`[notifications] duty-reminder sweep: ${n} sent`);
-  } catch (err) {
-    console.error("[notifications] duty-reminder sweep failed:", err.message);
-  }
+  // The day-before reminder moved to reminder.jobs.js (per duty unit, at 3 days,
+  // 1 day and 30 minutes); runDutyReminderSweep stays exported for scripts.
   try {
     const n = await runTargetReachedSweep();
     if (n > 0) console.log(`[notifications] target-reached sweep: ${n} sent`);

@@ -129,6 +129,10 @@ export interface RoomDutyFlags {
   dcsDutyId?: string | null;
   rsDutyId?: string | null;
   invigilatorDutyId?: string | null;
+  /** Has the slot's holder confirmed? Drives the "Awaiting confirmation" badge. */
+  dcsConfirmed?: boolean;
+  rsConfirmed?: boolean;
+  invigilatorConfirmed?: boolean;
 }
 
 /** Map of examRoomId → duty flags */

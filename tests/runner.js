@@ -23,6 +23,7 @@ const suites = [
   { name: "Create Exams (CIE)", file: "./10-create-exams.test.js" },
   { name: "Notification Events", file: "./11-notification-events.test.js" },
   { name: "Unassign", file: "./12-unassign.test.js" },
+  { name: "Confirmation", file: "./13-confirmation.test.js" },
 ];
 
 async function main() {

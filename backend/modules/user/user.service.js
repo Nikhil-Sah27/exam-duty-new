@@ -133,4 +133,6 @@ const bootstrapAdmin = async () => {
  */
 const getCsUserIds = () => userRepository.findActiveIds(["cs"]);
 
-module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, activateUser, bootstrapAdmin, getCsUserIds };
+const getLastActiveMap = (ids) => userRepository.findLastActive(ids);
+
+module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, activateUser, bootstrapAdmin, getCsUserIds, getLastActiveMap };

@@ -135,6 +135,53 @@ const adminUnassignGroup = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, count: result.count, data: { role: result.role } });
 });
 
+/** Teacher confirms their own duty from the app. */
+const confirm = catchAsync(async (req, res) => {
+  const result = await dutyService.confirmDutyUnit(req.params.id, { teacherId: req.user.id, via: "app" });
+  res.status(200).json({
+    success: true,
+    data: { confirmed: result.confirmed, alreadyConfirmed: result.alreadyConfirmed },
+  });
+});
+
+const confirmPage = (ok, heading, body) => `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${heading} · Proctavo</title></head>
+<body style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f3f4f6;">
+<div style="max-width:420px;margin:12vh auto;padding:32px 28px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;text-align:center;">
+<div style="font-size:40px;line-height:1;color:${ok ? "#16a34a" : "#dc2626"};">${ok ? "&#10003;" : "!"}</div>
+<h1 style="font-size:20px;color:#1f2937;margin:14px 0 8px;">${heading}</h1>
+<p style="font-size:15px;color:#4b5563;line-height:1.5;margin:0 0 20px;">${body}</p>
+<a href="${(process.env.APP_URL || "https://proctavo.com").replace(/\/$/, "")}/" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;">Open Proctavo</a>
+</div></body></html>`;
+
+/**
+ * One-click confirmation from a duty email (no login — the signed token is the
+ * credential). Renders a tiny HTML page instead of JSON: this is opened in a
+ * browser, not called by the app. Errors are rendered too, never thrown to the
+ * JSON error handler.
+ */
+const confirmByToken = async (req, res) => {
+  try {
+    const result = await dutyService.confirmDutyByToken(req.params.token);
+    res
+      .status(200)
+      .type("html")
+      .send(
+        confirmPage(
+          true,
+          result.alreadyConfirmed ? "Already confirmed" : "Duty confirmed",
+          "Thanks — CS can see you'll be there. You'll still get reminders before the duty."
+        )
+      );
+  } catch (err) {
+    res
+      .status(err.statusCode || 500)
+      .type("html")
+      .send(confirmPage(false, "Couldn't confirm", String(err.message || "Something went wrong").replace(/</g, "&lt;")));
+  }
+};
+
 const invigilatorsForRooms = catchAsync(async (req, res) => {
   const data = await dutyService.getInvigilatorsForRooms(req.body?.examRoomIds);
   res.status(200).json({ success: true, count: data.length, data });
@@ -148,6 +195,8 @@ module.exports = {
   getAll,
   getById,
   cancel,
+  confirm,
+  confirmByToken,
   adminUnassignGroup,
   invigilatorsForRooms,
 };

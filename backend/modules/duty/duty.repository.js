@@ -40,6 +40,16 @@ const updateById = (id, data) => {
   }).populate(POPULATE_FIELDS);
 };
 
+// Light read for the responsiveness report — no heavy populates.
+const findForResponsiveness = (since) =>
+  Duty.find({ status: { $in: ["assigned", "completed"] }, date: { $gte: since } })
+    .select("teacher role examSchedule date startTime endTime status confirmedAt confirmedVia isSelfAssigned createdAt")
+    .populate("examSchedule", "date startTime endTime")
+    .lean();
+
+const updateMany = (filter, data, session) =>
+  Duty.updateMany(filter, data, session ? { session } : {});
+
 // Cancel several duties in one write — used by group unassign, which must be
 // all-or-nothing, hence the optional session.
 const cancelMany = (ids, cancelReason, session) =>
@@ -124,6 +134,8 @@ const distinctTeachersForSchedules = (scheduleIds) => {
 };
 
 module.exports = {
+  findForResponsiveness,
+  updateMany,
   cancelMany,
   create,
   distinctTeachersForSchedules,

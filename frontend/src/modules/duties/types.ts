@@ -63,6 +63,9 @@ export interface Duty {
   status: DutyStatus;
   cancelledAt: string | null;
   cancelReason: string | null;
+  /** Teacher acknowledged the duty (REMINDERS_PLAN.md). Null = awaiting confirmation. */
+  confirmedAt?: string | null;
+  confirmedVia?: "self" | "request" | "email" | "app" | null;
   createdAt: string;
   updatedAt: string;
 }

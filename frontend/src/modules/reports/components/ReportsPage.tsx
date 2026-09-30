@@ -1,12 +1,14 @@
 import { useState } from "react";
 import DutyRosterReport from "./DutyRosterReport";
+import ResponsivenessReport from "./ResponsivenessReport";
 import DutyAnalyticsTable from "@/modules/duty-calculation/components/DutyAnalyticsTable";
 
-type ReportTab = "roster" | "workload";
+type ReportTab = "roster" | "workload" | "responsiveness";
 
 const TABS: { value: ReportTab; label: string }[] = [
   { value: "roster", label: "Duty Roster" },
   { value: "workload", label: "Teacher Workload" },
+  { value: "responsiveness", label: "Responsiveness" },
 ];
 
 export default function ReportsPage() {
@@ -19,7 +21,9 @@ export default function ReportsPage() {
         <p className="mt-1 text-sm text-gray-500">
           {tab === "roster"
             ? "Room-by-room invigilation roster for an exam — assignments, contacts, and vacancies."
-            : "Duty targets and completion per teacher across the institution."}
+            : tab === "workload"
+              ? "Duty targets and completion per teacher across the institution."
+              : "Who is confirming their duties and selecting enough of them — and who isn't."}
         </p>
       </div>
 
@@ -41,6 +45,7 @@ export default function ReportsPage() {
 
       {tab === "roster" && <DutyRosterReport />}
       {tab === "workload" && <DutyAnalyticsTable enableExport />}
+      {tab === "responsiveness" && <ResponsivenessReport />}
     </div>
   );
 }

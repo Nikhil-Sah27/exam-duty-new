@@ -36,6 +36,11 @@ const CALENDAR_TRIGGERS = new Set([
   "request_approved",
 ]);
 
+// The duty an email is about, so the dispatcher can add a "Confirm I'll be
+// there" button at send time.
+const withDutyRef = (data, refModel, refId) =>
+  refModel === "Duty" && refId ? { ...data, refDutyId: String(refId) } : data;
+
 const touchCalendar = (type, recipient) => {
   if (CALENDAR_TRIGGERS.has(type)) calendarSync.markDirty(recipient);
 };
@@ -76,7 +81,7 @@ const emit = async (
   );
 
   await queueEmail(
-    { notification, type, recipient, title, message, data, dedupeKey },
+    { notification, type, recipient, title, message, data: withDutyRef(data, refModel, refId), dedupeKey },
     session,
   );
   touchCalendar(type, recipient);
@@ -125,7 +130,13 @@ const emitToMany = async (
   const created = await notificationRepository.createMany(docs, session);
 
   await queueEmails(
-    recipients.map((recipient) => ({ type, recipient, title, message, data })),
+    recipients.map((recipient) => ({
+      type,
+      recipient,
+      title,
+      message,
+      data: withDutyRef(data, refModel, refId),
+    })),
     session,
   );
   recipients.forEach((recipient) => touchCalendar(type, recipient));
@@ -159,12 +170,12 @@ const bulkEmit = async (notifications, { session } = {}) => {
   const created = await notificationRepository.createMany(docs, session);
 
   await queueEmails(
-    rendered.map(({ type, recipient, title, message, data }) => ({
+    rendered.map(({ type, recipient, refModel, refId, title, message, data }) => ({
       type,
       recipient,
       title,
       message,
-      data,
+      data: withDutyRef(data, refModel, refId),
     })),
     session,
   );

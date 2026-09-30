@@ -23,6 +23,15 @@ const findById = (id) => {
   return Notification.findById(id);
 };
 
+/** { recipientId: count } of the given types created in [since, before). */
+const countByRecipientForTypes = async (types, since, before = new Date()) => {
+  const rows = await Notification.aggregate([
+    { $match: { type: { $in: types }, createdAt: { $gte: since, $lt: before } } },
+    { $group: { _id: "$recipient", count: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.count]));
+};
+
 const existsByDedupeKey = (dedupeKey) => {
   return Notification.exists({ dedupeKey });
 };
@@ -53,6 +62,7 @@ const deleteAllByRecipient = (recipientId) => {
 };
 
 module.exports = {
+  countByRecipientForTypes,
   create,
   createMany,
   findByRecipient,

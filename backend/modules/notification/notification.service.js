@@ -50,7 +50,18 @@ const deleteAllNotifications = async (userId) => {
   return { deleted: result.deletedCount ?? 0 };
 };
 
+const NUDGE_TYPES = ["duty_confirm_nudge", "duty_selection_nudge"];
+
+/** How many confirm / select-duty nudges each teacher got since `since`. */
+const countNudgesByRecipient = (since) => notificationRepository.countByRecipientForTypes(NUDGE_TYPES, since);
+
+/** How many select-duty nudges each teacher got in [since, before). */
+const countSelectionNudgesBefore = (since, before) =>
+  notificationRepository.countByRecipientForTypes(["duty_selection_nudge"], since, before);
+
 module.exports = {
+  countNudgesByRecipient,
+  countSelectionNudgesBefore,
   getMyNotifications,
   getUnreadCount,
   markAsRead,

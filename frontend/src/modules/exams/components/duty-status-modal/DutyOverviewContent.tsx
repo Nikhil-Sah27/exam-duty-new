@@ -113,6 +113,7 @@ export default function DutyOverviewContent({
               onUnassignClick={
                 onUnassignRole ? () => onUnassignRole("dcs") : undefined
               }
+              awaitingConfirmation={csAssignMode && flags.dcsConfirmed === false}
             />
             <RoleBadge
               label="RS (Room Superintendent)"
@@ -124,6 +125,7 @@ export default function DutyOverviewContent({
               onUnassignClick={
                 onUnassignRole ? () => onUnassignRole("rs") : undefined
               }
+              awaitingConfirmation={csAssignMode && flags.rsConfirmed === false}
             />
             <RoleBadge
               label="Invigilator"
@@ -135,6 +137,7 @@ export default function DutyOverviewContent({
               onUnassignClick={
                 onUnassignRole ? () => onUnassignRole("invigilator") : undefined
               }
+              awaitingConfirmation={csAssignMode && flags.invigilatorConfirmed === false}
             />
           </div>
         </div>

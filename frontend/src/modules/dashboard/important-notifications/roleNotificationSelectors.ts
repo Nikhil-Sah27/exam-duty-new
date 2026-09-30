@@ -93,7 +93,22 @@ const FEED_MAP: Partial<Record<NotificationType, FeedMeta>> = {
   duty_reminder: {
     accent: "amber",
     priority: "high",
-    category: "Duty tomorrow",
+    category: "Upcoming duty",
+    action: "duties",
+  },
+  // Something is still needed from the teacher.
+  duty_confirm_nudge: {
+    accent: "amber",
+    priority: "high",
+    category: "Please confirm",
+    highlight: true,
+    action: "duties",
+  },
+  duty_selection_nudge: {
+    accent: "blue",
+    priority: "high",
+    category: "Select your duties",
+    highlight: true,
     action: "duties",
   },
   // Milestone — the teacher finished their whole target.

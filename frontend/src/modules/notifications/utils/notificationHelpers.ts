@@ -42,6 +42,11 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   duty_cancelled: { tone: "red", highlight: false },
   duty_group_cancelled: { tone: "red", highlight: false },
   duty_reminder: { tone: "amber", highlight: false },
+  // Something is still needed from the teacher — make it stand out.
+  duty_confirm_nudge: { tone: "amber", highlight: true },
+  duty_selection_nudge: { tone: "blue", highlight: true },
+  // CS: a teacher hasn't confirmed tomorrow's duty.
+  duty_unconfirmed_alert: { tone: "amber", highlight: false },
   target_reached: { tone: "green", highlight: false },
   request_approved: { tone: "blue", highlight: false },
   request_rejected: { tone: "amber", highlight: false },

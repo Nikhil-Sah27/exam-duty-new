@@ -155,7 +155,22 @@ const templates = {
   // The message is anchored to the ABSOLUTE date (never "tomorrow"): a stored
   // notification is read later than it's created, so relative wording goes stale
   // the moment the day rolls over ("tomorrow" while the duty is actually today).
-  duty_reminder: ({ room, date, startTime, endTime, count }) => {
+  // Per duty unit at 3 days / 1 day / 30 minutes out (reminder.jobs.js). `count`
+  // is the older once-a-day digest shape, kept so stored rows still render.
+  duty_reminder: ({ room, date, startTime, endTime, count, stage, roleLabel, roomCount, unconfirmed }) => {
+    // Absolute date, never "tomorrow" / "in 3 days": a stored reminder is read
+    // later than it's written, and relative wording goes stale (see README).
+    if (stage) {
+      const what =
+        roomCount > 1 ? `${roleLabel} group duty (${roomCount} rooms: ${room})` : `${roleLabel || ""} duty at ${room}`.trim();
+      const confirm = unconfirmed && stage !== "30m" ? " Please confirm you'll be there." : "";
+      return {
+        title: stage === "30m" ? "Duty Starting Soon" : "Upcoming Duty Reminder",
+        message: `Your ${what} is on ${formatLongDate(date)}, ${formatTime12h(startTime)} – ${formatTime12h(
+          endTime
+        )}.${confirm}`,
+      };
+    }
     if (count && count > 1) {
       return {
         title: "Upcoming Duty Reminder",
@@ -166,6 +181,36 @@ const templates = {
     return {
       title: "Upcoming Duty Reminder",
       message: `You have a duty on ${formatLongDate(date)} at ${formatTime12h(startTime)} – ${formatTime12h(endTime)}${where}.`,
+    };
+  },
+
+  // A CS-assigned duty still unconfirmed a day after assignment.
+  duty_confirm_nudge: ({ room, date, startTime, endTime, roleLabel, roomCount }) => {
+    const what = roomCount > 1 ? `${roleLabel} group duty (${roomCount} rooms: ${room})` : `duty at ${room}`;
+    return {
+      title: "Please Confirm Your Duty",
+      message: `You haven't confirmed your ${what} on ${formatLongDate(date)} (${formatTime12h(
+        startTime
+      )} – ${formatTime12h(endTime)}) yet. Confirm you'll be there, or request a change if you can't make it.`,
+    };
+  },
+
+  // To CS, the day before: a teacher still hasn't confirmed.
+  duty_unconfirmed_alert: ({ teacherName, room, date, startTime, roleLabel }) => ({
+    title: "Duty Not Confirmed",
+    message: `${teacherName} hasn't confirmed their ${roleLabel || ""} duty at ${room} on ${formatLongDate(
+      date
+    )} (${formatTime12h(startTime)}).`,
+  }),
+
+  // A teacher below target while an exam with open slots is about to start.
+  duty_selection_nudge: ({ examLabel, semester, date, remaining }) => {
+    const exam = semester != null ? `${examLabel} — Semester ${semester}` : examLabel || "An exam";
+    return {
+      title: "Select Your Exam Duties",
+      message: `${exam} starts on ${formatLongDate(date)} and still has open slots. You have ${remaining} dut${
+        remaining === 1 ? "y" : "ies"
+      } left to select — please pick yours in Proctavo.`,
     };
   },
 

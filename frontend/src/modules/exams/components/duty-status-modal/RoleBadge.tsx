@@ -7,6 +7,7 @@ export default function RoleBadge({
   assignee,
   onAssignClick,
   onUnassignClick,
+  awaitingConfirmation,
 }: {
   label: string;
   assigned: boolean;
@@ -16,6 +17,8 @@ export default function RoleBadge({
   onAssignClick?: () => void;
   /** When provided and the slot is filled, shows a CS Unassign action. */
   onUnassignClick?: () => void;
+  /** Filled, but the holder hasn't confirmed yet (CS view). */
+  awaitingConfirmation?: boolean;
 }) {
   const clickable = !assigned && !!onAssignClick;
   const Wrapper = clickable ? "button" : "div";
@@ -31,7 +34,11 @@ export default function RoleBadge({
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-700">{label}</span>
-        {assigned ? (
+        {assigned && awaitingConfirmation ? (
+          <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+            <CheckCircle2 className="h-3 w-3" /> Awaiting confirmation
+          </span>
+        ) : assigned ? (
           <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
             <CheckCircle2 className="h-3 w-3" /> Assigned
           </span>

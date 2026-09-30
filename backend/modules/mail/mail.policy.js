@@ -34,8 +34,12 @@ const POLICY = {
   request_approved: IMMEDIATE,
   request_rejected: IMMEDIATE,
 
-  // ── Reminders ───────────────────────────────────────────────────────────
+  // ── Reminders & nudges (reminder.jobs.js) ───────────────────────────────
   duty_reminder: IMMEDIATE,
+  duty_confirm_nudge: IMMEDIATE,
+  duty_selection_nudge: IMMEDIATE,
+  // CS escalation — in-app, like the other CS awareness alerts.
+  duty_unconfirmed_alert: NONE,
 
   // ── CS-facing awareness alerts (no email: CS lives in the app all day and
   //    these fire on every teacher action, so an inbox copy is pure noise) ──
@@ -76,6 +80,8 @@ const NON_OPTIONAL = new Set([
 // therefore allowed, so this is inert-but-ready rather than speculative.
 const PREF_CATEGORY = {
   duty_reminder: "reminders",
+  duty_confirm_nudge: "reminders",
+  duty_selection_nudge: "reminders",
   request_submitted: "requests",
   request_approved: "requests",
   request_rejected: "requests",

@@ -5,7 +5,10 @@ const requireRole = require("../../shared/middleware/requireRole");
 
 const router = express.Router();
 
-// All duty routes are protected
+// Public: the one-click link in duty emails. The signed token is the credential.
+router.get("/confirm/:token", dutyController.confirmByToken);
+
+// Everything else is protected
 router.use(protect);
 
 router.post("/self-assign", dutyController.selfAssign);
@@ -17,5 +20,6 @@ router.post("/invigilators-for-rooms", dutyController.invigilatorsForRooms);
 router.get("/", dutyController.getAll);
 router.get("/:id", dutyController.getById);
 router.patch("/:id/cancel", dutyController.cancel);
+router.post("/:id/confirm", dutyController.confirm);
 
 module.exports = router;

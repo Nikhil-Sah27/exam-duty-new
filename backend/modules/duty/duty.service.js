@@ -12,6 +12,9 @@ const { buildRoomLabel } = require("../exam-cleanup/utils/examCleanupUtils");
 const {
   assertTargetNotReached,
 } = require("../duty-calculation/dutyCalculation.service");
+const { unitFilter } = require("./duty.unit");
+const confirmToken = require("./duty.confirmToken");
+const { localToUtc } = require("../../shared/utils/datetime");
 
 /**
  * Tell CS that a teacher took or gave back work themselves. Fire-and-forget and
@@ -700,6 +703,82 @@ const adminUnassignDutyGroup = async (dutyId, cancelReason, actor) => {
  * exam module to fan an exam-details change out to exactly the people affected
  * (services call services — the exam module must not touch this repository).
  */
+// ---------- Confirmation (REMINDERS_PLAN.md §B) ----------
+
+const unitEndsAt = (d) =>
+  localToUtc(d.examSchedule?.date || d.date, d.examSchedule?.endTime || d.endTime);
+
+/**
+ * Confirm a duty unit — every room of an RS/DCS group at once. `teacherId`, when
+ * given, must own the duty (the app and the email token both pass it).
+ * Returns { confirmed, alreadyConfirmed, duty }.
+ */
+const confirmDutyUnit = async (dutyId, { teacherId, via }) => {
+  const duty = await dutyRepository.findById(dutyId);
+  if (!duty) throw new AppError("Duty not found", 404);
+  const ownerId = String(duty.teacher?._id || duty.teacher);
+  if (teacherId && String(teacherId) !== ownerId) {
+    throw new AppError("You can only confirm your own duty", 403);
+  }
+  if (duty.status !== "assigned") {
+    throw new AppError(
+      duty.status === "cancelled" ? "This duty is no longer assigned to you" : "This duty has already happened",
+      400
+    );
+  }
+  if (duty.confirmedAt) return { confirmed: 0, alreadyConfirmed: true, duty };
+
+  const res = await dutyRepository.updateMany(
+    { ...unitFilter(duty), status: "assigned", confirmedAt: null },
+    { confirmedAt: new Date(), confirmedVia: via }
+  );
+  return { confirmed: res.modifiedCount || 0, alreadyConfirmed: false, duty };
+};
+
+/**
+ * One-off, idempotent: duties self-claimed before confirmation existed are
+ * confirmed as of when they were claimed. CS-assigned ones stay unconfirmed —
+ * the teacher is asked, which is the point of the feature.
+ */
+const backfillSelfClaimConfirmations = async () => {
+  const res = await dutyRepository.updateMany(
+    { isSelfAssigned: true, confirmedAt: null },
+    [{ $set: { confirmedAt: "$createdAt", confirmedVia: "self" } }]
+  );
+  return res.modifiedCount || 0;
+};
+
+/** Confirm through the emailed one-click link. */
+const confirmDutyByToken = async (token) => {
+  const claim = confirmToken.verify(token);
+  if (!claim) throw new AppError("This confirmation link is invalid or has expired", 400);
+  return confirmDutyUnit(claim.dutyId, { teacherId: claim.teacherId, via: "email" });
+};
+
+/**
+ * Links for a duty email, or null when there's nothing to confirm (already
+ * confirmed, no longer assigned, or already over). Called by the mail dispatcher
+ * at send time, so a duty confirmed in the app meanwhile gets no stale button.
+ */
+const confirmLinksForDuty = async (dutyId) => {
+  if (!dutyId) return null;
+  const duty = await dutyRepository.findById(dutyId).catch(() => null);
+  if (!duty || duty.status !== "assigned" || duty.confirmedAt) return null;
+  const endsAt = unitEndsAt(duty);
+  if (endsAt <= new Date()) return null;
+  const expiresAt = new Date(endsAt.getTime() + 24 * 60 * 60 * 1000);
+  const token = confirmToken.sign({ teacherId: duty.teacher?._id || duty.teacher, dutyId: duty._id, expiresAt });
+  const base = (process.env.APP_URL || "https://proctavo.com").replace(/\/$/, "");
+  return {
+    confirmUrl: `${base}/api/duties/confirm/${token}`,
+    // Declining goes through the existing change-request flow so CS still decides.
+    declineUrl: `${base}/`,
+  };
+};
+
+/** Duties (assigned or completed) dated on/after `since`, lean — for reports. */
+const getDutiesForResponsiveness = (since) => dutyRepository.findForResponsiveness(since);
+
 /** A teacher's live (assigned) duties, populated — the calendar sync's input. */
 const getAssignedDutiesForTeacher = (teacherId) =>
   dutyRepository.findAll({ teacher: teacherId, status: "assigned" });
@@ -714,6 +793,11 @@ const getTeacherIdsForSchedules = async (scheduleIds) => {
 };
 
 module.exports = {
+  confirmDutyUnit,
+  confirmDutyByToken,
+  backfillSelfClaimConfirmations,
+  getDutiesForResponsiveness,
+  confirmLinksForDuty,
   getAssignedDutiesForTeacher,
   getTeacherIdsWithDutiesSince,
   getTeacherIdsForSchedules,

@@ -14,6 +14,28 @@ const transport = require("./mail.transport");
 const { renderEmail } = require("./mail.templates");
 const { buildIcs, parseAddress } = require("../calendar/calendar.ics");
 
+// Lazy: duty.service → notification emitter → this file.
+const dutyService = () => require("../duty/duty.service");
+
+// Emails about a duty the teacher may still need to confirm.
+const CONFIRMABLE = new Set([
+  "duty_assigned",
+  "duty_group_assigned",
+  "duty_swapped",
+  "duty_reminder",
+  "duty_confirm_nudge",
+  "calendar_request",
+]);
+
+const confirmLinksFor = async (row) => {
+  if (!CONFIRMABLE.has(row.type) || !row.data?.refDutyId) return null;
+  try {
+    return await dutyService().confirmLinksForDuty(row.data.refDutyId);
+  } catch {
+    return null; // a missing button must never block the email
+  }
+};
+
 const INTERVAL_MS = 20 * 1000;
 const INITIAL_DELAY_MS = 8 * 1000; // let the server settle, like the notification scheduler
 const BATCH_SIZE = 25;
@@ -80,11 +102,12 @@ const deliver = async (row) => {
     return "skipped";
   }
 
+  const links = await confirmLinksFor(row);
   const { subject, html, text } = renderEmail({
     type: row.type,
     title: row.title,
     message: row.message,
-    data: row.data || {},
+    data: { ...(row.data || {}), ...(links || {}) },
     recipientName: user.name,
   });
 

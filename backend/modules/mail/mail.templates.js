@@ -130,6 +130,30 @@ const messageHtml = (message) =>
     .map((line) => (line.trim() === "" ? "<div style=\"height:10px;\"></div>" : `<div>${line}</div>`))
     .join("");
 
+const ctaButtonHtml = (cta) => `
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">
+                  <tr>
+                    <td style="background:${BRAND};border-radius:8px;">
+                      <a href="${cta.url}" style="display:inline-block;padding:11px 22px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">${escapeHtml(cta.label)}</a>
+                    </td>
+                  </tr>
+                </table>`;
+
+// Unconfirmed duty: the confirmation is the one thing we need from the teacher,
+// so it replaces the generic button (REMINDERS_PLAN.md §B).
+const confirmBlockHtml = (data, cta) => `
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">
+                  <tr>
+                    <td style="background:#16a34a;border-radius:8px;">
+                      <a href="${data.confirmUrl}" style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">Confirm I'll be there</a>
+                    </td>
+                  </tr>
+                </table>
+                <div style="margin-top:12px;font-size:13px;color:${MUTED};">
+                  Can't make it? <a href="${data.declineUrl || cta.url}" style="color:${BRAND};">Request a change in Proctavo</a>
+                  &nbsp;·&nbsp; <a href="${cta.url}" style="color:${BRAND};">${escapeHtml(cta.label)}</a>
+                </div>`;
+
 const renderHtml = ({ type, title, message, data, recipientName, cta }) => {
   const greeting = recipientName ? `Hi ${escapeHtml(recipientName.split(" ")[0])},` : "Hello,";
   return `<!doctype html>
@@ -156,13 +180,7 @@ const renderHtml = ({ type, title, message, data, recipientName, cta }) => {
                 <h1 style="margin:10px 0 12px;color:${INK};font-size:19px;font-weight:700;">${escapeHtml(title)}</h1>
                 <div style="color:${INK};font-size:15px;line-height:1.55;">${messageHtml(message)}</div>
                 ${detailsTableHtml(detailRows({ type, data }))}
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px;">
-                  <tr>
-                    <td style="background:${BRAND};border-radius:8px;">
-                      <a href="${cta.url}" style="display:inline-block;padding:11px 22px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">${escapeHtml(cta.label)}</a>
-                    </td>
-                  </tr>
-                </table>
+                ${data.confirmUrl ? confirmBlockHtml(data, cta) : ctaButtonHtml(cta)}
               </td>
             </tr>
             <tr>
@@ -194,7 +212,12 @@ const renderText = ({ type, title, message, data, recipientName, cta }) => {
     for (const [label, value] of rows) lines.push(`${label}: ${value}`);
   }
   lines.push("");
-  lines.push(`${cta.label}: ${cta.url}`);
+  if (data.confirmUrl) {
+    lines.push(`Confirm I'll be there: ${data.confirmUrl}`);
+    lines.push(`Can't make it? Request a change: ${data.declineUrl || cta.url}`);
+  } else {
+    lines.push(`${cta.label}: ${cta.url}`);
+  }
   lines.push("");
   lines.push("— Proctavo · Exam Duty Management");
   return lines.join("\n");

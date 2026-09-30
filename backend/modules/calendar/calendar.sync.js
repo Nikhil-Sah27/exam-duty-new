@@ -45,37 +45,8 @@ const uidDomain = () => {
   }
 };
 
-/**
- * One unit = a teacher's duty in one exam slot. A teacher can hold only one duty
- * per time slot (`findTeacherConflict`), so schedule + role identifies it — an
- * invigilator room, or a whole RS / DCS group. Legacy duties with no schedule
- * key on their own id.
- */
-const unitKey = (d) => `${String(d.examSchedule?._id || d.examSchedule || d._id)}|${d.role}`;
-
-/**
- * "Main Block — 101, 102; QA Academic Block — 004". Legacy duties with no
- * building fall back to their plain room label, listed first.
- */
-const locationFor = (duties) => {
-  const byBuilding = new Map();
-  for (const d of duties) {
-    const room = d.examRoom?.room;
-    const building = room?.building?.name && room.roomNumber ? room.building.name : "";
-    const label = building ? room.roomNumber : buildRoomLabel(d);
-    if (!label) continue;
-    if (!byBuilding.has(building)) byBuilding.set(building, []);
-    byBuilding.get(building).push(label);
-  }
-  const numeric = (a, b) => a.localeCompare(b, undefined, { numeric: true });
-  return [...byBuilding.entries()]
-    .sort(([a], [b]) => numeric(a, b))
-    .map(([name, rooms]) => {
-      const list = rooms.sort(numeric).join(", ");
-      return name ? `${name} — ${list}` : list;
-    })
-    .join("; ");
-};
+// One calendar event per duty unit — see duty/duty.unit.js.
+const { unitKey, locationFor } = require("../duty/duty.unit");
 
 /** Everything an invite and its email need about one unit. */
 const describeUnit = (teacherId, duties) => {
@@ -109,6 +80,7 @@ const describeUnit = (teacherId, duties) => {
     .digest("hex");
 
   return {
+    dutyId: String(first._id),
     key,
     uid: `duty-${teacherId}-${key.replace("|", "-")}@${uidDomain()}`,
     start,
@@ -149,6 +121,8 @@ const queueInvite = (teacherId, method, row, unit) => {
         : "Your exam duty is attached as a calendar invite — open it to add the duty to your calendar.",
     data: {
       ...unit.display,
+      // Lets the dispatcher add a "Confirm I'll be there" button to invites.
+      ...(cancel || !unit.dutyId ? {} : { refDutyId: unit.dutyId }),
       calendar: {
         method,
         uid: row.uid,

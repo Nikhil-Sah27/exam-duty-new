@@ -7,6 +7,7 @@ import {
   resolveRolesFromDesignation,
 } from "@/shared/utils/roleResolver";
 import DesignationRoleFields from "./DesignationRoleFields";
+import DepartmentSelect from "@/modules/departments/components/DepartmentSelect";
 
 interface CreateUserModalProps {
   open: boolean;
@@ -110,13 +111,7 @@ export default function CreateUserModal({ open, onClose }: CreateUserModalProps)
             onChange={(e) => setPhone(e.target.value)}
             placeholder="e.g. +91 98765 43210"
           />
-          <Input
-            label="Department"
-            type="text"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            placeholder="e.g. Computer Science"
-          />
+          <DepartmentSelect value={department} onChange={setDepartment} />
         </div>
 
         <DesignationRoleFields

@@ -26,7 +26,7 @@ API_URL=https://host/api npm test  # target a remote backend
 
 Prereqs for tests: MongoDB running, `node backend/scripts/seed-users.js` (creates `admin@examduty.com` / `Admin123`), backend started. CI (`.github/workflows/ci.yml`) runs both gates as blocking: frontend build/typecheck and the API suite against a throwaway Mongo.
 
-Backend env lives in `backend/.env` (`PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `CLIENT_ORIGINS` — comma-separated extra CORS origins). Frontend needs no env locally — axios defaults to `/api` (overridable via `VITE_API_URL`) through the Vite proxy to :5000.
+Backend env lives in `backend/.env` (`PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `CLIENT_ORIGINS` — comma-separated extra CORS origins). Email for the password-reset OTP is optional and configured via `GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` (+ `SMTP_SECURE`), with `EMAIL_FROM` overriding the sender — see `backend/shared/utils/mailer.js`. When none are set the transport is null and the OTP is logged to the server console instead, so the reset flow stays testable in dev. Frontend needs no env locally — axios defaults to `/api` (overridable via `VITE_API_URL`) through the Vite proxy to :5000.
 
 Seed/maintenance scripts are in `backend/scripts/` (seed-users, seed-departments, seed-rooms, backfill-dcs-groups, dump-database/restore-database, etc.) — run with plain `node`.
 
@@ -44,6 +44,7 @@ Less obvious backend modules: `notification` is the system-generated feed (emitt
 
 - **Roles are derived, not edited.** `User.roles` is an array computed from `designation` by `backend/shared/utils/roleResolver.js` — the single source of truth for eligibility everywhere (user CRUD, CS assignment pickers). Only designation `Other` allows picking a role manually.
 - **Active role drives everything.** The JWT carries `activeRole`; multi-role users get a `tempToken` at login and pick a role via `POST /auth/select-role`. `protect` re-validates `activeRole` against `roles` on every request.
+- **Password reset is a two-step OTP.** `POST /auth/forgot-password` (public) mails a 6-digit code; `POST /auth/reset-password` (public) verifies it and sets the new password. The OTP is stored on `User` as `resetOtpHash`/`resetOtpExpires`/`resetOtpAttempts` (all `select: false`, hashed, 10-min TTL, attempt-limited) — never returned by the API.
 - **One duty record, two entry points.** A CS-assigned duty and a self-claimed duty are the identical `Duty` document — CS flows must reuse the same eligibility, conflict, grouping, and notification services, never duplicate them.
 - **Building-aware conflicts.** `Duty` has both `room` (legacy string label) and `roomRef` (ObjectId → `Room`). Always query/compare by `roomRef` (frontend: `examRoom.room._id`) so room "004" in two buildings never collides.
 - **Per-role slot independence.** One physical room hosts a DCS, an RS, and an invigilator simultaneously; conflict scans filter by role.

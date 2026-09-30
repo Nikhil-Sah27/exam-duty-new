@@ -39,27 +39,48 @@ export function ProctavoBrand({
  */
 export function GlassCard({ children }: { children: ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-b from-white/20 to-white/5 p-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5),inset_0_-1px_1px_rgba(255,255,255,0.08),0_28px_90px_-20px_rgba(2,6,23,0.8)] backdrop-blur-2xl backdrop-saturate-[200%] sm:p-10">
+    <div
+      className="relative overflow-hidden rounded-[32px] bg-white/10 p-8 backdrop-blur-2xl backdrop-saturate-[180%] sm:p-10"
+      style={{
+        // Glass depth: soft outer drop shadow + a bright inner top rim and a
+        // faint inner bottom rim so the panel reads as a thick, lit slab.
+        boxShadow:
+          "0 24px 70px -18px rgba(2,6,23,0.75), inset 0 1.5px 1px rgba(255,255,255,0.65), inset 0 -12px 24px -18px rgba(255,255,255,0.25), inset 0 0 0 1px rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* Specular edge — a bright refractive rim, strongest at the top-left,
+          painted only on the 1.2px border via mask compositing. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[28px]"
+        className="pointer-events-none absolute inset-0 rounded-[32px]"
         style={{
-          padding: "1px",
+          padding: "1.2px",
           background:
-            "linear-gradient(to bottom, rgba(255,255,255,0.7), rgba(255,255,255,0.08) 38%, rgba(255,255,255,0.18))",
+            "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.04) 62%, rgba(255,255,255,0.5))",
           WebkitMask:
             "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
           WebkitMaskComposite: "xor",
           maskComposite: "exclude",
         }}
       />
+      {/* Glossy top highlight — the sheen where light hits the top face. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-1/3 rounded-t-[32px] bg-gradient-to-b from-white/30 via-white/8 to-transparent"
+      />
+      {/* Diagonal light sweep across the glass. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-1/2 left-0 h-[200%] w-1/2 -rotate-12 bg-gradient-to-r from-white/12 to-transparent blur-2xl"
+      />
+      {/* Soft colour refraction so the glass isn't flat. */}
       <div
         aria-hidden
         className="pointer-events-none absolute -left-1/4 -top-1/3 h-2/3 w-3/4 rounded-full bg-white/15 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-sky-300/15 blur-2xl"
+        className="pointer-events-none absolute -bottom-16 -right-12 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl"
       />
       <div className="relative z-10">{children}</div>
     </div>

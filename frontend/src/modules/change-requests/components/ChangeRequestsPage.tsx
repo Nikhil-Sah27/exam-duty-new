@@ -45,7 +45,9 @@ const TABS: {
 
 export default function ChangeRequestsPage() {
   const user = useAuthStore((s) => s.user);
-  const isCS = user?.activeRole === "cs" || user?.activeRole === "dcs";
+  // Approving/rejecting change requests is CS-only (enforced on the backend via
+  // requireRole("cs")). DCS never reviews requests, so don't show the actions.
+  const canReview = user?.activeRole === "cs";
 
   const [tab, setTab] = useState<ChangeRequestStatus>("pending");
 
@@ -129,7 +131,7 @@ export default function ChangeRequestsPage() {
             key={r._id}
             request={r}
             reviewActions={
-              isCS && r.status === "pending" ? (
+              canReview && r.status === "pending" ? (
                 <ReviewActions requestId={r._id} />
               ) : undefined
             }

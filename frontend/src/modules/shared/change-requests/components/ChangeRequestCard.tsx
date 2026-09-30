@@ -49,6 +49,12 @@ export default function ChangeRequestCard({
         ? "border-l-rose-400"
         : "border-l-amber-400";
 
+  // Current duty room — prefer the populated roomRef (Building — Room) so it
+  // matches the "Requested" side; fall back to the legacy room string label.
+  const currentRoom = r.duty?.roomRef?.roomNumber
+    ? `${r.duty.roomRef.building?.name || "Unknown"} — ${r.duty.roomRef.roomNumber}`
+    : r.duty?.room || "—";
+
   const movingTo =
     r.type === "move" && r.requestedDate && r.requestedStartTime && r.requestedEndTime
       ? {
@@ -124,7 +130,7 @@ export default function ChangeRequestCard({
             date={r.duty.date}
             startTime={r.duty.startTime}
             endTime={r.duty.endTime}
-            room={r.duty.room}
+            room={currentRoom}
             examLabel={r.duty.exam?.name}
           />
           {movingTo && (

@@ -12,6 +12,12 @@ export interface ChangeRequestUser {
 export interface ChangeRequestDuty {
   _id: string;
   room: string;
+  /** roomRef → Room (+ building) — lets the card show "Building — Room". */
+  roomRef?: {
+    _id: string;
+    roomNumber: string;
+    building?: { _id: string; name: string };
+  } | null;
   date: string;
   startTime: string;
   endTime: string;

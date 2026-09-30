@@ -33,8 +33,17 @@ const DCS_GROUP_POPULATE = {
 const POPULATE_DEEP = [
   {
     path: "duty",
-    select: "exam room date startTime endTime status teacher",
-    populate: { path: "exam", select: "name department" },
+    select: "exam room roomRef date startTime endTime status teacher",
+    populate: [
+      { path: "exam", select: "name department" },
+      // roomRef → Room (+ building) so the "Current" card can show the full
+      // "Building — Room" label, matching the "Requested" side.
+      {
+        path: "roomRef",
+        select: "roomNumber floor capacity building",
+        populate: { path: "building", select: "name" },
+      },
+    ],
   },
   { path: "requestedBy", select: "name email department" },
   { path: "swapWith", select: "name email department" },

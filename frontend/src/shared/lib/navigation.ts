@@ -26,7 +26,7 @@ const ADMIN_ROLES: UserRole[] = ["cs", "dcs", "rs"];
 const CS_ONLY: UserRole[] = ["cs"];
 
 export const navItems: NavItem[] = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard, roles: ADMIN_ROLES },
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ADMIN_ROLES },
   { path: "/create-exams", label: "Create Exams", icon: FilePlus, roles: ADMIN_ROLES },
   { path: "/exams", label: "Exams", icon: FileText, roles: ADMIN_ROLES },
   { path: "/messages", label: "Messages", icon: MessageSquare, roles: CS_ONLY },

@@ -4,6 +4,7 @@ import ProtectedLayout from "@/shared/components/ProtectedLayout";
 import PageFallback from "@/shared/components/PageFallback";
 import LoginForm from "@/modules/auth/components/LoginForm";
 import RoleSelectionPage from "@/modules/auth/components/RoleSelectionPage";
+import HomeGate from "@/modules/home/components/HomeGate";
 import { invigilatorRoutes } from "@/modules/invigilator/routes/invigilatorRoutes";
 import { rsRoutes } from "@/modules/rs/routes/rsRoutes";
 import { dcsRoutes } from "@/modules/dcs/routes/dcsRoutes";
@@ -36,10 +37,11 @@ export default function App() {
   return (
     <Suspense fallback={<PageFallback />}>
       <Routes>
+        <Route path="/" element={<HomeGate />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/select-role" element={<RoleSelectionPage />} />
         <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/create-exams" element={<CreateExamsPage />} />
           <Route path="/exams" element={<ExamsPage />} />
           <Route path="/exams/:id" element={<ExamDetails />} />

@@ -17,7 +17,7 @@ import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
 // admin root; DCS/RS/Invigilator go to their role-config's defaultPath.
 const dashboardPathForRole = (role: UserRole): string => {
   const cfg = getRoleConfig(role);
-  return cfg ? cfg.defaultPath : "/";
+  return cfg ? cfg.defaultPath : "/dashboard";
 };
 
 export const useLogin = () => {

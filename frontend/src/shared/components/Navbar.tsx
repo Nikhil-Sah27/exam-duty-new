@@ -7,6 +7,7 @@ import { useUnreadCount } from "@/modules/notifications/hooks";
 import NotificationList from "@/modules/notifications/components/NotificationList";
 import RoleSelectionModal from "@/modules/auth/components/RoleSelectionModal";
 import DarkModeToggle from "@/shared/components/DarkModeToggle";
+import Logo from "@/shared/components/Logo";
 import { ROLE_LABELS } from "@/shared/constants/roles";
 
 export default function Navbar() {
@@ -66,7 +67,12 @@ export default function Navbar() {
             />
           </svg>
         </button>
-        <span className="text-lg font-bold">Exam Duty</span>
+        <Logo
+          size={30}
+          showWordmark
+          className="text-white"
+          wordmarkClassName="text-lg font-bold tracking-tight text-white"
+        />
       </div>
 
       <div className="flex items-center gap-4">

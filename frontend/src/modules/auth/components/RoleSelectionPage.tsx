@@ -3,7 +3,7 @@ import { useAuthStore } from "@/shared/store/auth.store";
 import { useSelectRole } from "../hooks";
 import type { UserRole } from "@/shared/lib/types";
 import RoleSelectionCard from "./RoleSelectionCard";
-import { ErrorAlert } from "@/shared/components";
+import { ErrorAlert, Logo } from "@/shared/components";
 
 export default function RoleSelectionPage() {
   const user = useAuthStore((s) => s.user);
@@ -28,6 +28,13 @@ export default function RoleSelectionPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="w-full max-w-3xl">
         <div className="mb-8 text-center">
+          <div className="mb-5 flex justify-center">
+            <Logo
+              size={44}
+              showWordmark
+              wordmarkClassName="text-2xl font-bold tracking-tight text-slate-800"
+            />
+          </div>
           <p className="text-sm font-medium uppercase tracking-wider text-indigo-600">
             Choose Your Role
           </p>

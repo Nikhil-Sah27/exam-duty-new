@@ -342,9 +342,12 @@ const getDutyStatus = async (id) => {
     // Split by the DUTY's role field — this identifies the exact slot the duty
     // was claimed for, which is unambiguous even when a teacher holds multiple
     // roles (e.g. Associate Professor with roles=[rs, invigilator]).
-    const dcsTeacher = duties.find((d) => d.role === "dcs")?.teacher;
-    const rsTeacher = duties.find((d) => d.role === "rs")?.teacher;
-    const invigilatorTeacher = duties.find((d) => d.role === "invigilator")?.teacher;
+    const dcsDuty = duties.find((d) => d.role === "dcs");
+    const rsDuty = duties.find((d) => d.role === "rs");
+    const invigilatorDuty = duties.find((d) => d.role === "invigilator");
+    const dcsTeacher = dcsDuty?.teacher;
+    const rsTeacher = rsDuty?.teacher;
+    const invigilatorTeacher = invigilatorDuty?.teacher;
 
     const toPublic = (u) =>
       u
@@ -366,6 +369,10 @@ const getDutyStatus = async (id) => {
       dcsTeacher: toPublic(dcsTeacher),
       rsTeacher: toPublic(rsTeacher),
       invigilatorTeacher: toPublic(invigilatorTeacher),
+      // Lets CS unassign straight from the room view.
+      dcsDutyId: dcsDuty?._id || null,
+      rsDutyId: rsDuty?._id || null,
+      invigilatorDutyId: invigilatorDuty?._id || null,
     };
   }
 

@@ -17,6 +17,11 @@ import CsAssignRolePanel, {
 } from "./duty-status-modal/CsAssignRolePanel";
 import DutyOverviewContent from "./duty-status-modal/DutyOverviewContent";
 import { sameDay, timeOverlaps } from "./duty-status-modal/utils";
+import UnassignDutyModal, {
+  type UnassignTarget,
+} from "@/modules/manage-duties/components/UnassignDutyModal";
+import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
+import { formatDate } from "@/shared/lib/utils";
 
 interface DutyStatusModalProps {
   open: boolean;
@@ -49,6 +54,7 @@ export default function DutyStatusModal({
   const activeRole = useAuthStore((s) => s.user?.activeRole);
   const csAssignMode = activeRole === "cs" && !assignmentCtx;
   const [assignRole, setAssignRole] = useState<AssignRole | null>(null);
+  const [unassignTarget, setUnassignTarget] = useState<UnassignTarget | null>(null);
 
   if (!open) return null;
 
@@ -89,6 +95,32 @@ export default function DutyStatusModal({
     : false;
 
   const showAssignCta = assignmentCtx && invigilatorVacant;
+
+  // CS can take someone off a slot until the exam has happened.
+  const canUnassign = csAssignMode && isDutyUpcoming(schedule.date, schedule.endTime);
+  const ROLE_META: Record<AssignRole, { dutyId?: string | null; name?: string; label: string }> = {
+    dcs: { dutyId: flags.dcsDutyId, name: flags.dcsTeacher?.name, label: "DCS group" },
+    rs: { dutyId: flags.rsDutyId, name: flags.rsTeacher?.name, label: "RS group" },
+    invigilator: {
+      dutyId: flags.invigilatorDutyId,
+      name: flags.invigilatorTeacher?.name,
+      label: `invigilator duty in ${buildingName} — ${room.roomNumber}`,
+    },
+  };
+  const handleUnassignRole = (role: AssignRole) => {
+    const meta = ROLE_META[role];
+    if (!meta.dutyId) return;
+    setUnassignTarget({
+      dutyId: meta.dutyId,
+      // RS / DCS leave the whole group, not just this room.
+      group: role !== "invigilator",
+      teacherName: meta.name || "This teacher",
+      what:
+        role === "invigilator"
+          ? `${meta.label} on ${formatDate(schedule.date)}`
+          : `${meta.label} covering this room on ${formatDate(schedule.date)} (every room in the group)`,
+    });
+  };
 
   const handleAssign = () => {
     if (!assignmentCtx) return;
@@ -147,6 +179,7 @@ export default function DutyStatusModal({
             flags={flags}
             csAssignMode={csAssignMode}
             onSelectRole={setAssignRole}
+            onUnassignRole={canUnassign ? handleUnassignRole : undefined}
             assignError={
               assignMutation.isError ? (assignMutation.error as Error) : null
             }
@@ -159,6 +192,8 @@ export default function DutyStatusModal({
           />
         )}
       </div>
+
+      <UnassignDutyModal target={unassignTarget} onClose={() => setUnassignTarget(null)} />
     </div>
   );
 }

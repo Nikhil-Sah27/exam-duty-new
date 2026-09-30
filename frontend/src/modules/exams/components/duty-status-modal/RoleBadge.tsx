@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
+import { CheckCircle2, AlertCircle, ChevronRight, UserMinus } from "lucide-react";
 import ContactActions from "@/shared/components/ContactActions";
 
 export default function RoleBadge({
@@ -6,6 +6,7 @@ export default function RoleBadge({
   assigned,
   assignee,
   onAssignClick,
+  onUnassignClick,
 }: {
   label: string;
   assigned: boolean;
@@ -13,6 +14,8 @@ export default function RoleBadge({
   /** When provided and the slot is vacant, the whole row becomes a button
    *  that opens the CS assignment flow for this role. */
   onAssignClick?: () => void;
+  /** When provided and the slot is filled, shows a CS Unassign action. */
+  onUnassignClick?: () => void;
 }) {
   const clickable = !assigned && !!onAssignClick;
   const Wrapper = clickable ? "button" : "div";
@@ -55,8 +58,17 @@ export default function RoleBadge({
             </p>
           )}
           <p className="mt-0.5">{assignee.email}</p>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex items-center justify-between gap-2">
             <ContactActions phone={assignee.phone} />
+            {onUnassignClick && (
+              <button
+                type="button"
+                onClick={onUnassignClick}
+                className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-0.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                <UserMinus className="h-3 w-3" /> Unassign
+              </button>
+            )}
           </div>
         </div>
       )}

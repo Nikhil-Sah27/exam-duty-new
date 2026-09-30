@@ -40,6 +40,7 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   exam_updated: { tone: "amber", highlight: true },
   exam_deleted_duty_release: { tone: "red", highlight: false },
   duty_cancelled: { tone: "red", highlight: false },
+  duty_group_cancelled: { tone: "red", highlight: false },
   duty_reminder: { tone: "amber", highlight: false },
   target_reached: { tone: "green", highlight: false },
   request_approved: { tone: "blue", highlight: false },

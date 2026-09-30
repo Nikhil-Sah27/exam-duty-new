@@ -40,6 +40,15 @@ const updateById = (id, data) => {
   }).populate(POPULATE_FIELDS);
 };
 
+// Cancel several duties in one write — used by group unassign, which must be
+// all-or-nothing, hence the optional session.
+const cancelMany = (ids, cancelReason, session) =>
+  Duty.updateMany(
+    { _id: { $in: ids } },
+    { status: "cancelled", cancelledAt: new Date(), cancelReason: cancelReason || null },
+    session ? { session } : {}
+  );
+
 // Conflict check: teacher already has duty at the same date/time
 const findTeacherConflict = (teacherId, date, startTime, endTime, excludeId) => {
   const filter = {
@@ -111,6 +120,7 @@ const distinctTeachersForSchedules = (scheduleIds) => {
 };
 
 module.exports = {
+  cancelMany,
   create,
   distinctTeachersForSchedules,
   findAll,

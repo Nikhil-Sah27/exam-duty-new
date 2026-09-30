@@ -2,11 +2,14 @@ import { Clock, CheckCircle2, Inbox } from "lucide-react";
 import { StatusBadge } from "@/shared/components";
 import { formatDate, capitalize } from "@/shared/lib/utils";
 import type { Duty } from "@/modules/duties/types";
+import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 
 interface DutySectionProps {
   title: string;
   variant: "upcoming" | "completed";
   duties: Duty[];
+  /** CS only — adds an Unassign action to duties that haven't happened yet. */
+  onUnassign?: (duty: Duty) => void;
 }
 
 /**
@@ -47,7 +50,9 @@ export default function DutySection({
   title,
   variant,
   duties,
+  onUnassign,
 }: DutySectionProps) {
+  const showActions = !!onUnassign && variant === "upcoming";
   const Icon = variant === "upcoming" ? Clock : CheckCircle2;
   const iconColor =
     variant === "upcoming" ? "text-blue-600" : "text-green-600";
@@ -81,6 +86,7 @@ export default function DutySection({
                 <th className="px-5 py-3">Date</th>
                 <th className="px-5 py-3">Time</th>
                 <th className="px-5 py-3">Status</th>
+                {showActions && <th className="px-5 py-3 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -115,6 +121,19 @@ export default function DutySection({
                       }
                     />
                   </td>
+                  {showActions && (
+                    <td className="px-5 py-3 text-right">
+                      {d.status === "assigned" && isDutyUpcoming(d.date, d.endTime) && (
+                        <button
+                          type="button"
+                          onClick={() => onUnassign?.(d)}
+                          className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                        >
+                          Unassign
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
                 );
               })}

@@ -125,6 +125,10 @@ export interface RoomDutyFlags {
   dcsTeacher?: AssigneePublic | null;
   rsTeacher?: AssigneePublic | null;
   invigilatorTeacher?: AssigneePublic | null;
+  /** Duty id per filled slot — lets CS unassign from the room view. */
+  dcsDutyId?: string | null;
+  rsDutyId?: string | null;
+  invigilatorDutyId?: string | null;
 }
 
 /** Map of examRoomId → duty flags */

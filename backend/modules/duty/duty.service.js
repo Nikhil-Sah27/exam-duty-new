@@ -587,6 +587,21 @@ const getDutyById = async (id) => {
 const cancelDuty = async (id, cancelReason, actor = {}) => {
   const duty = await dutyRepository.findById(id);
   if (!duty) throw new AppError("Duty not found", 404);
+
+  const teacherId = duty.teacher?._id || duty.teacher;
+  const byCs = actor.activeRole === "cs";
+  if (!byCs && String(actor.id) !== String(teacherId)) {
+    throw new AppError("You can only cancel your own duty", 403);
+  }
+  // A DCS group is persisted: cancelling one of its rooms alone would leave the
+  // group "claimed" with a stale duty list. CS unassigns the whole group.
+  if (byCs && duty.role !== "invigilator") {
+    throw new AppError(
+      "RS and DCS duties are unassigned as a whole group — use admin-unassign-group",
+      400
+    );
+  }
+
   if (duty.status === "cancelled") throw new AppError("Duty is already cancelled", 400);
   if (duty.status === "completed") throw new AppError("Cannot cancel a completed duty", 400);
 
@@ -602,13 +617,10 @@ const cancelDuty = async (id, cancelReason, actor = {}) => {
     recipient: duty.teacher,
     refModel: "Duty",
     refId: duty._id,
-    data: { room: roomLabel, date: duty.date },
+    data: { room: roomLabel, date: duty.date, reason: byCs ? cancelReason || null : null },
   });
 
-  const teacherId = duty.teacher?._id || duty.teacher;
-  const selfReleased =
-    actor.activeRole !== "cs" && actor.id && String(actor.id) === String(teacherId);
-  if (selfReleased) {
+  if (!byCs) {
     notifyCsOfTeacherAction("duty_released_by_teacher", {
       refId: duty._id,
       data: {
@@ -621,6 +633,66 @@ const cancelDuty = async (id, cancelReason, actor = {}) => {
   }
 
   return updated;
+};
+
+/**
+ * CS takes a teacher off a whole RS or DCS group. Groups are one duty unit
+ * everywhere else, so they are unassigned as one: every room at once, one
+ * notification. The caller names any one duty in the group; the group is
+ * expanded here so it can never be unassigned partially.
+ *
+ * A teacher can hold only one duty per time slot (`findTeacherConflict`), so
+ * their live RS duties on a schedule ARE their RS group — no re-derivation of
+ * the client's chunking is needed. DCS groups are persisted, so they go through
+ * `releaseGroup`, which also reopens the `DCSGroup` for claiming.
+ */
+const adminUnassignDutyGroup = async (dutyId, cancelReason, actor) => {
+  if (!dutyId) throw new AppError("dutyId is required", 400);
+  const duty = await dutyRepository.findById(dutyId);
+  if (!duty) throw new AppError("Duty not found", 404);
+  if (duty.role !== "rs" && duty.role !== "dcs") {
+    throw new AppError("Group unassign is only valid for RS and DCS duties", 400);
+  }
+  if (duty.status === "cancelled") throw new AppError("Duty is already cancelled", 400);
+  if (duty.status === "completed") throw new AppError("Cannot cancel a completed duty", 400);
+
+  const teacherId = duty.teacher?._id || duty.teacher;
+  const duties = await dutyRepository.findAll({
+    teacher: teacherId,
+    role: duty.role,
+    examSchedule: duty.examSchedule?._id || duty.examSchedule,
+    status: { $nin: ["cancelled", "completed"] },
+  });
+
+  if (duty.role === "dcs") {
+    // Lazy require keeps the dcs module out of this file's load order.
+    const dcsGroupRepository = require("../dcs/dcsGroup.repository");
+    const dcsGroupService = require("../dcs/dcsGroup.service");
+    const group = await dcsGroupRepository.findByDuty(duty._id);
+    if (!group) throw new AppError("DCS group not found for this duty", 404);
+    await dcsGroupService.releaseGroup(group._id, actor, cancelReason);
+    return { role: "dcs", count: duties.length, duties };
+  }
+
+  await withOptionalTransaction((session) =>
+    dutyRepository.cancelMany(duties.map((d) => d._id), cancelReason, session)
+  );
+
+  emit("duty_group_cancelled", {
+    recipient: teacherId,
+    refModel: "Duty",
+    refId: duty._id,
+    data: {
+      roleLabel: "RS",
+      roomCount: duties.length,
+      date: duty.date,
+      startTime: duty.startTime,
+      endTime: duty.endTime,
+      reason: cancelReason || null,
+    },
+  });
+
+  return { role: "rs", count: duties.length, duties };
 };
 
 /**
@@ -643,4 +715,5 @@ module.exports = {
   getDutyById,
   getInvigilatorsForRooms,
   cancelDuty,
+  adminUnassignDutyGroup,
 };

@@ -47,6 +47,8 @@ export interface DcsGroup {
   assignedDepartments: string[];
   assignedStudents: number;
   assignedTeacher: DcsGroupTeacher | null;
+  /** Duty ids created when the group was claimed — empty while open. */
+  duties?: string[];
   status: "open" | "claimed" | "released";
   createdAt: string;
   updatedAt: string;

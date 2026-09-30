@@ -73,6 +73,12 @@ const FEED_MAP: Partial<Record<NotificationType, FeedMeta>> = {
     category: "Duty cancelled",
     action: "duties",
   },
+  duty_group_cancelled: {
+    accent: "red",
+    priority: "high",
+    category: "Duty cancelled",
+    action: "duties",
+  },
   // Very important — the exam moved under a duty the teacher already holds, so
   // what they think they know is now wrong. `duty_self_claimed` is deliberately
   // absent: the teacher just did it themselves, so a popup would only repeat it.

@@ -11,6 +11,8 @@ import {
   getEligibleTeachers,
   assignDutyBySlot,
   assignRSGroup,
+  unassignDuty,
+  unassignDutyGroup,
   type AssignByScheduleSlotPayload,
   type AssignGroupPayload,
 } from "../services";
@@ -158,6 +160,20 @@ export const useAdminClaimDcsGroup = () => {
   return useMutation({
     mutationFn: ({ groupId, teacher }: { groupId: string; teacher: string }) =>
       adminClaimDcsGroup(groupId, teacher),
+    onSuccess: () => invalidateAfterAssign(queryClient),
+  });
+};
+
+/**
+ * CS unassigns a teacher. `group` picks the whole-group path (RS / DCS);
+ * otherwise it's a single invigilator duty. Refreshes the same caches an
+ * assignment does, so the slot shows as vacant everywhere at once.
+ */
+export const useUnassignDuty = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ dutyId, group, reason }: { dutyId: string; group: boolean; reason?: string }) =>
+      group ? unassignDutyGroup(dutyId, reason) : unassignDuty(dutyId, reason),
     onSuccess: () => invalidateAfterAssign(queryClient),
   });
 };

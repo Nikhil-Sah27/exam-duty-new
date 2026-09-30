@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
@@ -7,7 +8,9 @@ import DutyStatsBar from "./DutyStatsBar";
 import DutySection from "./DutySection";
 import TeacherRSDutyGroups from "./TeacherRSDutyGroups";
 import TeacherDCSDutyGroups from "./TeacherDCSDutyGroups";
+import UnassignDutyModal, { type UnassignTarget } from "./UnassignDutyModal";
 import { countDutyUnits } from "../utils/dutyUnitCounts";
+import { formatDate } from "@/shared/lib/utils";
 
 export default function TeacherDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +23,7 @@ export default function TeacherDetailsPage() {
   const { data: dutiesData, isLoading: dutiesLoading } = useDutiesByTeacher(id);
   const { data: dcsGroupsData, isLoading: dcsGroupsLoading } =
     useTeacherDcsGroups(id!);
+  const [unassignTarget, setUnassignTarget] = useState<UnassignTarget | null>(null);
 
   if (teacherLoading || dutiesLoading || dcsGroupsLoading) {
     return <p className="text-gray-500">Loading...</p>;
@@ -87,14 +91,49 @@ export default function TeacherDetailsPage() {
       />
 
       {/* Duty sections — grouped for RS/DCS, flat table otherwise */}
-      {showDcs && <TeacherDCSDutyGroups groups={dcsGroups} />}
-      {showRs && <TeacherRSDutyGroups duties={rsDuties} />}
+      {showDcs && (
+        <TeacherDCSDutyGroups
+          groups={dcsGroups}
+          onUnassign={(g) => {
+            const dutyId = g.duties?.[0];
+            if (!dutyId) return;
+            setUnassignTarget({
+              dutyId,
+              group: true,
+              teacherName: teacher.name,
+              what: `DCS group of ${g.assignedRooms.length} room${g.assignedRooms.length === 1 ? "" : "s"} on ${formatDate(g.schedule.date)}`,
+            });
+          }}
+        />
+      )}
+      {showRs && (
+        <TeacherRSDutyGroups
+          duties={rsDuties}
+          onUnassign={(g) =>
+            setUnassignTarget({
+              dutyId: g.rooms[0].dutyId,
+              group: true,
+              teacherName: teacher.name,
+              what: `RS group of ${g.rooms.length} room${g.rooms.length === 1 ? "" : "s"} on ${formatDate(g.date)}`,
+            })
+          }
+        />
+      )}
       {showFlat && (
         <>
           <DutySection
             title="Upcoming Duties"
             variant="upcoming"
             duties={flatUpcoming}
+            onUnassign={(d) =>
+              setUnassignTarget({
+                dutyId: d._id,
+                // Legacy DCS rows only land here when their groups failed to load.
+                group: d.role === "dcs",
+                teacherName: teacher.name,
+                what: `duty in room ${d.room || "—"} on ${formatDate(d.date)}`,
+              })
+            }
           />
           <DutySection
             title="Completed Duties"
@@ -103,6 +142,8 @@ export default function TeacherDetailsPage() {
           />
         </>
       )}
+
+      <UnassignDutyModal target={unassignTarget} onClose={() => setUnassignTarget(null)} />
     </div>
   );
 }

@@ -13,7 +13,8 @@ const PAGE_SIZE = 25;
 //  - "Duty assigned by CS" covers every CS admin-assign action — single duty, RS
 //    group, and DCS group (the value is a comma list the backend matches with
 //    $in) — so they all filter together under one option.
-//  - "Duty cancelled" is omitted: CS can't cancel duties from this screen.
+//  - "Duty unassigned by CS" likewise covers single, RS-group and DCS-group
+//    unassigns. A teacher's own cancellation (CANCEL_DUTY) isn't offered.
 const ACTION_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
   {
     label: "Duties",
@@ -21,6 +22,10 @@ const ACTION_GROUPS: { label: string; options: { value: string; label: string }[
       {
         value: "ADMIN_ASSIGN_DUTY,ADMIN_ASSIGN_DUTY_GROUP,ADMIN_CLAIM_DCS_GROUP",
         label: "Duty assigned by CS",
+      },
+      {
+        value: "ADMIN_UNASSIGN_DUTY,ADMIN_UNASSIGN_DUTY_GROUP",
+        label: "Duty unassigned by CS",
       },
     ],
   },

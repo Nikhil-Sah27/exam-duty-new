@@ -99,3 +99,21 @@ export const assignRSGroup = async (
   );
   return res.data.data;
 };
+
+/**
+ * CS takes a teacher off one invigilator duty. Same cancel endpoint a teacher
+ * uses to release their own duty; the backend tells the two apart by the
+ * caller's active role, so CS gets no "duty released" alert about itself.
+ */
+export const unassignDuty = async (id: string, reason?: string): Promise<void> => {
+  await api.patch(`/duties/${id}/cancel`, { reason: reason || undefined });
+};
+
+/**
+ * CS takes a teacher off a whole RS or DCS group. Pass any one duty of the
+ * group — the backend expands it to every room the teacher holds in that
+ * schedule, so a group can never be half-unassigned.
+ */
+export const unassignDutyGroup = async (dutyId: string, reason?: string): Promise<void> => {
+  await api.post("/duties/admin-unassign-group", { dutyId, reason: reason || undefined });
+};

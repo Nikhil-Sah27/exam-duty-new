@@ -404,15 +404,23 @@ const adminClaimGroup = async (groupId, targetTeacherId, adminId) => {
   });
 };
 
-const releaseGroup = async (groupId, userId, reason) => {
+/**
+ * Release a claimed DCS group back to `open`. `actor` ({ id, activeRole }) is
+ * either the DCS holding it (a self-release, which alerts CS) or CS unassigning
+ * them (which tells the teacher instead — CS doesn't need an alert about its own
+ * action).
+ */
+const releaseGroup = async (groupId, actor, reason) => {
   const group = await dcsGroupRepository.findById(groupId);
   if (!group) throw new AppError("DCS group not found", 404);
   if (group.status !== "claimed") {
     throw new AppError("Cannot release a group that hasn't been claimed", 400);
   }
+  const byCs = actor.activeRole === "cs";
   if (
+    !byCs &&
     group.assignedTeacher &&
-    group.assignedTeacher._id.toString() !== String(userId)
+    group.assignedTeacher._id.toString() !== String(actor.id)
   ) {
     throw new AppError("Only the assigned DCS can release this group", 403);
   }
@@ -423,7 +431,7 @@ const releaseGroup = async (groupId, userId, reason) => {
       {
         status: "cancelled",
         cancelledAt: new Date(),
-        cancelReason: reason || "Released by DCS",
+        cancelReason: reason || (byCs ? "Unassigned by CS" : "Released by DCS"),
       },
       session ? { session } : {}
     );
@@ -439,16 +447,34 @@ const releaseGroup = async (groupId, userId, reason) => {
     );
   });
 
-  notifyCsOfTeacherAction("group_released", {
-    refId: group.duties?.[0] || null,
-    data: {
-      teacherName: group.assignedTeacher?.name || "A teacher",
-      roleLabel: "DCS",
-      roomCount: group.duties?.length || 0,
-      date: group.schedule?.date,
-      reason: reason || null,
-    },
-  });
+  if (byCs) {
+    if (group.assignedTeacher) {
+      emit("duty_group_cancelled", {
+        recipient: group.assignedTeacher._id,
+        refModel: "Duty",
+        refId: group.duties?.[0] || null,
+        data: {
+          roleLabel: "DCS",
+          roomCount: group.duties?.length || 0,
+          date: group.schedule?.date,
+          startTime: group.schedule?.startTime,
+          endTime: group.schedule?.endTime,
+          reason: reason || null,
+        },
+      });
+    }
+  } else {
+    notifyCsOfTeacherAction("group_released", {
+      refId: group.duties?.[0] || null,
+      data: {
+        teacherName: group.assignedTeacher?.name || "A teacher",
+        roleLabel: "DCS",
+        roomCount: group.duties?.length || 0,
+        date: group.schedule?.date,
+        reason: reason || null,
+      },
+    });
+  }
 
   return dcsGroupRepository.findById(groupId);
 };

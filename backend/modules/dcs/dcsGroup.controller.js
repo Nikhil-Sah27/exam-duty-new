@@ -62,11 +62,11 @@ const adminClaim = catchAsync(async (req, res) => {
 const release = catchAsync(async (req, res) => {
   const group = await dcsGroupService.releaseGroup(
     req.params.id,
-    req.user.id,
+    { id: req.user.id, activeRole: req.user.activeRole },
     req.body?.reason
   );
   auditService.logSafe({
-    action: "RELEASE_DCS_GROUP",
+    action: req.user.activeRole === "cs" ? "ADMIN_UNASSIGN_DUTY_GROUP" : "RELEASE_DCS_GROUP",
     entity: "DCSGroup",
     entityId: group?._id || req.params.id,
     performedBy: req.user.id,

@@ -107,9 +107,22 @@ const templates = {
     };
   },
 
-  duty_cancelled: ({ room, date }) => ({
+  // `reason` is only ever set when CS unassigned the teacher — a teacher
+  // releasing their own duty doesn't need their reason read back to them.
+  duty_cancelled: ({ room, date, reason }) => ({
     title: "Duty Cancelled",
-    message: `Your duty at ${room} on ${formatDate(date)} has been cancelled`,
+    message: `Your duty at ${room} on ${formatDate(date)} has been cancelled${
+      reason ? ` — ${reason}` : ""
+    }`,
+  }),
+
+  // CS took a teacher off a whole RS / DCS group. Once per group, mirroring
+  // duty_group_assigned.
+  duty_group_cancelled: ({ roleLabel, roomCount, date, startTime, endTime, reason }) => ({
+    title: "Duty Cancelled",
+    message: `You have been unassigned from ${roleLabel === "RS" ? "an" : "a"} ${roleLabel} group of ${roomCount} room${
+      roomCount === 1 ? "" : "s"
+    } on ${formatDate(date)} (${startTime}–${endTime})${reason ? ` — ${reason}` : ""}`,
   }),
 
   request_submitted: ({ type, date }) => ({

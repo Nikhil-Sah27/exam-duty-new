@@ -98,7 +98,7 @@ const cancel = catchAsync(async (req, res) => {
     activeRole: req.user.activeRole,
   });
   auditService.logSafe({
-    action: "CANCEL_DUTY",
+    action: req.user.activeRole === "cs" ? "ADMIN_UNASSIGN_DUTY" : "CANCEL_DUTY",
     entity: "Duty",
     entityId: duty._id,
     performedBy: req.user.id,
@@ -106,6 +106,33 @@ const cancel = catchAsync(async (req, res) => {
     details: { actorRole: req.user.activeRole, reason: req.body.reason || null, ...dutySnapshot(duty) },
   });
   res.status(200).json({ success: true, data: duty });
+});
+
+const adminUnassignGroup = catchAsync(async (req, res) => {
+  const result = await dutyService.adminUnassignDutyGroup(req.body?.dutyId, req.body?.reason, {
+    id: req.user.id,
+    activeRole: req.user.activeRole,
+  });
+  const first = result.duties[0];
+  auditService.logSafe({
+    action: "ADMIN_UNASSIGN_DUTY_GROUP",
+    entity: "Duty",
+    entityId: first?._id || null,
+    performedBy: req.user.id,
+    ipAddress: req.ip,
+    details: {
+      actorRole: req.user.activeRole,
+      teacher: first?.teacher?._id || first?.teacher,
+      role: result.role,
+      date: first?.date,
+      startTime: first?.startTime,
+      endTime: first?.endTime,
+      roomCount: result.count,
+      rooms: result.duties.map((d) => d.room),
+      reason: req.body?.reason || null,
+    },
+  });
+  res.status(200).json({ success: true, count: result.count, data: { role: result.role } });
 });
 
 const invigilatorsForRooms = catchAsync(async (req, res) => {
@@ -121,5 +148,6 @@ module.exports = {
   getAll,
   getById,
   cancel,
+  adminUnassignGroup,
   invigilatorsForRooms,
 };

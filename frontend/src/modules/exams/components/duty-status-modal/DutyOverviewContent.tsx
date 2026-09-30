@@ -18,6 +18,8 @@ interface DutyOverviewContentProps {
   flags: RoomDutyFlags;
   csAssignMode: boolean;
   onSelectRole: (role: AssignRole) => void;
+  /** CS only, upcoming schedules only — take the holder off a filled slot. */
+  onUnassignRole?: (role: AssignRole) => void;
   /** Server-side assignment error from the assign-duty mutation, if any. */
   assignError: Error | null;
   isAssigning: boolean;
@@ -38,6 +40,7 @@ export default function DutyOverviewContent({
   flags,
   csAssignMode,
   onSelectRole,
+  onUnassignRole,
   assignError,
   isAssigning,
   showAssignCta,
@@ -107,6 +110,9 @@ export default function DutyOverviewContent({
               onAssignClick={
                 csAssignMode ? () => onSelectRole("dcs") : undefined
               }
+              onUnassignClick={
+                onUnassignRole ? () => onUnassignRole("dcs") : undefined
+              }
             />
             <RoleBadge
               label="RS (Room Superintendent)"
@@ -115,6 +121,9 @@ export default function DutyOverviewContent({
               onAssignClick={
                 csAssignMode ? () => onSelectRole("rs") : undefined
               }
+              onUnassignClick={
+                onUnassignRole ? () => onUnassignRole("rs") : undefined
+              }
             />
             <RoleBadge
               label="Invigilator"
@@ -122,6 +131,9 @@ export default function DutyOverviewContent({
               assignee={flags.invigilatorTeacher}
               onAssignClick={
                 csAssignMode ? () => onSelectRole("invigilator") : undefined
+              }
+              onUnassignClick={
+                onUnassignRole ? () => onUnassignRole("invigilator") : undefined
               }
             />
           </div>

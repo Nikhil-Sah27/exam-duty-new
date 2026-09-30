@@ -8,23 +8,27 @@ import {
 import RSUpcomingGroupCard from "@/modules/rs/upcoming-duties/components/RSUpcomingGroupCard";
 import RSUpcomingGroupModal from "@/modules/rs/upcoming-duties/components/RSUpcomingGroupModal";
 import DutyGroupSection from "./DutyGroupSection";
+import UnassignLink from "./UnassignLink";
 
 interface TeacherRSDutyGroupsProps {
   duties: Duty[];
+  /** CS only — offers Unassign on each upcoming group. */
+  onUnassign?: (group: RSUpcomingGroup) => void;
 }
 
 /**
  * RS duties on the CS Manage Duties detail page, shown as the same room-groups
  * the RS sees on their own dashboard rather than one row per room. Reuses the
  * exact grouping util and group card/modal from the RS module so the grouping
- * is guaranteed identical — the CS view is read-only (changes go through the
- * assign/change-request flows).
+ * is guaranteed identical. The only CS action here is unassigning a whole
+ * upcoming group; everything else goes through the assign/change-request flows.
  *
  * The upcoming/completed split follows the shared `isDutyUpcoming` rule (the
  * single source of truth for that split), grouping each half independently.
  */
 export default function TeacherRSDutyGroups({
   duties,
+  onUnassign,
 }: TeacherRSDutyGroupsProps) {
   const [active, setActive] = useState<RSUpcomingGroup | null>(null);
 
@@ -50,7 +54,7 @@ export default function TeacherRSDutyGroups({
         count={upcomingGroups.length}
         emptyLabel="No upcoming RS groups"
       >
-        <GroupGrid groups={upcomingGroups} onGroupClick={setActive} />
+        <GroupGrid groups={upcomingGroups} onGroupClick={setActive} onUnassign={onUnassign} />
       </DutyGroupSection>
 
       <DutyGroupSection
@@ -74,18 +78,19 @@ export default function TeacherRSDutyGroups({
 function GroupGrid({
   groups,
   onGroupClick,
+  onUnassign,
 }: {
   groups: RSUpcomingGroup[];
   onGroupClick: (group: RSUpcomingGroup) => void;
+  onUnassign?: (group: RSUpcomingGroup) => void;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {groups.map((group) => (
-        <RSUpcomingGroupCard
-          key={group.groupId}
-          group={group}
-          onClick={onGroupClick}
-        />
+        <div key={group.groupId} className="space-y-1.5">
+          <RSUpcomingGroupCard group={group} onClick={onGroupClick} />
+          {onUnassign && <UnassignLink onClick={() => onUnassign(group)} />}
+        </div>
       ))}
     </div>
   );

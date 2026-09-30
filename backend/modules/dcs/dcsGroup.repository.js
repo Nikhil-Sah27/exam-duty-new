@@ -29,6 +29,8 @@ const findById = (id) => DCSGroup.findById(id).populate(POPULATE);
 const findByTeacher = (teacherId) =>
   DCSGroup.find({ assignedTeacher: teacherId, status: "claimed" }).populate(POPULATE);
 
+const findByDuty = (dutyId) => DCSGroup.findOne({ duties: dutyId }).populate(POPULATE);
+
 const findBySchedule = (scheduleId) =>
   DCSGroup.find({ schedule: scheduleId }).populate(POPULATE);
 
@@ -63,6 +65,7 @@ module.exports = {
   findAll,
   findById,
   findByTeacher,
+  findByDuty,
   findBySchedule,
   findByExamGroup,
   findByExamGroups,

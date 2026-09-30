@@ -4,9 +4,12 @@ import type { DcsGroup } from "@/modules/dcs/select-duty/types";
 import DcsDutyCard from "@/modules/dcs/upcoming-duties/components/DcsDutyCard";
 import DcsDutyModal from "@/modules/dcs/upcoming-duties/components/DcsDutyModal";
 import DutyGroupSection from "./DutyGroupSection";
+import UnassignLink from "./UnassignLink";
 
 interface TeacherDCSDutyGroupsProps {
   groups: DcsGroup[];
+  /** CS only — offers Unassign on each upcoming group. */
+  onUnassign?: (group: DcsGroup) => void;
 }
 
 /**
@@ -18,6 +21,7 @@ interface TeacherDCSDutyGroupsProps {
  */
 export default function TeacherDCSDutyGroups({
   groups,
+  onUnassign,
 }: TeacherDCSDutyGroupsProps) {
   const [active, setActive] = useState<DcsGroup | null>(null);
 
@@ -41,7 +45,7 @@ export default function TeacherDCSDutyGroups({
         count={upcoming.length}
         emptyLabel="No upcoming DCS groups"
       >
-        <GroupGrid groups={upcoming} onGroupClick={setActive} />
+        <GroupGrid groups={upcoming} onGroupClick={setActive} onUnassign={onUnassign} />
       </DutyGroupSection>
 
       <DutyGroupSection
@@ -65,14 +69,19 @@ export default function TeacherDCSDutyGroups({
 function GroupGrid({
   groups,
   onGroupClick,
+  onUnassign,
 }: {
   groups: DcsGroup[];
   onGroupClick: (group: DcsGroup) => void;
+  onUnassign?: (group: DcsGroup) => void;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {groups.map((group) => (
-        <DcsDutyCard key={group._id} group={group} onClick={onGroupClick} />
+        <div key={group._id} className="space-y-1.5">
+          <DcsDutyCard group={group} onClick={onGroupClick} />
+          {onUnassign && <UnassignLink onClick={() => onUnassign(group)} />}
+        </div>
       ))}
     </div>
   );

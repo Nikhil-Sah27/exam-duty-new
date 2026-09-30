@@ -15,6 +15,7 @@ const notificationSchema = new mongoose.Schema(
         "duty_group_assigned",
         "duty_self_claimed",
         "duty_cancelled",
+        "duty_group_cancelled",
         "request_submitted",
         "request_approved",
         "request_rejected",

@@ -10,6 +10,9 @@ export const ACTION_META: Record<string, { label: string; tone: string }> = {
   // view — surface it as "Duty assigned by CS" rather than a separate "Group".
   ADMIN_ASSIGN_DUTY_GROUP: { label: "Duty assigned by CS", tone: "blue" },
   CANCEL_DUTY: { label: "Duty cancelled", tone: "amber" },
+  // Single room, RS group or DCS group — all one "unassigned by CS" to the CS.
+  ADMIN_UNASSIGN_DUTY: { label: "Duty unassigned by CS", tone: "red" },
+  ADMIN_UNASSIGN_DUTY_GROUP: { label: "Duty unassigned by CS", tone: "red" },
   CLAIM_DCS_GROUP: { label: "DCS group claimed", tone: "emerald" },
   // A CS-assigned DCS group is a duty assignment from the CS's point of view —
   // surface it the same as any other "Duty assigned by CS".
@@ -55,23 +58,26 @@ export function summarizeDetails(entry: AuditLogEntry): string {
   switch (entry.action) {
     case "SELF_ASSIGN_DUTY":
     case "ADMIN_ASSIGN_DUTY":
+    case "ADMIN_UNASSIGN_DUTY":
     case "CANCEL_DUTY": {
       const parts = [
         d.role ? str(d.role).toUpperCase() : "",
         d.room ? `Room ${d.room}` : "",
         slot(d as Record<string, unknown>),
       ].filter(Boolean);
-      if (entry.action === "CANCEL_DUTY" && d.reason) parts.push(`Reason: ${d.reason}`);
+      if (entry.action !== "ADMIN_ASSIGN_DUTY" && d.reason) parts.push(`Reason: ${d.reason}`);
       return parts.join(" · ");
     }
     case "SELF_ASSIGN_DUTY_GROUP":
-    case "ADMIN_ASSIGN_DUTY_GROUP": {
+    case "ADMIN_ASSIGN_DUTY_GROUP":
+    case "ADMIN_UNASSIGN_DUTY_GROUP": {
       const rooms = Array.isArray(d.rooms) ? d.rooms.join(", ") : "";
       return [
         d.role ? str(d.role).toUpperCase() : "",
         d.roomCount ? `${d.roomCount} rooms` : "",
         rooms ? `(${rooms})` : "",
         slot(d as Record<string, unknown>),
+        d.reason ? `Reason: ${d.reason}` : "",
       ]
         .filter(Boolean)
         .join(" · ");

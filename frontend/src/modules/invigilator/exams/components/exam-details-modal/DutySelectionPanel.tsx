@@ -41,6 +41,11 @@ export default function DutySelectionPanel({
   // viewer's render neutral (gray) regardless of occupancy or any time
   // conflict the viewer may have. Only the viewer's own role row picks up
   // the green / blue / red palette and the interactive controls.
+  // The viewer holds a duty in THIS room when their own role slot is owned (or
+  // just claimed). That unlocks seeing the room's co-assigned staff so they can
+  // coordinate; in rooms where they hold nothing, other slots stay anonymous.
+  const viewerHoldsDuty = isMine || dutySelection.state === "SELECTED_BY_ME";
+
   const renderRoleRow = (role: OperationalRoleKey) => {
     const isViewerRole = role === viewerRole;
     const interactiveAvailable =
@@ -83,6 +88,7 @@ export default function DutySelectionPanel({
         // shared duty-by-teacher list confirms ownership; the flag check on
         // role + assignee id is the durable one.
         isMine={isViewerRole && (isMine || dutySelection.state === "SELECTED_BY_ME")}
+        revealAssignees={viewerHoldsDuty}
         hasViewerConflict={interactiveConflict}
         action={
           showInlineSelect ? (

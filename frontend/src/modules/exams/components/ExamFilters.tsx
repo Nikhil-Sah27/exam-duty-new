@@ -17,6 +17,11 @@ interface ExamFiltersProps {
   selectedSemester: string;
   onTypeChange: (type: string) => void;
   onSemesterChange: (semester: string) => void;
+  /** Department filter — rendered on the left only when `onDepartmentChange` is given. */
+  selectedDepartment?: string;
+  onDepartmentChange?: (department: string) => void;
+  /** Department codes present in the data, for the dropdown options. */
+  departmentOptions?: string[];
   /** Status filter — rendered on the right only when `onStatusChange` is given. */
   selectedStatus?: string;
   onStatusChange?: (status: string) => void;
@@ -27,6 +32,9 @@ export default function ExamFilters({
   selectedSemester,
   onTypeChange,
   onSemesterChange,
+  selectedDepartment = "",
+  onDepartmentChange,
+  departmentOptions = [],
   selectedStatus = "",
   onStatusChange,
 }: ExamFiltersProps) {
@@ -61,6 +69,23 @@ export default function ExamFilters({
           </option>
         ))}
       </select>
+
+      {/* Department Filter */}
+      {onDepartmentChange && (
+        <select
+          value={selectedDepartment}
+          onChange={(e) => onDepartmentChange(e.target.value)}
+          className={SELECT_CLASS}
+          aria-label="Department"
+        >
+          <option value="">All Departments</option>
+          {departmentOptions.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      )}
 
       {/* Status Filter — pushed to the right */}
       {onStatusChange && (

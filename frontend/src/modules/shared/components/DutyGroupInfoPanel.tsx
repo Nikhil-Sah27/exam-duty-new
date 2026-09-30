@@ -260,20 +260,24 @@ function Shell(props: {
         </div>
       </div>
 
-      {props.assignedTo && (
-        <p
-          className={`rounded-md border px-2.5 py-1.5 text-[11px] ${
-            props.isMine
-              ? "border-blue-200 bg-blue-50 text-blue-800"
-              : "border-red-200 bg-red-50 text-red-800"
-          }`}
-        >
+      {/* The occupant's name shows only when the group is the viewer's own.
+          Groups claimed by someone else read as "Occupied" with no name — a
+          teacher can't see who holds a duty they don't own. */}
+      {props.isMine && props.assignedTo ? (
+        <p className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-800">
           <span className="font-semibold uppercase tracking-wider">
-            {props.isMine ? "Owned by you" : "Assigned to"}
+            Owned by you
           </span>
           <span className="ml-1 font-semibold">{props.assignedTo}</span>
         </p>
-      )}
+      ) : props.isOccupied ? (
+        <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] text-red-800">
+          <span className="font-semibold uppercase tracking-wider">
+            Occupied
+          </span>
+          <span className="ml-1">— assigned to another teacher</span>
+        </p>
+      ) : null}
 
       <div className="flex justify-end">
         <ViewDutyGroupButton onClick={props.onViewGroup} />

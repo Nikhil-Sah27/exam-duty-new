@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ExamFilters from "@/modules/exams/components/ExamFilters";
 import ExamGroupSection from "@/modules/shared/exams/components/ExamGroupSection";
 import { useInvigilatorExamView } from "../hooks/useInvigilatorExams";
@@ -7,8 +7,25 @@ export default function InvigilatorExamsPage() {
   const { data: groups, isLoading, error } = useInvigilatorExamView();
   const [filterType, setFilterType] = useState("");
   const [filterSemester, setFilterSemester] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
 
   const allGroups = groups || [];
+
+  // Department options come from the exams actually present, so the dropdown
+  // only ever offers departments the viewer can see. Filtering is client-side.
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of allGroups) for (const d of g.departments ?? []) set.add(d);
+    return [...set].sort();
+  }, [allGroups]);
+
+  const visibleGroups = useMemo(
+    () =>
+      filterDepartment
+        ? allGroups.filter((g) => (g.departments ?? []).includes(filterDepartment))
+        : allGroups,
+    [allGroups, filterDepartment],
+  );
 
   return (
     <div className="space-y-6">
@@ -25,6 +42,9 @@ export default function InvigilatorExamsPage() {
           selectedSemester={filterSemester}
           onTypeChange={setFilterType}
           onSemesterChange={setFilterSemester}
+          selectedDepartment={filterDepartment}
+          onDepartmentChange={setFilterDepartment}
+          departmentOptions={departmentOptions}
         />
       )}
 
@@ -47,7 +67,7 @@ export default function InvigilatorExamsPage() {
 
       {!isLoading && allGroups.length > 0 && (
         <ExamGroupSection
-          exams={allGroups}
+          exams={visibleGroups}
           selectedType={filterType}
           selectedSemester={filterSemester}
           // Relative href — works for both /invigilator/exams and /rs/exams.

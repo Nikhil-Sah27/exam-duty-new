@@ -51,29 +51,6 @@ export const HUMAN_ROLE_LABEL: Record<OperationalRoleKey, string> = {
   dcs: "Deputy Chief Superintendent",
 };
 
-const SHORT_ROLE_LABEL: Record<OperationalRoleKey, string> = {
-  invigilator: "INV",
-  rs: "RS",
-  dcs: "DCS",
-};
-
-export const ROLE_ID_PREFIX: Record<OperationalRoleKey, string> = SHORT_ROLE_LABEL;
-
-/**
- * Display ID for a teacher. Schema has no explicit teacher-ID field, so we
- * derive a stable, role-prefixed short ID from the Mongo `_id`. Same teacher
- * always renders the same string — readable in tooltips without leaking the
- * full object id.
- */
-export function getTeacherDisplayId(teacher: AssigneePublic | null | undefined): string | null {
-  if (!teacher) return null;
-  const tail = String(teacher._id).slice(-6).toUpperCase();
-  // AssigneePublic now exposes a `roles` array. Take the first duty-eligible
-  // role for the ID prefix — this is only used cosmetically in tooltips.
-  const role = ((teacher.roles || []).find((r) => r !== "cs") as OperationalRoleKey) || "invigilator";
-  const prefix = SHORT_ROLE_LABEL[role] || "USR";
-  return `${prefix}-${tail}`;
-}
 
 /**
  * Resolve the assignment status of a single role within a room, from the

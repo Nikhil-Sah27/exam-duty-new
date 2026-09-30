@@ -24,4 +24,28 @@ const getMe = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: user });
 });
 
-module.exports = { register, login, selectRole, getMe };
+const forgotPassword = catchAsync(async (req, res) => {
+  await authService.requestPasswordReset(req.body?.email);
+  // Always generic — never reveal whether the email is registered.
+  res.status(200).json({
+    success: true,
+    message: "If that email is registered, a reset code has been sent.",
+  });
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+  await authService.resetPassword(req.body || {});
+  res.status(200).json({
+    success: true,
+    message: "Password updated. You can now sign in.",
+  });
+});
+
+module.exports = {
+  register,
+  login,
+  selectRole,
+  getMe,
+  forgotPassword,
+  resetPassword,
+};

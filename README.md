@@ -148,6 +148,9 @@ Notifications reference either a `Duty` or a `ChangeRequest` for deep-linking (b
 - **Room labels are building-aware** — assignment/reminder messages use the app-wide `"<Building> — <Room>"` label (via `buildRoomLabel`), so `Academic Block — 004` and `BSN Block — 004` never collide.
 - **Group roles get one notification per group, not per room** — CS assigning an RS/DCS group fires a single `duty_group_assigned` ("…assigned a DCS group of 4 rooms…"), never one alert per room.
 - **Daily reminder counts groups, not rooms** — the `duty_reminder` sweep (`notification.jobs.js`) collapses a teacher's duties into duty-units (an RS/DCS group counts once) and anchors the message to the **absolute date** rather than the word "tomorrow", so a stored reminder never goes stale when the day rolls over.
+- **"Duty today" popup for teachers** — on every dashboard load (login/refresh), Invigilator/RS/DCS get a glass popup if they hold an assigned duty **today whose time hasn't passed**. It's computed live from the viewer's own duties (not the feed) and keyed by a per-page-load nonce so it re-appears each visit; CS has its own separate popup provider.
+
+Teachers also see **co-assigned staff** for rooms where they hold a duty: the room-detail modal reveals the other roles' contacts (an invigilator sees that room's RS + DCS, etc.) so co-assigned staff can coordinate. Rooms where the viewer holds no duty keep occupied slots anonymous ("Occupied", no name) — only CS sees everyone everywhere.
 
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
@@ -160,6 +163,15 @@ The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules
 
 ### Exam Cleanup
 Deleting an exam group, schedule, or room cascades in a single transaction (`backend/modules/exam-cleanup/services/examDeletionService.js`): all dependent duties are cancelled, open change requests are marked `cancelled_exam_deleted`, seat-sharing allocations are released (and source rooms' `remainingSeats` restored), and affected teachers receive `exam_deleted_duty_release` notifications.
+
+### Reports (CS)
+The **Reports** page (`frontend/src/modules/reports/`) has two tabs, both CSV-exportable:
+
+- **Duty Roster** — a room-by-room invigilation roster for a chosen exam, organised **day → shift**. Each room row shows its department(s) and the assigned DCS / RS / Invigilator with contact numbers, vacancies highlighted. Coverage tiles use **role-correct denominators**: invigilators are counted per room, but RS and DCS are counted per **duty group** (reusing `groupRoomsIntoRSGroups` for RS and the persistent `DCSGroup`s for DCS) so the "X vacant" figures reflect groups, not rooms. CSV export works at three scopes — whole exam, a single day, or a single shift — sharing one row builder so a room's line is identical regardless of which button produced it, with blank-row separators between shifts/days. Date, time, and room-number cells are wrapped as Excel text so leading zeros (`003`) and dates survive the import.
+- **Teacher Workload** — a role-aware cohort table of duty targets vs completion. Filtering by role narrows to teachers eligible for that role and measures every row against **that role's** target/completed/remaining; with no role filter each teacher is measured against their own duty role(s), so an Associate Professor shows both an RS and an Invigilator row (identity spanned once, roles stacked). Rows sort DCS → RS → Invigilator (Professors before Associate Professors within RS). Three per-role donut charts summarise overall completion effectiveness. Department is a data-derived dropdown; CS and non-teaching ("Other") accounts are excluded.
+
+### Audit Log (CS)
+The **audit** module (`backend/modules/audit/`) records a who-did-what trail via fire-and-forget `logSafe` writes from controller hooks, surfaced on the CS **Audit Log** page. Teacher self-claims are intentionally hidden (CS cares about who *assigned* or *approved*, not routine pick-ups), and CS admin-assignments — single duty, RS group, and DCS group — all read as **"Duty assigned by CS"** under one filter. Filterable by action (a custom colour-dotted dropdown), date range, and paginated.
 
 ## Domain Model
 
@@ -244,8 +256,8 @@ exam-duty/
 │   │   ├── notification/            # Emitter + typed notifications
 │   │   ├── notify/                  # CS broadcast announcements
 │   │   ├── exam-cleanup/            # Cascade delete + release
-│   │   ├── audit/                   # Stub
-│   │   └── report/                  # Stub
+│   │   ├── audit/                   # CS who-did-what trail (fire-and-forget writes)
+│   │   └── report/                  # Stub (reporting UI lives on the frontend)
 │   ├── scripts/                     # Seed + backfill + dump/restore helpers
 │   └── shared/                      # DB config, auth middleware, roleResolver, utils
 │
@@ -265,6 +277,8 @@ exam-duty/
 │   │   │   ├── departments/         # Dept + sem + course admin
 │   │   │   ├── infrastructure/      # Buildings + rooms
 │   │   │   ├── change-requests/     # Admin review page
+│   │   │   ├── reports/             # Duty Roster + Teacher Workload (CSV export)
+│   │   │   ├── audit/               # CS audit-log page (filter + paginate)
 │   │   │   ├── notifications/       # Bell + list
 │   │   │   ├── notify/              # CS broadcast composer (audience + message)
 │   │   │   ├── duties/              # Duty types + admin actions
@@ -405,7 +419,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | GET | `/` | List users. `?role=<role>` filters by roles-array membership; `?department=<code>`; `?includeInactive=true` includes deactivated users. |
 | GET | `/:id` | Get by id. |
 | PUT | `/:id` | Update. Changing `designation` re-resolves roles; roles can't be written directly otherwise. |
-| DELETE | `/:id` | Soft delete (sets `isActive=false`). |
+| DELETE | `/:id` | Two-step delete: an **active** user is soft-deleted (`isActive=false`); an **already-deactivated** user is **permanently** removed. |
 | PATCH | `/:id/activate` | Reactivate a soft-deleted user (bypasses the auto-active-only pre-find hook). |
 
 ### Exams (legacy, `/exams`)
@@ -468,7 +482,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | GET | `/my-rs-progress` | Current user's RS target / completed (groups) / remaining. |
 | GET | `/my-dcs-progress` | Current user's DCS target / completed (groups) / remaining. |
 | GET | `/teacher/:teacherId/progress` | A specific teacher's progress. |
-| GET | `/all-teachers` | Cohort progress (`?role`, `?department`, `?eligibleOnly`). |
+| GET | `/all-teachers` | Cohort progress, role-aware. `?role` narrows to that role and measures against it; with no role each teacher is measured against their own duty role(s). CS and `Other`-designation accounts are excluded. |
 | GET | `/institution` | Institution-wide duty summary. |
 | GET | `/semester/:semesterId` · `/department/:departmentId` | Drill-down breakdowns. |
 | POST | `/recalculate` | Force a fresh institution-wide computation. |
@@ -504,6 +518,11 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 | --- | --- | --- |
 | POST | `/` | CS-only broadcast. `{ audience: "all"\|"role"\|"specific", title, message, roles?, userIds? }` → fans out `announcement` notifications, returns `{ sent, recipients }`. |
 
+### Audit (`/audit`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/` | CS who-did-what trail. Filters: `?action` (single or comma-separated list, matched with `$in`), `?from`/`?to` (date range), `?page`/`?limit`. Teacher self-claim actions are excluded server-side. |
+
 ## Key Design Decisions
 
 - **Modular architecture** — every backend domain is a controller → service → repository → model tuple, with no cross-domain repository calls. Every frontend feature module owns its full slice (components, hooks, services, types).
@@ -520,6 +539,11 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 
 ## Recent Enhancements
 
+- **Reports module** — a CS **Duty Roster** (day → shift room roster with per-scope CSV export, group-correct coverage tiles, department per room) and a role-aware **Teacher Workload** table (per-role targets, one row per duty role, DCS → RS → Invigilator sort, per-role completion donuts). See [Reports](#reports-cs).
+- **Role-aware workload + DCS counting fix** — the cohort endpoint (`/all-teachers`) now measures each teacher against the correct role instead of always invigilator, and DCS completion counts **groups** (via `DCSGroup`) rather than per-room duties (which had inflated the figure). The invigilator "completed" counter is role-scoped so RS/DCS room duties can't leak in.
+- **Audit Log** — a CS who-did-what trail (`/audit`); self-claims hidden, CS assignments (single / RS group / DCS group) unified as "Duty assigned by CS", custom filter dropdown. See [Audit Log](#audit-log-cs).
+- **"Duty today" popup + co-assignee visibility** — teachers get a dashboard popup for a duty happening today, and can see the other roles' contacts in rooms where they hold a duty (see [Notifications](#notifications)).
+- **Permanent teacher delete** — deleting an already-deactivated teacher now removes the record for good (`node backend/scripts/purge-inactive-users.js` bulk-purges inactive accounts, skipping any with live duties); the teacher directory dropped its Status column and drops the synthetic teacher-ID display everywhere.
 - **RS & DCS duty dashboards** — the duty-calculation engine now derives RS targets (`invigilator total ÷ 5`, Professor/Associate 70/30 split) and DCS targets (`Σ ceil(courses×students×examTypes / 300)`, flat across HOD/Dean). New `RsDutyStatsHeroInline` / `DcsDutyStatsHeroInline` widgets reuse a shared `HeroDutyCircles`; completed is counted in **groups** for both. Endpoints: `GET /duty-calculation/my-rs-progress`, `/my-dcs-progress`.
 - **Assistant Professor is Invigilator-only** — RS removed from the Assistant Professor designation in both `roleResolver` copies, with a migration (`strip-rs-from-assistant-professors.js`) for existing records.
 - **Contact everywhere (Call + WhatsApp)** — a shared `ContactActions` component (tap-to-dial + `wa.me`, inlined WhatsApp glyph) surfaces highlighted phone/email in the DCS & RS invigilator cards, the CS teacher table (new Contact column + phone search), the Manage-Duties teacher banner, and the Duty-Status modal. `backfill-user-phones.js` fills seeded accounts that had no number.

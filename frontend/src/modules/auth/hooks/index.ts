@@ -1,6 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { loginUser, registerUser, getMe, selectRole } from "../services";
+import {
+  loginUser,
+  registerUser,
+  getMe,
+  selectRole,
+  forgotPassword,
+  resetPassword,
+} from "../services";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { LoginRequest, RegisterRequest } from "../types";
 import type { UserRole } from "@/shared/lib/types";
@@ -68,6 +75,17 @@ export const useRegister = () => {
     },
   });
 };
+
+/** Request a password-reset OTP by email. */
+export const useForgotPassword = () =>
+  useMutation({ mutationFn: (email: string) => forgotPassword(email) });
+
+/** Reset the password with the emailed OTP + new password. */
+export const useResetPassword = () =>
+  useMutation({
+    mutationFn: (data: { email: string; otp: string; newPassword: string }) =>
+      resetPassword(data),
+  });
 
 export const useMe = () => {
   const token = useAuthStore((s) => s.token);

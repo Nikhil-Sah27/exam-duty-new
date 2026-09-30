@@ -1,6 +1,5 @@
 import { Building2, DoorOpen } from "lucide-react";
 import type { AssigneePublic } from "@/modules/exams/types";
-import { getTeacherDisplayId } from "../../utils/assignmentStatusUtils";
 import {
   groupSummaryRoomsByBuilding,
   type SummaryRoom,
@@ -79,13 +78,22 @@ export function AssigneePanel({
   assignedTo: AssigneePublic;
   isMine?: boolean;
 }) {
+  // A group claimed by someone else stays anonymous — a teacher can't see who
+  // holds a duty they don't own. Only the viewer's own group shows a name/contact.
+  if (!isMine) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 shadow-sm">
+        <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
+          Occupied
+        </p>
+        <p className="mt-0.5 text-sm font-semibold">Assigned to another teacher</p>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`rounded-lg border px-3 py-2 text-xs shadow-sm ${
-        isMine
-          ? "border-blue-200 bg-blue-50 text-blue-800"
-          : "border-red-200 bg-red-50 text-red-800"
-      }`}
+      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 shadow-sm"
       title={[
         assignedTo.name,
         assignedTo.designation || "",
@@ -96,20 +104,16 @@ export function AssigneePanel({
         .join("\n")}
     >
       <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-        {isMine ? "Owned by you" : "Assigned to"}
+        Owned by you
       </p>
-      <p className="mt-0.5 text-sm font-bold">
-        {assignedTo.name}
-      </p>
+      <p className="mt-0.5 text-sm font-bold">{assignedTo.name}</p>
       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] opacity-90">
-        <span className="font-semibold">
-          ID: {getTeacherDisplayId(assignedTo)}
-        </span>
-        {assignedTo.department && (
-          <span>· {assignedTo.department}</span>
-        )}
+        {assignedTo.department && <span>{assignedTo.department}</span>}
         {assignedTo.phone && (
-          <span>· {assignedTo.phone}</span>
+          <span>
+            {assignedTo.department ? "· " : ""}
+            {assignedTo.phone}
+          </span>
         )}
       </p>
     </div>

@@ -1,12 +1,16 @@
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const AppError = require("../../shared/utils/AppError");
 const authRepository = require("./auth.repository");
+const { sendOtpEmail } = require("../../shared/utils/mailer");
 const {
   enforceRolesForDesignation,
 } = require("../../shared/utils/roleResolver");
 
 const SALT_ROUNDS = 10;
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_MAX_ATTEMPTS = 5;
 
 const generateToken = (userId, activeRole) => {
   return jwt.sign(
@@ -92,6 +96,70 @@ const selectRole = async (userId, requestedRole) => {
   };
 };
 
+/**
+ * Start a password reset: generate a 6-digit OTP, store its hash + a 10-minute
+ * expiry on the user, and email the code. Intentionally silent about whether the
+ * email exists (anti-enumeration) — the controller always returns a generic OK.
+ */
+const requestPasswordReset = async (email) => {
+  if (!email) throw new AppError("Email is required", 400);
+  const user = await authRepository.findUserByEmailForReset(
+    String(email).toLowerCase().trim(),
+  );
+  if (!user) return; // don't reveal non-existent accounts
+
+  const otp = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+  user.resetOtpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+  user.resetOtpExpires = new Date(Date.now() + OTP_TTL_MS);
+  user.resetOtpAttempts = 0;
+  await user.save();
+
+  await sendOtpEmail(user.email, otp, user.name);
+};
+
+/**
+ * Complete a password reset: verify the OTP (present, unexpired, within the
+ * attempt cap, matching) and set the new password, clearing the OTP fields.
+ */
+const resetPassword = async ({ email, otp, newPassword }) => {
+  if (!email || !otp || !newPassword) {
+    throw new AppError("Email, code and new password are required", 400);
+  }
+  if (String(newPassword).length < 6) {
+    throw new AppError("Password must be at least 6 characters", 400);
+  }
+
+  const user = await authRepository.findUserByEmailForReset(
+    String(email).toLowerCase().trim(),
+  );
+  const invalid = () => new AppError("Invalid or expired code", 400);
+
+  if (!user || !user.resetOtpHash || !user.resetOtpExpires) throw invalid();
+  if (user.resetOtpExpires.getTime() < Date.now()) {
+    user.resetOtpHash = null;
+    user.resetOtpExpires = null;
+    user.resetOtpAttempts = 0;
+    await user.save();
+    throw invalid();
+  }
+  if ((user.resetOtpAttempts || 0) >= OTP_MAX_ATTEMPTS) {
+    throw new AppError("Too many attempts — request a new code", 429);
+  }
+
+  const matches = await bcrypt.compare(String(otp), user.resetOtpHash);
+  if (!matches) {
+    user.resetOtpAttempts = (user.resetOtpAttempts || 0) + 1;
+    await user.save();
+    throw invalid();
+  }
+
+  user.password = await bcrypt.hash(String(newPassword), SALT_ROUNDS);
+  user.resetOtpHash = null;
+  user.resetOtpExpires = null;
+  user.resetOtpAttempts = 0;
+  await user.save();
+};
+
 const getUserById = async (id, activeRole = null) => {
   const user = await authRepository.findUserById(id);
   if (!user) {
@@ -104,6 +172,8 @@ module.exports = {
   register,
   login,
   selectRole,
+  requestPasswordReset,
+  resetPassword,
   getUserById,
   generateToken,
 };

@@ -13,19 +13,30 @@ export default function ExamsPage() {
   const [filterType, setFilterType] = useState("");
   const [filterSemester, setFilterSemester] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ExamGroup | null>(null);
 
   const allGroups = groups || [];
 
-  // Status is derived from dates (ongoing/upcoming/completed), so filter here and
-  // let the grid group the survivors by type + status as usual.
-  const visibleGroups = useMemo(
-    () =>
-      filterStatus
-        ? allGroups.filter((g) => getExamGroupStatus(g) === filterStatus)
-        : allGroups,
-    [allGroups, filterStatus],
-  );
+  // Department options are the distinct codes present across all exams' rooms.
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of allGroups) for (const d of g.departments ?? []) set.add(d);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [allGroups]);
+
+  // Status is derived from dates and department from each exam's rooms, so filter
+  // here and let the grid group the survivors by type + status as usual.
+  const visibleGroups = useMemo(() => {
+    let list = allGroups;
+    if (filterStatus) {
+      list = list.filter((g) => getExamGroupStatus(g) === filterStatus);
+    }
+    if (filterDepartment) {
+      list = list.filter((g) => (g.departments ?? []).includes(filterDepartment));
+    }
+    return list;
+  }, [allGroups, filterStatus, filterDepartment]);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -48,6 +59,9 @@ export default function ExamsPage() {
           selectedSemester={filterSemester}
           onTypeChange={setFilterType}
           onSemesterChange={setFilterSemester}
+          selectedDepartment={filterDepartment}
+          onDepartmentChange={setFilterDepartment}
+          departmentOptions={departmentOptions}
           selectedStatus={filterStatus}
           onStatusChange={setFilterStatus}
         />

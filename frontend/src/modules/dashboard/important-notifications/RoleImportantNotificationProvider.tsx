@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useNotifications } from "@/modules/notifications/hooks";
+import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import { useImportantNotificationQueue } from "./useImportantNotificationQueue";
 import { usePersistedSeen } from "./usePersistedSeen";
 import ImportantNotificationContainer from "./ImportantNotificationContainer";
@@ -9,6 +10,7 @@ import {
   buildRoleImportantNotifications,
   type OperationalRole,
 } from "./roleNotificationSelectors";
+import { buildDutyTodayNotifications } from "./dutyTodaySelectors";
 
 const OP_ROLES: OperationalRole[] = ["invigilator", "rs", "dcs"];
 
@@ -27,18 +29,25 @@ export default function RoleImportantNotificationProvider() {
   const navigate = useNavigate();
 
   const { data: feed } = useNotifications();
+  const { data: duties } = useDutiesByTeacher(userId);
 
   const isOpRole = OP_ROLES.includes(activeRole as OperationalRole);
   const role = activeRole as OperationalRole;
 
   const notifications = useMemo(() => {
     if (!isOpRole) return [];
-    return buildRoleImportantNotifications({
-      role,
-      notifications: feed ?? [],
-      now: Date.now(),
-    });
-  }, [isOpRole, role, feed]);
+    const now = Date.now();
+    // "Duty today" reminders first (most urgent, re-shown every visit), then the
+    // feed-driven popups (assignments, tomorrow reminders, request outcomes…).
+    return [
+      ...buildDutyTodayNotifications({ role, duties: duties ?? [], now }),
+      ...buildRoleImportantNotifications({
+        role,
+        notifications: feed ?? [],
+        now,
+      }),
+    ];
+  }, [isOpRole, role, feed, duties]);
 
   const { seen, markSeen } = usePersistedSeen(userId);
   const { current, visible, dismiss } = useImportantNotificationQueue(

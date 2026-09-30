@@ -14,4 +14,17 @@ const findUserById = (id) => {
   return User.findById(id);
 };
 
-module.exports = { findUserByEmail, createUser, findUserById };
+// Includes the normally-hidden reset-OTP fields (and password, so a new one can
+// be saved on the same doc) for the forgot/reset-password flow.
+const findUserByEmailForReset = (email) => {
+  return User.findOne({ email }).select(
+    "+password +resetOtpHash +resetOtpExpires +resetOtpAttempts",
+  );
+};
+
+module.exports = {
+  findUserByEmail,
+  createUser,
+  findUserById,
+  findUserByEmailForReset,
+};

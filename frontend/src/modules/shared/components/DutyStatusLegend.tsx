@@ -63,7 +63,11 @@ export default function DutyStatusLegend() {
                 <Icon className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <p className={`text-sm font-bold ${paint.text}`}>
+                <p className={`flex items-center gap-1.5 text-sm font-bold ${paint.text}`}>
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${paint.dot}`}
+                    aria-hidden
+                  />
                   {getTeacherStatusLabel(key) === headline ? headline : headline}
                 </p>
                 <p className="text-[11px] text-gray-500">{detail}</p>

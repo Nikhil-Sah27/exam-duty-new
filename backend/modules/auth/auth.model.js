@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Password-reset OTP — hashed, short-lived, and never returned by default.
+    resetOtpHash: { type: String, default: null, select: false },
+    resetOtpExpires: { type: Date, default: null, select: false },
+    resetOtpAttempts: { type: Number, default: 0, select: false },
   },
   { timestamps: true }
 );

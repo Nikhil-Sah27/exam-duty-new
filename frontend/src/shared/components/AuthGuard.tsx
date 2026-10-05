@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { useAppStore } from "@/shared/store/app.store";
 import { useMe } from "@/modules/auth/hooks";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -9,11 +10,19 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
   const setUser = useAuthStore((s) => s.setUser);
+  const applyRoleTheme = useAppStore((s) => s.applyRoleTheme);
+  const activeRole = user?.activeRole;
   const navigate = useNavigate();
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  // Every dashboard shell (CS / DCS / RS / Invigilator) wraps in AuthGuard, so
+  // this is the one place that applies the theme saved for the active role.
+  useEffect(() => {
+    if (activeRole) applyRoleTheme(activeRole);
+  }, [activeRole, applyRoleTheme]);
 
   // Fetch user profile when we have a token but no user (e.g. after page refresh)
   const { data: me } = useMe();

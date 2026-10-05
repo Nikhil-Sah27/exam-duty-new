@@ -29,6 +29,39 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Large-display scale-up.
+
+   Every Tailwind size (text, spacing, max-widths) is rem-based, so raising
+   the root font size scales the whole UI proportionally on big monitors —
+   content stays comfortably readable instead of clustering small in the
+   middle. Media-query breakpoints resolve against the INITIAL font size
+   (16px), not this value, so `sm:`…`2xl:` layout switches are unaffected.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1700px) {
+  html { font-size: 17px; }
+}
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+}
+@media (min-width: 2560px) {
+  html { font-size: 21px; }
+}
+@media (min-width: 3840px) {
+  html { font-size: 28px; }
+}
+
+/* Twemoji glyphs render as inline <img class="emoji"> sized to the current
+   font. Scales with the surrounding text and sits on the baseline like a
+   normal emoji character. */
+img.emoji {
+  display: inline-block;
+  height: 1em;
+  width: 1em;
+  margin: 0 0.05em 0 0.1em;
+  vertical-align: -0.1em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Dark mode — global retrofit.
 
    The app chrome (top bar + sidebars) is already dark; these rules re-theme

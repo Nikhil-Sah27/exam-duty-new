@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Loader2, Trash2 } from "lucide-react";
 import { useAuthStore } from "@/shared/store/auth.store";
-import { EmptyState } from "@/shared/components";
-import { useAllChangeRequests } from "@/modules/shared/change-requests/hooks/useChangeRequests";
+import { EmptyState, ConfirmActionModal } from "@/shared/components";
+import {
+  useAllChangeRequests,
+  useDeleteChangeRequest,
+} from "@/modules/shared/change-requests/hooks/useChangeRequests";
 import type { ChangeRequestStatus } from "@/modules/shared/change-requests/types/changeRequest.types";
 import ChangeRequestCard from "@/modules/shared/change-requests/components/ChangeRequestCard";
 import ReviewActions from "./ReviewActions";
@@ -50,6 +53,11 @@ export default function ChangeRequestsPage() {
   const canReview = user?.activeRole === "cs";
 
   const [tab, setTab] = useState<ChangeRequestStatus>("pending");
+  // CS can delete any change-request record (removes it from the list/history;
+  // the delete is audit-logged on the backend). Track which one is pending a
+  // confirm.
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const deleteMutation = useDeleteChangeRequest();
 
   // Load every status up-front so each tab can show its own count. React Query
   // dedupes and caches, so the active tab's data is shared, not fetched twice.
@@ -135,9 +143,45 @@ export default function ChangeRequestsPage() {
                 <ReviewActions requestId={r._id} />
               ) : undefined
             }
+            deleteAction={
+              canReview ? (
+                <button
+                  type="button"
+                  onClick={() => setDeleteId(r._id)}
+                  aria-label="Delete change request"
+                  title="Delete request"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : undefined
+            }
           />
         ))}
       </div>
+
+      <ConfirmActionModal
+        open={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => {
+          if (!deleteId) return;
+          deleteMutation.mutate(deleteId, {
+            onSettled: () => setDeleteId(null),
+          });
+        }}
+        isLoading={deleteMutation.isPending}
+        title="Delete change request?"
+        variant="danger"
+        confirmLabel="Delete"
+        description={
+          <>
+            This permanently removes the change-request record from the list and
+            history. It does <strong>not</strong> revert any duty change that an
+            earlier approval already applied. This action is recorded in the
+            audit log.
+          </>
+        }
+      />
     </div>
   );
 }

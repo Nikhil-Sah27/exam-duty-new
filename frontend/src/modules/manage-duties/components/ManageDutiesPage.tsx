@@ -1,16 +1,18 @@
 import { useState, useMemo } from "react";
 import { useTeachers } from "../hooks";
 import type { UserRole } from "@/shared/lib/types";
-import type { Duty } from "@/modules/duties/types";
-import { useDuties } from "@/modules/duties/hooks";
+import { useAllTeachersProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
 import { TeacherFilters, TeacherWithStats } from "../types";
-import { countDutyUnits } from "../utils/dutyUnitCounts";
 import TeacherListItem from "./TeacherListItem";
 import TeacherFiltersBar from "./TeacherFiltersBar";
 
 export default function ManageDutiesPage() {
   const { data: teachers, isLoading, isError, error } = useTeachers();
-  const { data: allDuties } = useDuties();
+  // Authoritative per-teacher progress — the same server-computed source the
+  // teacher-detail tiles, assign wizards and reports read, so the list never
+  // recomputes targets. One row per (teacher × duty-role held); we sum those
+  // rows per teacher so a dual-role teacher shows a combined figure.
+  const { data: progress } = useAllTeachersProgress();
 
   const [filters, setFilters] = useState<TeacherFilters>({
     search: "",
@@ -18,24 +20,34 @@ export default function ManageDutiesPage() {
     role: "",
   });
 
-  // Compute duty stats per teacher. RS and DCS are group roles, so a whole
-  // room-group counts as one duty (not one per class) — see `countDutyUnits`.
+  const statsByTeacher = useMemo(() => {
+    const map = new Map<string, TeacherWithStats["dutyStats"]>();
+    (progress?.teachers ?? []).forEach((row) => {
+      const prev = map.get(row.teacherId) ?? {
+        completed: 0,
+        remaining: 0,
+        target: 0,
+      };
+      map.set(row.teacherId, {
+        completed: prev.completed + row.completed,
+        remaining: prev.remaining + row.remaining,
+        target: prev.target + row.target,
+      });
+    });
+    return map;
+  }, [progress]);
+
   const teachersWithStats: TeacherWithStats[] = useMemo(() => {
     if (!teachers) return [];
-
-    const dutiesByTeacher = new Map<string, Duty[]>();
-    (allDuties || []).forEach((d) => {
-      const tid = d.teacher._id;
-      const arr = dutiesByTeacher.get(tid) ?? [];
-      arr.push(d);
-      dutiesByTeacher.set(tid, arr);
-    });
-
     return teachers.map((t) => ({
       ...t,
-      dutyStats: countDutyUnits(dutiesByTeacher.get(t._id) ?? []),
+      dutyStats: statsByTeacher.get(t._id) ?? {
+        completed: 0,
+        remaining: 0,
+        target: 0,
+      },
     }));
-  }, [teachers, allDuties]);
+  }, [teachers, statsByTeacher]);
 
   // Extract unique departments for filter dropdown
   const departments = useMemo(() => {
@@ -96,7 +108,7 @@ export default function ManageDutiesPage() {
           <div className="flex items-center border-b border-gray-100 bg-gray-50/80 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
             <span className="flex-1">Teacher</span>
             <span className="hidden w-20 text-center sm:block">Role</span>
-            <span className="hidden w-48 text-center sm:block">
+            <span className="hidden w-56 text-center sm:block">
               Duty Stats
             </span>
             <span className="w-6" />

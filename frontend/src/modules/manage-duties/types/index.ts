@@ -79,9 +79,9 @@ export interface TeacherDuty {
 
 export interface TeacherWithStats extends Teacher {
   dutyStats: {
-    active: number;
     completed: number;
-    total: number;
+    remaining: number;
+    target: number;
   };
 }
 

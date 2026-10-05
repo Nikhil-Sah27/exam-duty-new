@@ -2,8 +2,8 @@ const ChangeRequest = require("./changeRequest.model");
 
 const POPULATE_FIELDS = [
   { path: "duty", select: "exam room date startTime endTime status" },
-  { path: "requestedBy", select: "name email department" },
-  { path: "swapWith", select: "name email department" },
+  { path: "requestedBy", select: "name email department phone" },
+  { path: "swapWith", select: "name email department phone" },
   { path: "reviewedBy", select: "name email" },
 ];
 
@@ -45,8 +45,8 @@ const POPULATE_DEEP = [
       },
     ],
   },
-  { path: "requestedBy", select: "name email department" },
-  { path: "swapWith", select: "name email department" },
+  { path: "requestedBy", select: "name email department phone" },
+  { path: "swapWith", select: "name email department phone" },
   { path: "reviewedBy", select: "name email" },
   // Move-request target. The schedule + examRoom let the UI show full slot context.
   {
@@ -157,6 +157,10 @@ const updateById = (id, data) => {
   }).populate(POPULATE_DEEP);
 };
 
+const deleteById = (id) => {
+  return ChangeRequest.findByIdAndDelete(id);
+};
+
 // Find pending/approved requests whose duty is in the given list. Used by the
 // exam-cleanup cascade to identify open requests that must be force-cancelled
 // when their underlying duty is being released.
@@ -184,6 +188,7 @@ module.exports = {
   findPendingDcsByUserAndSource,
   findPendingRsByUserAndSourceKey,
   updateById,
+  deleteById,
   findOpenByDutyIds,
   updateManyByIds,
 };

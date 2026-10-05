@@ -1,24 +1,20 @@
-import { Clock, CheckCircle2, ListChecks } from "lucide-react";
+import { CheckCircle2, Hourglass, Target } from "lucide-react";
 
 interface DutyStatsBarProps {
-  upcoming: number;
+  /** Completed duty units across all of the teacher's roles. */
   completed: number;
-  total: number;
+  /** Remaining duty units to reach target (sum of max(0, target - completed) per role). */
+  remaining: number;
+  /** Total target duty units across all of the teacher's roles. */
+  target: number;
 }
 
 export default function DutyStatsBar({
-  upcoming,
   completed,
-  total,
+  remaining,
+  target,
 }: DutyStatsBarProps) {
   const stats = [
-    {
-      label: "Upcoming",
-      value: upcoming,
-      icon: Clock,
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-    },
     {
       label: "Completed",
       value: completed,
@@ -27,11 +23,18 @@ export default function DutyStatsBar({
       bg: "bg-green-50",
     },
     {
-      label: "Total",
-      value: total,
-      icon: ListChecks,
-      color: "text-gray-600",
-      bg: "bg-gray-50",
+      label: "Remaining",
+      value: remaining,
+      icon: Hourglass,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+    {
+      label: "Target",
+      value: target,
+      icon: Target,
+      color: "text-indigo-600",
+      bg: "bg-indigo-50",
     },
   ];
 

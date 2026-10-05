@@ -49,6 +49,11 @@ export const rejectChangeRequest = async (
   return res.data.data;
 };
 
+/** Delete a change-request record (CS-only, audit-logged on the backend). */
+export const deleteChangeRequest = async (id: string): Promise<void> => {
+  await api.delete(`/change-requests/${id}`);
+};
+
 /** All requests across the system — Controller review surface. */
 export const getPendingChangeRequests = async (
   status?: "pending" | "approved" | "rejected"

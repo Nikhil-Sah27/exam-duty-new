@@ -3,6 +3,7 @@ export { default as Input } from "./Input";
 export { default as Select } from "./Select";
 export { default as Modal } from "./Modal";
 export { default as Logo } from "./Logo";
+export { default as WhatsAppIcon } from "./WhatsAppIcon";
 export { default as StatusBadge } from "./StatusBadge";
 export { default as EmptyState } from "./EmptyState";
 export { default as ErrorAlert } from "./ErrorAlert";

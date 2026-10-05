@@ -582,6 +582,19 @@ const getMyRequests = async (userId) => {
   return changeRequestRepository.findAll({ requestedBy: userId });
 };
 
+/**
+ * Delete a change-request record (CS-only). This removes the request from the
+ * review list/history; it does NOT revert any duty change a prior approval
+ * already applied. Returns the (populated) request so the caller can write an
+ * audit entry describing what was removed.
+ */
+const deleteRequest = async (id) => {
+  const request = await changeRequestRepository.findById(id);
+  if (!request) throw new AppError("Change request not found", 404);
+  await changeRequestRepository.deleteById(id);
+  return request;
+};
+
 // ---------- DCS group swap approve ----------
 
 /**
@@ -1091,6 +1104,7 @@ module.exports = {
   getAllRequests,
   getRequestById,
   getMyRequests,
+  deleteRequest,
   approveRequest,
   rejectRequest,
   getAvailableReplacements,

@@ -7,6 +7,13 @@ import type { TeacherDutyProgress } from "../types";
 import { computeRoleEngagement, ROLE_LABEL } from "../utils/roleEngagement";
 import RoleCompletionCard from "./RoleCompletionCard";
 
+/**
+ * Non-academic departments that house admin accounts (CS / exam staff) rather
+ * than invigilating faculty — excluded from the department filter so the
+ * workload report lists only real teaching departments.
+ */
+const NON_ACADEMIC_DEPARTMENTS = new Set(["Administration"]);
+
 interface DutyAnalyticsTableProps {
   /** Initial filter set — parent can lock these if used as a dept-level view. */
   initialFilters?: AllTeachersFilters;
@@ -37,7 +44,9 @@ export default function DutyAnalyticsTable({
 
   const departmentOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const t of data?.teachers ?? []) if (t.department) set.add(t.department);
+    for (const t of data?.teachers ?? [])
+      if (t.department && !NON_ACADEMIC_DEPARTMENTS.has(t.department))
+        set.add(t.department);
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [data]);
 

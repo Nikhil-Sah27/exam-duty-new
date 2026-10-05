@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { QUICK_REACTIONS } from "../utils/format";
+import Twemoji from "./Twemoji";
 
 interface MessageActionsProps {
   /** Own, non-deleted message → editing & deleting are allowed. */
@@ -96,7 +97,7 @@ export default function MessageActions({
                 onClick={run(() => onReact(e))}
                 className="flex h-7 w-7 items-center justify-center rounded-full text-base transition-transform hover:scale-125 hover:bg-gray-100"
               >
-                {e}
+                <Twemoji text={e} />
               </button>
             ))}
           </div>

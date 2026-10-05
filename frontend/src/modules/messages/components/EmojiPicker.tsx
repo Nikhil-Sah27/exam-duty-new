@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { EMOJI_PALETTE } from "../utils/format";
+import Twemoji from "./Twemoji";
 
 interface EmojiPickerProps {
   onPick: (emoji: string) => void;
@@ -35,7 +36,7 @@ export default function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
             onClick={() => onPick(e)}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-gray-100"
           >
-            {e}
+            <Twemoji text={e} />
           </button>
         ))}
       </div>

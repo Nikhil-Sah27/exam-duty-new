@@ -1,10 +1,12 @@
-import { ArrowRight, User } from "lucide-react";
+import { ArrowRight, Mail, Phone, User } from "lucide-react";
 import type { ChangeRequest } from "../types/changeRequest.types";
 import ChangeRequestStatusBadge from "./ChangeRequestStatusBadge";
 import DutyBlock from "./change-request-card/DutyBlock";
 import DcsGroupBlock from "./change-request-card/DcsGroupBlock";
 import RsGroupBlock from "./change-request-card/RsGroupBlock";
 import { rsGroupSummary } from "./change-request-card/changeRequestCardUtils";
+import { WhatsAppIcon } from "@/shared/components";
+import { waLink } from "@/shared/lib/whatsapp";
 
 interface ChangeRequestCardProps {
   request: ChangeRequest;
@@ -12,12 +14,15 @@ interface ChangeRequestCardProps {
   reviewActions?: React.ReactNode;
   /** Optional invigilator-side cancel button. */
   cancelAction?: React.ReactNode;
+  /** Optional CS-only delete control, shown in the header next to the date. */
+  deleteAction?: React.ReactNode;
 }
 
 export default function ChangeRequestCard({
   request,
   reviewActions,
   cancelAction,
+  deleteAction,
 }: ChangeRequestCardProps) {
   const r = request;
   const isDcsSwap = r.scope === "dcs_group" || r.type === "dcs_swap";
@@ -91,13 +96,48 @@ export default function ChangeRequestCard({
               <span className="text-gray-400">· {r.requestedBy.department}</span>
             )}
           </div>
+          {/* Requester contact — lets CS reach the teacher straight from the card. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {r.requestedBy.email && (
+              <a
+                href={`mailto:${r.requestedBy.email}`}
+                className="flex items-center gap-1 text-gray-500 transition-colors hover:text-indigo-600"
+              >
+                <Mail className="h-3 w-3" />
+                {r.requestedBy.email}
+              </a>
+            )}
+            {r.requestedBy.phone && (
+              <>
+                <a
+                  href={`tel:${r.requestedBy.phone}`}
+                  className="flex items-center gap-1 text-gray-500 transition-colors hover:text-indigo-600"
+                >
+                  <Phone className="h-3 w-3" />
+                  {r.requestedBy.phone}
+                </a>
+                <a
+                  href={waLink(r.requestedBy.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 font-medium text-green-600 transition-colors hover:text-green-700"
+                >
+                  <WhatsAppIcon className="h-3.5 w-3.5" />
+                  WhatsApp
+                </a>
+              </>
+            )}
+          </div>
         </div>
-        <span className="shrink-0 text-[10px] text-gray-400">
-          {new Date(r.createdAt).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-          })}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-[10px] text-gray-400">
+            {new Date(r.createdAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+            })}
+          </span>
+          {deleteAction}
+        </div>
       </header>
 
       {isRsSwap ? (

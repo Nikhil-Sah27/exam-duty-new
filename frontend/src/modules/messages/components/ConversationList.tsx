@@ -1,6 +1,7 @@
 import { Inbox } from "lucide-react";
 import type { Conversation, ConversationTeacher } from "../types/message.types";
 import { formatMessageTime, initials } from "../utils/format";
+import Twemoji from "./Twemoji";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -87,7 +88,7 @@ export default function ConversationList({
                     {c.lastSenderIsCs && (
                       <span className="text-gray-400">You: </span>
                     )}
-                    {c.lastMessageBody || "No messages yet"}
+                    <Twemoji text={c.lastMessageBody || "No messages yet"} />
                   </p>
                   {unread && (
                     <span className="ml-1 inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 px-1.5 text-[10px] font-bold text-white shadow-sm">

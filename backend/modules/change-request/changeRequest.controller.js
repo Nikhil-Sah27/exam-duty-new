@@ -72,6 +72,26 @@ const reject = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: request });
 });
 
+const remove = catchAsync(async (req, res) => {
+  const request = await changeRequestService.deleteRequest(req.params.id);
+  auditService.logSafe({
+    action: "DELETE_CHANGE_REQUEST",
+    entity: "ChangeRequest",
+    entityId: request._id,
+    performedBy: req.user.id,
+    ipAddress: req.ip,
+    details: {
+      actorRole: req.user.activeRole,
+      type: request.type,
+      scope: request.scope,
+      status: request.status,
+      requestedBy: request.requestedBy?._id || request.requestedBy,
+      requestedByName: request.requestedBy?.name || null,
+    },
+  });
+  res.status(200).json({ success: true, data: { _id: request._id } });
+});
+
 const getReplacements = catchAsync(async (req, res) => {
   const slots = await changeRequestService.getAvailableReplacements(
     req.params.dutyId,
@@ -80,4 +100,4 @@ const getReplacements = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, count: slots.length, data: slots });
 });
 
-module.exports = { submit, getAll, getById, getMine, approve, reject, getReplacements };
+module.exports = { submit, getAll, getById, getMine, approve, reject, remove, getReplacements };

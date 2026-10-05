@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Ban, Check, CheckCheck } from "lucide-react";
 import type { ChatMessage, Reaction } from "../types/message.types";
 import MessageActions from "./MessageActions";
+import Twemoji from "./Twemoji";
 
 export type TickStatus = "sent" | "read";
 
@@ -157,13 +158,21 @@ export default function MessageBubble({
                 >
                   <span className="font-semibold">{replyLabel}</span>
                   <p className="line-clamp-2 opacity-90">
-                    {replyTo.deleted ? "Deleted message" : replyTo.body}
+                    <Twemoji
+                      text={replyTo.deleted ? "Deleted message" : replyTo.body}
+                    />
                   </p>
                 </div>
               )}
 
               <p className="whitespace-pre-wrap break-words leading-relaxed">
-                {highlight(message.body, searchTerm)}
+                {/* While searching, keep the <mark> highlights (plain glyphs);
+                    otherwise upgrade any emoji in the body to Twemoji SVGs. */}
+                {searchTerm ? (
+                  highlight(message.body, searchTerm)
+                ) : (
+                  <Twemoji text={message.body} />
+                )}
               </p>
 
               <div
@@ -206,7 +215,7 @@ export default function MessageBubble({
                     : "bg-white ring-gray-200 hover:bg-gray-50"
                 }`}
               >
-                <span>{r.emoji}</span>
+                <Twemoji text={r.emoji} />
                 {r.count > 1 && (
                   <span className="text-[10px] font-semibold text-gray-600">
                     {r.count}

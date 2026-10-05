@@ -8,6 +8,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Modal from "@/shared/components/Modal";
+import { WhatsAppIcon } from "@/shared/components";
+import { waLink } from "@/shared/lib/whatsapp";
 import { fetchUserById } from "@/modules/users/services";
 import { ROLE_LABELS } from "@/shared/constants/roles";
 import { initials } from "../utils/format";
@@ -121,6 +123,18 @@ export default function TeacherProfileModal({
               )}
             </Row>
           </div>
+
+          {data?.phone && (
+            <a
+              href={waLink(data.phone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-600"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+              Chat on WhatsApp
+            </a>
+          )}
         </div>
       )}
     </Modal>

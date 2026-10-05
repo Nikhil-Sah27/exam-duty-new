@@ -3,13 +3,18 @@ import { useParams, Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import { useTeacherDetails, useTeacherDcsGroups } from "../hooks";
+import {
+  useTeacherDutyProgress,
+  useTeacherRsDutyProgress,
+  useTeacherDcsDutyProgress,
+} from "@/modules/duty-calculation/hooks/useDutyProgress";
 import TeacherHeader from "./TeacherHeader";
 import DutyStatsBar from "./DutyStatsBar";
 import DutySection from "./DutySection";
 import TeacherRSDutyGroups from "./TeacherRSDutyGroups";
 import TeacherDCSDutyGroups from "./TeacherDCSDutyGroups";
 import UnassignDutyModal, { type UnassignTarget } from "./UnassignDutyModal";
-import { countDutyUnits } from "../utils/dutyUnitCounts";
+import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 import { formatDate } from "@/shared/lib/utils";
 
 export default function TeacherDetailsPage() {
@@ -23,6 +28,27 @@ export default function TeacherDetailsPage() {
   const { data: dutiesData, isLoading: dutiesLoading } = useDutiesByTeacher(id);
   const { data: dcsGroupsData, isLoading: dcsGroupsLoading } =
     useTeacherDcsGroups(id!);
+
+  // Duty stats (Completed / Remaining / Target) come from the server-computed
+  // duty-calculation endpoints — the single source of truth used everywhere
+  // (dashboards, assign wizards, reports) — so the tiles never recompute or
+  // hard-code targets. One endpoint per role the teacher actually holds; the
+  // tiles sum them so a dual-role teacher (e.g. RS + Invigilator) shows the
+  // combined figure. Targets are per-role, so a role the teacher lacks is
+  // never fetched.
+  const roles = teacher?.roles ?? [];
+  // CS is a pure admin role with no duties; only these roles carry a target.
+  const hasDutyRole = roles.some(
+    (r) => r === "invigilator" || r === "rs" || r === "dcs",
+  );
+  const invProgress = useTeacherDutyProgress(
+    roles.includes("invigilator") ? id : null,
+  );
+  const rsProgress = useTeacherRsDutyProgress(roles.includes("rs") ? id : null);
+  const dcsProgress = useTeacherDcsDutyProgress(
+    roles.includes("dcs") ? id : null,
+  );
+
   const [unassignTarget, setUnassignTarget] = useState<UnassignTarget | null>(null);
 
   if (teacherLoading || dutiesLoading || dcsGroupsLoading) {
@@ -40,9 +66,19 @@ export default function TeacherDetailsPage() {
   const duties = dutiesData ?? [];
   const dcsGroups = dcsGroupsData ?? [];
 
-  // RS and DCS are group roles — a whole room-group counts as one duty, not one
-  // per class — so the tiles use group-aware counts, not raw room-duty counts.
-  const stats = countDutyUnits(duties);
+  // Sum the per-role progress payloads into the three tiles. Each payload
+  // already collapses RS/DCS room-groups into units, so a 5-room RS group
+  // counts once — matching every other duty-count surface.
+  const dutyStats = [invProgress.data, rsProgress.data, dcsProgress.data]
+    .filter((p): p is NonNullable<typeof p> => p != null)
+    .reduce(
+      (acc, p) => ({
+        completed: acc.completed + p.completed,
+        remaining: acc.remaining + p.remaining,
+        target: acc.target + p.target,
+      }),
+      { completed: 0, remaining: 0, target: 0 },
+    );
 
   // Grouped views own their role's duties: RS derives room-groups from the
   // flat list; DCS renders its persisted groups. Everything else (invigilator
@@ -63,8 +99,15 @@ export default function TeacherDetailsPage() {
   // empty state when the teacher has no grouped duties either.
   const showFlat = flatDuties.length > 0 || (!showDcs && !showRs);
 
-  const flatUpcoming = flatDuties.filter((d) => d.status === "assigned");
-  const flatCompleted = flatDuties.filter((d) => d.status === "completed");
+  // Completed is time-derived, never a stored status — a duty stays "assigned"
+  // even after it happens. Split on `isDutyUpcoming` (the app-wide source of
+  // truth) so a past duty lands in Completed, matching the stat tiles and every
+  // other dashboard, instead of lingering under Upcoming.
+  const liveFlat = flatDuties.filter((d) => d.status !== "cancelled");
+  const flatUpcoming = liveFlat.filter((d) => isDutyUpcoming(d.date, d.endTime));
+  const flatCompleted = liveFlat.filter(
+    (d) => !isDutyUpcoming(d.date, d.endTime),
+  );
 
   return (
     <div className="space-y-6">
@@ -83,12 +126,15 @@ export default function TeacherDetailsPage() {
       {/* Header card */}
       <TeacherHeader teacher={teacher} />
 
-      {/* Stats bar */}
-      <DutyStatsBar
-        upcoming={stats.active}
-        completed={stats.completed}
-        total={stats.total}
-      />
+      {/* Stats bar — CS (and non-teaching) accounts carry no duty target, so
+          the Completed/Remaining/Target tiles would be a meaningless 0/0/0. */}
+      {hasDutyRole && (
+        <DutyStatsBar
+          completed={dutyStats.completed}
+          remaining={dutyStats.remaining}
+          target={dutyStats.target}
+        />
+      )}
 
       {/* Duty sections — grouped for RS/DCS, flat table otherwise */}
       {showDcs && (

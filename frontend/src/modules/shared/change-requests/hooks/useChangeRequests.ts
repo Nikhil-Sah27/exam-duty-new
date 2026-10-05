@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveChangeRequest,
   createChangeRequest,
+  deleteChangeRequest,
   getAvailableReplacementDuties,
   getPendingChangeRequests,
   getTeacherChangeRequests,
@@ -73,5 +74,15 @@ export function useRejectChangeRequest() {
     mutationFn: ({ id, note }: { id: string; note?: string }) =>
       rejectChangeRequest(id, note),
     onSuccess: () => invalidateAll(qc),
+  });
+}
+
+export function useDeleteChangeRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteChangeRequest(id),
+    // Deleting only removes the request record; no duty state changes, so just
+    // refresh the change-request lists/counts.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["change-requests"] }),
   });
 }

@@ -21,6 +21,7 @@ export const ACTION_META: Record<string, { label: string; tone: string }> = {
   SUBMIT_CHANGE_REQUEST: { label: "Change request submitted", tone: "indigo" },
   APPROVE_CHANGE_REQUEST: { label: "Change request approved", tone: "emerald" },
   REJECT_CHANGE_REQUEST: { label: "Change request rejected", tone: "red" },
+  DELETE_CHANGE_REQUEST: { label: "Change request deleted", tone: "red" },
   CREATE_EXAM: { label: "Exam created", tone: "emerald" },
   DELETE_EXAM: { label: "Exam deleted", tone: "red" },
   CREATE_USER: { label: "Teacher created", tone: "emerald" },
@@ -93,6 +94,16 @@ export function summarizeDetails(entry: AuditLogEntry): string {
       const parts = [d.type ? str(d.type).replace(/_/g, " ") : "", d.scope ? `(${d.scope})` : ""];
       if (d.note) parts.push(`Note: ${d.note}`);
       return parts.filter(Boolean).join(" ");
+    }
+    case "DELETE_CHANGE_REQUEST": {
+      return [
+        d.type ? str(d.type).replace(/_/g, " ") : "",
+        d.scope ? `(${d.scope})` : "",
+        d.status ? `· was ${d.status}` : "",
+        d.requestedByName ? `· by ${d.requestedByName}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
     }
     case "CREATE_EXAM":
       return [

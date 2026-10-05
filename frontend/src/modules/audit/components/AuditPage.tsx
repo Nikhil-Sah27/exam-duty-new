@@ -35,6 +35,7 @@ const ACTION_GROUPS: { label: string; options: { value: string; label: string }[
       { value: "SUBMIT_CHANGE_REQUEST", label: "Change request submitted" },
       { value: "APPROVE_CHANGE_REQUEST", label: "Change request approved" },
       { value: "REJECT_CHANGE_REQUEST", label: "Change request rejected" },
+      { value: "DELETE_CHANGE_REQUEST", label: "Change request deleted" },
     ],
   },
   {

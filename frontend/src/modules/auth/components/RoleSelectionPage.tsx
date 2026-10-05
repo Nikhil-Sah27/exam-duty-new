@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { useAppStore } from "@/shared/store/app.store";
 import { useSelectRole } from "../hooks";
 import type { UserRole } from "@/shared/lib/types";
 import RoleSelectionCard from "./RoleSelectionCard";
@@ -9,7 +11,14 @@ export default function RoleSelectionPage() {
   const user = useAuthStore((s) => s.user);
   const tempToken = useAuthStore((s) => s.tempToken);
   const token = useAuthStore((s) => s.token);
+  const applyAnyRoleTheme = useAppStore((s) => s.applyAnyRoleTheme);
   const selectRoleMutation = useSelectRole();
+
+  // No role is active on this screen, so fall back to dark if ANY of the user's
+  // roles opted into it. (Hook runs before the early returns below.)
+  useEffect(() => {
+    applyAnyRoleTheme();
+  }, [applyAnyRoleTheme]);
 
   // No tempToken and no full token → not authenticated at all.
   if (!user || (!tempToken && !token)) {
@@ -25,7 +34,7 @@ export default function RoleSelectionPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 p-6 dark:from-slate-900 dark:to-slate-950">
       <div className="w-full max-w-3xl">
         <div className="mb-8 text-center">
           <div className="mb-5 flex justify-center">

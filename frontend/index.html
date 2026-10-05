@@ -12,12 +12,47 @@
       rel="stylesheet"
     />
     <script>
-      // Apply the saved theme before first paint to avoid a light flash.
+      // Apply the saved theme before first paint to avoid a flash. Theme is
+      // per-role (key "theme:<role>"), so pick the role from the URL; the
+      // role-picker ("/select-role") goes dark if ANY role opted in. Mirrors
+      // app.store.ts — keep the two in sync.
       (function () {
         try {
-          if (localStorage.getItem("theme") === "dark") {
-            document.documentElement.classList.add("dark");
+          var path = location.pathname;
+          var under = function (base) {
+            return path === base || path.indexOf(base + "/") === 0;
+          };
+          var legacy = localStorage.getItem("theme") === "dark";
+          var isDark = function (role) {
+            var v = localStorage.getItem("theme:" + role);
+            return v === "dark" || (v === null && legacy);
+          };
+
+          var dark = false;
+          if (under("/login")) {
+            dark = false;
+          } else if (under("/invigilator")) {
+            dark = isDark("invigilator");
+          } else if (under("/rs")) {
+            dark = isDark("rs");
+          } else if (under("/dcs")) {
+            dark = isDark("dcs");
+          } else if (under("/select-role")) {
+            // Any role dark → dark.
+            var roles = ["cs", "dcs", "rs", "invigilator"];
+            for (var i = 0; i < roles.length; i++) {
+              if (localStorage.getItem("theme:" + roles[i]) === "dark") {
+                dark = true;
+                break;
+              }
+            }
+            if (!dark && legacy) dark = true;
+          } else {
+            // Root + CS pages.
+            dark = isDark("cs");
           }
+
+          if (dark) document.documentElement.classList.add("dark");
         } catch (e) {}
       })();
     </script>

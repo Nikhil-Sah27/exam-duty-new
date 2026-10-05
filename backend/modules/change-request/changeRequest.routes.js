@@ -17,5 +17,7 @@ router.get("/:id", controller.getById);
 // buttons only render in the CS admin UI — the guard closes that gap.
 router.patch("/:id/approve", requireRole("cs"), controller.approve);
 router.patch("/:id/reject", requireRole("cs"), controller.reject);
+// Deleting a change-request record is CS-only and audit-logged.
+router.delete("/:id", requireRole("cs"), controller.remove);
 
 module.exports = router;

@@ -1,58 +1,61 @@
-import { Crown, Users, GraduationCap, ClipboardList } from "lucide-react";
-import RoleCard, { type RoleInfo } from "./RoleCard";
+import Eyebrow from "./Eyebrow";
+import Reveal from "./Reveal";
 
-const ROLES: RoleInfo[] = [
+const ROLES = [
   {
-    icon: Crown,
     name: "CS",
     full: "Controller of Superintendents",
-    description:
-      "The admin. Creates exams, assigns duties, reviews change requests and oversees the whole invigilation plan.",
-    accent: "from-indigo-500 to-violet-600",
+    tag: "the exam cell",
+    body: "Creates exams, assigns duties, approves change requests and sees the whole plan — including who’s confirmed and who isn’t.",
   },
   {
-    icon: Users,
     name: "DCS",
     full: "Deputy Chief Superintendent",
-    description:
-      "Supervises groups of rooms sized by student count, coordinating invigilators across a block.",
-    accent: "from-sky-500 to-blue-600",
+    tag: "blocks",
+    body: "Supervises a block of rooms sized by student count, and the invigilators working in it.",
   },
   {
-    icon: GraduationCap,
     name: "RS",
     full: "Room Superintendent",
-    description:
-      "Oversees chunks of up to five rooms per building and slot, managing grouped room duties.",
-    accent: "from-amber-500 to-orange-600",
+    tag: "≤ 5 rooms",
+    body: "Covers a group of up to five rooms per building and slot — claimed, reminded and counted as one duty.",
   },
   {
-    icon: ClipboardList,
     name: "Invigilator",
     full: "Single-room duty",
-    description:
-      "Selects and manages individual classroom invigilation duties and raises change requests when needed.",
-    accent: "from-emerald-500 to-teal-600",
+    tag: "one room",
+    body: "Picks their own rooms or takes what’s assigned, confirms in one tap, and asks for a swap when life happens.",
   },
 ];
 
 /** The four roles Proctavo is built around. */
 export default function RoleSection() {
   return (
-    <section id="roles" className="border-b border-white/10 bg-slate-950">
-      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-20">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-wider text-indigo-400">
-            One app, four roles
-          </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Everyone sees only what they need
+    <section id="roles" className="scroll-mt-20 border-t border-[#e6e1d6] bg-[#efebe3]">
+      <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8">
+        <Reveal>
+          <Eyebrow>One roster, four roles</Eyebrow>
+          <h2 className="mt-4 max-w-3xl font-editorial text-5xl leading-[1.02] text-[#17151f] sm:text-6xl">
+            Everyone sees <span className="italic text-indigo-600">their</span> part — and nothing more.
           </h2>
-        </div>
+          <p className="mt-5 max-w-2xl font-landing text-[16px] leading-relaxed text-[#5a5466]">
+            Roles follow from each person’s designation — nobody assigns them by hand. Teachers see “Occupied”, not
+            names; only the exam cell sees who holds each duty.
+          </p>
+        </Reveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {ROLES.map((r) => (
-            <RoleCard key={r.name} {...r} />
+        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {ROLES.map((r, i) => (
+            <Reveal key={r.name} delay={i * 90}>
+              <article className="flex h-full flex-col rounded-2xl bg-[#fbfaf7] p-6 ring-1 ring-[#e3ddd1]">
+                <span className="self-start rounded-full bg-[#17151f] px-2.5 py-1 font-landing-mono text-[10px] uppercase tracking-[0.16em] text-white">
+                  {r.tag}
+                </span>
+                <h3 className="mt-6 font-editorial text-4xl leading-none text-[#17151f]">{r.name}</h3>
+                <p className="mt-2 font-landing text-[13px] font-medium text-indigo-600">{r.full}</p>
+                <p className="mt-4 font-landing text-[14.5px] leading-relaxed text-[#5a5466]">{r.body}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>

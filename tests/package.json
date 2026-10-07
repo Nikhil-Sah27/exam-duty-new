@@ -16,7 +16,8 @@
     "test:create-exams": "node 10-create-exams.test.js",
     "test:notification-events": "node 11-notification-events.test.js",
     "test:unassign": "node 12-unassign.test.js",
-    "test:confirmation": "node 13-confirmation.test.js"
+    "test:confirmation": "node 13-confirmation.test.js",
+    "test:concurrency": "node 14-concurrency.test.js"
   },
   "dependencies": {
     "axios": "^1.15.0"

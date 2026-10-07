@@ -25,6 +25,26 @@ const create = (data, session) => {
   return Duty.create([data], { session }).then((docs) => docs[0]);
 };
 
+/**
+ * Create one duty per item, in order — the write half of every group claim.
+ * Inside a transaction a failure rolls everything back by itself. Without one
+ * (standalone Mongo, where `withOptionalTransaction` runs with a null session)
+ * the rooms written before the failure are deleted again, so losing a claim
+ * race on room 3 of 5 can't leave a teacher holding rooms 1–2.
+ */
+const createMany = async (items, session) => {
+  const created = [];
+  try {
+    for (const data of items) created.push(await create(data, session));
+    return created;
+  } catch (err) {
+    if (!session && created.length) {
+      await Duty.deleteMany({ _id: { $in: created.map((d) => d._id) } });
+    }
+    throw err;
+  }
+};
+
 const findAll = (filter = {}) => {
   return Duty.find(filter).populate(POPULATE_FIELDS).sort({ date: 1, startTime: 1 });
 };
@@ -138,6 +158,7 @@ module.exports = {
   updateMany,
   cancelMany,
   create,
+  createMany,
   distinctTeachersForSchedules,
   distinctTeachersWithDutiesSince,
   findAll,

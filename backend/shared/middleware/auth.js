@@ -1,5 +1,5 @@
-const jwt = require("jsonwebtoken");
 const AppError = require("../utils/AppError");
+const authenticateToken = require("../utils/authenticateToken");
 const User = require("../../modules/auth/auth.model");
 
 const ACTIVE_STAMP_MS = 10 * 60 * 1000;
@@ -12,24 +12,7 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const token = header.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (!decoded.activeRole) {
-      return next(
-        new AppError("Role not selected — call /auth/select-role first", 401)
-      );
-    }
-
-    const user = await User.findById(decoded.id).select("roles lastActiveAt");
-    if (!user) return next(new AppError("Not authorized — user not found", 401));
-    const roles = user.roles || [];
-
-    if (!roles.includes(decoded.activeRole)) {
-      return next(
-        new AppError("Active role no longer assigned to user", 401)
-      );
-    }
+    const { decoded, user, roles } = await authenticateToken(header.split(" ")[1]);
 
     // Throttled activity stamp — fire-and-forget, never on the request's path.
     const now = Date.now();

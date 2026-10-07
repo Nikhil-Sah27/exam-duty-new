@@ -12,7 +12,11 @@ const errorHandler = (err, req, res, next) => {
     const fields = Object.keys(err.keyPattern);
     const values = err.keyValue || {};
     let message;
-    if (fields.includes("roomNumber") && fields.includes("building")) {
+    if (fields.includes("examRoom") && fields.includes("role")) {
+      // Duty's one-live-duty-per-slot index: another claim on the same slot
+      // committed first (concurrent clicks). Phrased for the teacher who lost.
+      message = "This duty was just taken by someone else — please choose another";
+    } else if (fields.includes("roomNumber") && fields.includes("building")) {
       message = `Room number "${values.roomNumber}" already exists in this building`;
     } else if (fields.includes("name")) {
       message = `"${values.name}" already exists`;

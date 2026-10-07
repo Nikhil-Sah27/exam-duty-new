@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { signalDutyChangesFrom } = require("../../shared/realtime");
 
 const dutySchema = new mongoose.Schema(
   {
@@ -107,10 +108,43 @@ dutySchema.pre("validate", function confirmSelfClaims() {
   }
 });
 
+// One live duty per slot per role. An ExamRoom is one room in one schedule, so
+// this is exactly "one invigilator / RS / DCS per room per exam" — enforced by
+// Mongo, because the service's check-then-insert can be raced by concurrent
+// claims (5 teachers clicking the same duty at once). Cancelled duties drop out
+// of the index so a released slot can be claimed again; legacy exam-based
+// duties without an examRoom are not covered. Writers that move a duty
+// (swap/move approvals) cancel the old one before creating the new one.
+// Production check: scripts/check-duplicate-duties.js.
+dutySchema.index(
+  { examRoom: 1, role: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "assigned", examRoom: { $type: "objectId" } },
+    name: "one_live_duty_per_slot",
+  }
+);
+
 // Compound index — one teacher per time slot, one room per time slot
 dutySchema.index({ teacher: 1, date: 1, startTime: 1, status: 1 });
 dutySchema.index({ room: 1, date: 1, startTime: 1, status: 1 });
 dutySchema.index({ roomRef: 1, date: 1, startTime: 1, status: 1 });
 dutySchema.index({ roomRef: 1, role: 1, date: 1, startTime: 1, status: 1 });
 
-module.exports = mongoose.model("Duty", dutySchema);
+// Any change to who holds what pings open pages to refetch (shared/realtime).
+signalDutyChangesFrom(dutySchema);
+
+const Duty = mongoose.model("Duty", dutySchema);
+
+// Index builds run at boot and fail silently — e.g. when duplicate live duties
+// from before the one-per-slot index make it unbuildable. Say so in the log.
+Duty.on("index", (err) => {
+  if (err) {
+    console.error(
+      `[duty] index build failed — concurrent claims are NOT protected until fixed: ${err.message}\n` +
+        "       Run: node scripts/check-duplicate-duties.js"
+    );
+  }
+});
+
+module.exports = Duty;

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useAppStore } from "@/shared/store/app.store";
 import { useMe } from "@/modules/auth/hooks";
+import { useRealtimeSync } from "@/shared/realtime/useRealtimeSync";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -23,6 +24,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (activeRole) applyRoleTheme(activeRole);
   }, [activeRole, applyRoleTheme]);
+
+  // Live duty updates for every role shell: pages refetch when anyone claims or
+  // releases a duty.
+  useRealtimeSync();
 
   // Fetch user profile when we have a token but no user (e.g. after page refresh)
   const { data: me } = useMe();

@@ -291,47 +291,44 @@ const _performClaim = async (
   }
 
   const createdIds = await withOptionalTransaction(async (session) => {
-    // Re-read under transaction to avoid a double-claim race.
-    const fresh = await dcsGroupRepository.findById(groupId);
-    if (!fresh) throw new AppError("DCS group not found", 404);
-    if (fresh.status === "claimed") {
-      throw new AppError("This DCS group is already taken", 409);
-    }
+    // Take the group first, atomically: of several DCS claiming at once, only
+    // one flips it open → claimed. The rest stop here, before writing a duty.
+    const won = await dcsGroupRepository.claimIfOpen(groupId, assigneeId, session);
+    if (!won) throw new AppError("This DCS group is already taken", 409);
 
-    const dutyIds = [];
-    for (const examRoom of fresh.assignedRooms) {
-      const roomNumber = examRoom?.room?.roomNumber || "";
-      const roomRef = examRoom?.room?._id || null;
-      const duty = await dutyRepository.create(
-        {
+    let duties;
+    try {
+      duties = await dutyRepository.createMany(
+        group.assignedRooms.map((examRoom) => ({
           exam: null,
-          examSchedule: fresh.schedule._id,
+          examSchedule: group.schedule._id,
           examRoom: examRoom._id,
           teacher: assigneeId,
           role: "dcs",
-          room: roomNumber,
-          roomRef,
-          date: fresh.schedule.date,
-          startTime: fresh.schedule.startTime,
-          endTime: fresh.schedule.endTime,
+          room: examRoom?.room?.roomNumber || "",
+          roomRef: examRoom?.room?._id || null,
+          date: group.schedule.date,
+          startTime: group.schedule.startTime,
+          endTime: group.schedule.endTime,
           assignedBy: assignedById,
           isSelfAssigned,
-        },
+        })),
         session
       );
-      dutyIds.push(duty._id);
+    } catch (err) {
+      // No transaction (standalone Mongo) means no rollback — hand the group back.
+      if (!session) {
+        await dcsGroupRepository.updateById(
+          groupId,
+          { assignedTeacher: null, status: "open", duties: [] },
+          null
+        );
+      }
+      throw err;
     }
 
-    await dcsGroupRepository.updateById(
-      groupId,
-      {
-        assignedTeacher: assigneeId,
-        status: "claimed",
-        duties: dutyIds,
-      },
-      session
-    );
-
+    const dutyIds = duties.map((d) => d._id);
+    await dcsGroupRepository.updateById(groupId, { duties: dutyIds }, session);
     return dutyIds;
   });
 

@@ -224,6 +224,8 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
   // CS can't assign past a teacher's computed target for this role. Self-claim
   // is intentionally exempt — the requirement is about CS-driven assignment.
   if (!isSelfAssigned) await assertTargetNotReached(teacherId, dutyRole);
+  // Names the conflict for the common case. Two clicks landing together can
+  // both pass it — the Duty one-live-duty-per-slot index settles those (409).
   await validateConflicts(teacherId, room, date, startTime, endTime, undefined, roomRef, dutyRole);
 
   const duty = await withOptionalTransaction((session) =>
@@ -295,9 +297,9 @@ const selfAssignDuty = async (data, userId, activeRole) => {
  * the RS's duty, or none do.
  *
  * Conflict semantics: the entire group rejects on the first conflict (any
- * teacher- or room-overlap), and the partial state is rolled back when the
- * deployment supports transactions. On standalone Mongo, partial state is
- * possible — same trade-off as elsewhere in the service.
+ * teacher- or room-overlap). Concurrent claims on the same rooms are settled
+ * by the Duty one-live-duty-per-slot index: exactly one RS gets the group,
+ * the rest get a 409, and nobody is left holding part of it.
  */
 const selfAssignDutyGroup = async (data, userId, activeRole) => {
   const { examSchedule, examRooms } = data;
@@ -309,9 +311,9 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
   if (!Array.isArray(examRooms) || examRooms.length === 0) {
     throw new AppError("examRooms must be a non-empty array", 400);
   }
-  // De-dupe defensively; the same examRoom id twice would be a UI bug, but
-  // still better to surface it cleanly than to slip past Mongo's room-unique
-  // duty index with a confusing 500.
+  // De-dupe defensively; the same examRoom id twice would be a UI bug, and
+  // would otherwise trip the one-live-duty-per-slot index as a confusing
+  // "already taken" against the caller's own claim.
   const uniqueRoomIds = [...new Set(examRooms.map((id) => String(id)))];
   if (uniqueRoomIds.length !== examRooms.length) {
     throw new AppError("examRooms contains duplicate entries", 400);
@@ -342,31 +344,28 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
     await validateConflicts(userId, roomNumber, date, startTime, endTime, undefined, roomRef, activeRole);
   }
 
+  // The pre-flight above can be raced by a concurrent claim; the duty's
+  // one-live-duty-per-slot index can't. A lost race fails here with a 409 and
+  // the whole group is undone — never a partial group.
   const createdIds = await withOptionalTransaction(async (session) => {
-    const ids = [];
-    for (const { schedule: s, examRoom } of resolved) {
-      const roomNumber = examRoom?.room?.roomNumber || "";
-      const roomRef = examRoom?.room?._id || null;
-      const duty = await dutyRepository.create(
-        {
-          exam: null,
-          examSchedule: s._id,
-          examRoom: examRoom._id,
-          teacher: userId,
-          role: activeRole,
-          room: roomNumber,
-          roomRef,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          assignedBy: userId,
-          isSelfAssigned: true,
-        },
-        session,
-      );
-      ids.push(duty._id);
-    }
-    return ids;
+    const duties = await dutyRepository.createMany(
+      resolved.map(({ schedule: s, examRoom }) => ({
+        exam: null,
+        examSchedule: s._id,
+        examRoom: examRoom._id,
+        teacher: userId,
+        role: activeRole,
+        room: examRoom?.room?.roomNumber || "",
+        roomRef: examRoom?.room?._id || null,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        assignedBy: userId,
+        isSelfAssigned: true,
+      })),
+      session,
+    );
+    return duties.map((d) => d._id);
   });
 
   const populated = await Promise.all(
@@ -455,30 +454,24 @@ const adminAssignDutyGroup = async (data, adminId) => {
   }
 
   const createdIds = await withOptionalTransaction(async (session) => {
-    const ids = [];
-    for (const { schedule: s, examRoom } of resolved) {
-      const roomNumber = examRoom?.room?.roomNumber || "";
-      const roomRef = examRoom?.room?._id || null;
-      const duty = await dutyRepository.create(
-        {
-          exam: null,
-          examSchedule: s._id,
-          examRoom: examRoom._id,
-          teacher: teacherId,
-          role: dutyRole,
-          room: roomNumber,
-          roomRef,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          assignedBy: adminId,
-          isSelfAssigned: false,
-        },
-        session,
-      );
-      ids.push(duty._id);
-    }
-    return ids;
+    const duties = await dutyRepository.createMany(
+      resolved.map(({ schedule: s, examRoom }) => ({
+        exam: null,
+        examSchedule: s._id,
+        examRoom: examRoom._id,
+        teacher: teacherId,
+        role: dutyRole,
+        room: examRoom?.room?.roomNumber || "",
+        roomRef: examRoom?.room?._id || null,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        assignedBy: adminId,
+        isSelfAssigned: false,
+      })),
+      session,
+    );
+    return duties.map((d) => d._id);
   });
 
   const populated = await Promise.all(

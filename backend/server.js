@@ -1,6 +1,7 @@
 const dotenv = require("dotenv");
 dotenv.config();
 
+const http = require("http");
 const app = require("./app");
 const connectDB = require("./shared/config/db");
 const {
@@ -9,11 +10,15 @@ const {
 const {
   startMailDispatcher,
 } = require("./modules/mail/mail.dispatcher");
+const { attachRealtime } = require("./shared/realtime");
 
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
-  app.listen(PORT, () => {
+  const server = http.createServer(app);
+  // Live "duties changed" pushes to open pages (no-op if socket.io is absent).
+  attachRealtime(server);
+  server.listen(PORT, () => {
     console.log(`Server running on port ${PORT} [${process.env.NODE_ENV}]`);
   });
   // Daily duty-reminder / target-reached notification sweeps.

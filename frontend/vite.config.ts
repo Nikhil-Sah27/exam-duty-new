@@ -16,6 +16,7 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:5000",
         changeOrigin: true,
+        ws: true, // realtime socket at /api/socket.io
       },
     },
   },
@@ -25,6 +26,7 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:5000",
         changeOrigin: true,
+        ws: true, // realtime socket at /api/socket.io
       },
     },
   },

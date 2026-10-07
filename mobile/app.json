@@ -77,6 +77,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d2cfd096-eda7-4d19-b00b-028203e9fc97"
+      }
+    },
+    "owner": "avinrique"
   }
 }

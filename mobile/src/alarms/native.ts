@@ -12,7 +12,10 @@
  *
  * The native modules are required lazily and per platform: notify-kit is only
  * linked on Android and AlarmKit only on iOS (see react-native.config.js).
+ * Inside Expo Go neither exists (nor does the bundled alarm sound), so there
+ * every alarm is a plain expo-notifications notification with the default sound.
  */
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
@@ -22,6 +25,11 @@ export const ALARM_CHANNEL_ID = "duty-alarm";
 export const ALERT_CHANNEL_ID = "duty-alerts";
 export const ALARM_SOUND_FILE = "duty_alarm.wav";
 const ALARM_SOUND_NAME = "duty_alarm";
+
+/** Running inside the Expo Go preview app (not our own build). */
+export const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Expo Go doesn't bundle our sound file; asking for it only logs an error.
+const NOTIFICATION_SOUND = IS_EXPO_GO ? "default" : ALARM_SOUND_FILE;
 const RING_FOR_MS = 10 * 60_000; // an unattended alarm stops ringing after 10 min
 const BRAND = "#6366f1";
 
@@ -34,7 +42,7 @@ let notifyKit: NotifyKit | null | undefined;
 let alarmKit: AlarmKit | null | undefined;
 
 export function getNotifyKit(): NotifyKit | null {
-  if (Platform.OS !== "android") return null;
+  if (Platform.OS !== "android" || IS_EXPO_GO) return null;
   if (notifyKit === undefined) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Android-only native module, loaded lazily
@@ -48,7 +56,9 @@ export function getNotifyKit(): NotifyKit | null {
 }
 
 function getAlarmKit(): AlarmKit | null {
-  if (Platform.OS !== "ios") return null;
+  // Requiring it without the native NitroModules (Expo Go) raises a dev-mode
+  // error even inside try/catch — so don't touch it there at all.
+  if (Platform.OS !== "ios" || IS_EXPO_GO) return null;
   if (alarmKit === undefined) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- iOS-only native module, loaded lazily
@@ -87,7 +97,7 @@ export async function ensureChannels(): Promise<void> {
     name: "Duty alarms",
     description: "Rings like an alarm clock before each exam duty.",
     importance: Notifications.AndroidImportance.MAX,
-    sound: ALARM_SOUND_FILE,
+    sound: NOTIFICATION_SOUND,
     bypassDnd: true,
     enableVibrate: true,
     vibrationPattern: [0, 800, 400, 800, 400, 800],
@@ -150,7 +160,7 @@ async function scheduleExpo(p: AlarmPayload): Promise<string> {
       title: p.title,
       body: p.body,
       data: toAlarmData(p),
-      sound: ALARM_SOUND_FILE,
+      sound: NOTIFICATION_SOUND,
       interruptionLevel: "timeSensitive",
       priority: Notifications.AndroidNotificationPriority.MAX,
     },

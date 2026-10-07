@@ -3,7 +3,15 @@ import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Platform, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { confirmFromAlarm, snoozeAlarm, stopRinging, type AlarmPayload } from "@/alarms";
+import {
+  confirmFromAlarm,
+  shouldRingInApp,
+  snoozeAlarm,
+  startInAppRinging,
+  stopInAppRinging,
+  stopRinging,
+  type AlarmPayload,
+} from "@/alarms";
 import { Button, Icon, Text } from "@/components/ui";
 import { useMyUnits } from "@/features/duties/hooks";
 import { examTitle, formatClock, formatExamDate, formatInstant } from "@/lib/format";
@@ -52,20 +60,35 @@ export default function AlarmScreen() {
     };
   }, []);
 
+  // Ring from the app itself where the notification can't (iPhone without
+  // AlarmKit, Expo Go) — plays even with the silent switch on while this is open.
+  useEffect(() => {
+    if (shouldRingInApp(payload.fireAt)) void startInAppRinging();
+    return stopInAppRinging;
+  }, [payload.fireAt]);
+
   const unit = units.data?.find((u) => u.key === payload.unitKey);
   const cancelled = !payload.test && units.isSuccess && !unit;
 
+  // No point ringing someone toward a duty they no longer have.
+  useEffect(() => {
+    if (cancelled) stopInAppRinging();
+  }, [cancelled]);
+
   const dismiss = async () => {
+    stopInAppRinging();
     await stopRinging(notificationId);
     leave();
   };
   const snooze = async () => {
     setBusy("snooze");
+    stopInAppRinging();
     await snoozeAlarm(payload, notificationId);
     leave();
   };
   const onMyWay = async () => {
     setBusy("go");
+    stopInAppRinging();
     await stopRinging(notificationId);
     if (!unit?.confirmed) await confirmFromAlarm(payload); // no-op for tests; errors swallowed
     void units.refetch();

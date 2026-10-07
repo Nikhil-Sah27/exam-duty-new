@@ -43,6 +43,8 @@ const ICONS = {
   web: { ios: "globe", android: "language" },
   chat: { ios: "bubble.left.and.bubble.right.fill", android: "chat" },
   key: { ios: "key.fill", android: "key" },
+  volumeOff: { ios: "speaker.slash.fill", android: "volume_off" },
+  volumeUp: { ios: "speaker.wave.3.fill", android: "volume_up" },
 } as const satisfies Record<string, { ios: string; android: string }>;
 
 export type IconName = keyof typeof ICONS;

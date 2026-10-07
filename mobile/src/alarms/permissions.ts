@@ -8,6 +8,7 @@ import * as Notifications from "expo-notifications";
 import { Linking, Platform } from "react-native";
 
 import { ALARM_CHANNEL_ID, ensureAlarmKitAuthorized, getNotifyKit, hasAlarmKit } from "./native";
+import { getSoundStatus, soundAdvice } from "./sound";
 
 export interface HealthItem {
   id: string;
@@ -30,6 +31,42 @@ async function notificationPermission(): Promise<HealthItem> {
     ok: perm.granted,
     fixLabel: perm.canAskAgain ? "Allow" : "Open settings",
     fix: perm.canAskAgain ? () => Notifications.requestPermissionsAsync() : openAppSettings,
+  };
+}
+
+/** Android alarm volume — the one thing that silences an alarm-stream alarm. */
+async function alarmVolumeItem(): Promise<HealthItem | null> {
+  const status = await getSoundStatus();
+  if (status.alarmVolume === null) return null;
+  const advice = soundAdvice(status);
+  return {
+    id: "alarm-volume",
+    label: "Alarm volume",
+    detail: advice ? advice.message : `${Math.round(status.alarmVolume * 100)}% — loud enough.`,
+    ok: advice ? false : true,
+    fixLabel: advice?.fix?.label,
+    fix: advice?.fix?.run,
+  };
+}
+
+/** iPhone without AlarmKit: the Ring/Silent switch decides whether alarms make a sound. */
+async function silentSwitchItem(): Promise<HealthItem> {
+  const { silent } = await getSoundStatus();
+  if (silent === null) {
+    return {
+      id: "ios-legacy",
+      label: "Silent mode",
+      detail: "On iOS older than 26, alarms play as loud notifications but can't ring while the phone is on silent.",
+      ok: null,
+    };
+  }
+  return {
+    id: "ios-silent",
+    label: "Ring / Silent switch",
+    detail: silent
+      ? "On silent — duty alarms won't make a sound. Flip the switch (or the Action button) back to Ring."
+      : "Ringer on — duty alarms will sound.",
+    ok: !silent,
   };
 }
 
@@ -78,6 +115,9 @@ export async function getAlarmHealth(): Promise<HealthItem[]> {
           data: `package:${Application.applicationId}`,
         }).catch(openAppSettings),
     });
+
+    const volume = await alarmVolumeItem();
+    if (volume) items.push(volume);
 
     const blocked = await n.isChannelBlocked(ALARM_CHANNEL_ID).catch(() => false);
     items.push({
@@ -129,12 +169,7 @@ export async function getAlarmHealth(): Promise<HealthItem[]> {
         fix: openAppSettings,
       });
     } else {
-      items.push({
-        id: "ios-legacy",
-        label: "Silent mode",
-        detail: "On iOS older than 26, alarms play as loud notifications but can't ring while the phone is on silent.",
-        ok: null,
-      });
+      items.push(await silentSwitchItem());
     }
   }
   return items;

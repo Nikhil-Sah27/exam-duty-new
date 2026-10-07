@@ -72,7 +72,17 @@
         }
       ],
       "react-native-notify-kit",
-      "./plugins/withAlarmLockScreen"
+      "./plugins/withAlarmLockScreen",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

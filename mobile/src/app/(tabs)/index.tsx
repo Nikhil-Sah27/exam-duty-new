@@ -5,6 +5,7 @@ import { View } from "react-native";
 
 import { useAlarmSettings, useAlarmState } from "@/alarms";
 import { Banner, Button, Card, EmptyState, Icon, ListRow, Divider, Screen, Text } from "@/components/ui";
+import { SoundCheckBanner } from "@/features/alarms/SoundCheckBanner";
 import { DutyUnitCard } from "@/features/duties/DutyUnitCard";
 import { useConfirmUnit, useMyUnits } from "@/features/duties/hooks";
 import { WEB_URL } from "@/lib/config";
@@ -60,6 +61,8 @@ export default function HomeScreen() {
           <Icon name="chevron" size={16} color="#e0e7ff" />
         </View>
       </Card>
+
+      {alarmsOn && nextAlarm ? <SoundCheckBanner /> : null}
 
       {unconfirmed > 0 ? (
         <Banner tone="warning" title={`${unconfirmed} dut${unconfirmed === 1 ? "y needs" : "ies need"} your confirmation`}>

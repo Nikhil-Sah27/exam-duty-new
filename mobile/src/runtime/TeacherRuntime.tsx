@@ -60,7 +60,13 @@ export function TeacherRuntime() {
   // Server pushes: anything duty-related may have changed → refresh + re-sync.
   useEffect(() => {
     const received = Notifications.addNotificationReceivedListener((n) => {
-      if (fromAlarmData(pushDataOf(n) as Record<string, unknown>)) return; // our own local alarm
+      const alarm = fromAlarmData(pushDataOf(n) as Record<string, unknown>);
+      if (alarm) {
+        // One of our own alarms fired while the app is open: bring up the alarm
+        // screen, which rings out loud even on silent.
+        openAlarmScreen(alarm, n.request.identifier);
+        return;
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myUnits });
       lastSync.current = Date.now();

@@ -6,6 +6,7 @@ import { Alert, Switch, View } from "react-native";
 import {
   getAlarmHealth,
   LEAD_OPTIONS,
+  playSoundCheck,
   scheduleTestAlarm,
   syncAlarms,
   useAlarmSettings,
@@ -154,6 +155,7 @@ export default function SettingsScreen() {
               onPress={() => void test()}
               disabled={!!testAt}
             />
+            <Button title="Play alarm sound" icon="volumeUp" variant="secondary" onPress={() => void playSoundCheck()} />
           </>
         ) : null}
       </Card>

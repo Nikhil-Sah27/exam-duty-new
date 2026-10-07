@@ -25,6 +25,7 @@ export function openAlarmScreen(p: AlarmPayload, notificationId: string, fromLau
     params: {
       notificationId,
       id: p.id,
+      fireAt: String(p.fireAt),
       title: p.title,
       body: p.body,
       unitKey: p.unitKey,

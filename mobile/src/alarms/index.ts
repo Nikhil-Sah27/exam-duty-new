@@ -4,3 +4,5 @@ export { ensureChannels, findRingingAlarm, stopRinging } from "./native";
 export { getAlarmHealth, type HealthItem } from "./permissions";
 export { fromAlarmData, type AlarmPayload } from "./plan";
 export { DEFAULT_ALARM_SETTINGS, LEAD_OPTIONS, useAlarmSettings, type AlarmSettings, type LeadId } from "./settings";
+export { playSoundCheck, shouldRingInApp, startInAppRinging, stopInAppRinging } from "./ringer";
+export { getSoundStatus, raiseAlarmVolume, soundAdvice, useSoundStatus, type SoundAdvice, type SoundStatus } from "./sound";

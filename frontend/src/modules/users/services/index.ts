@@ -1,6 +1,8 @@
 import api from "@/shared/lib/api";
 import {
   CreateUserRequest,
+  ImportUsersRequest,
+  ImportUsersResult,
   UpdateUserRequest,
   UserListResponse,
   UserResponse,
@@ -45,5 +47,11 @@ export const deleteUser = async (id: string): Promise<void> => {
 
 export const activateUser = async (id: string): Promise<UserProfile> => {
   const res = await api.patch<UserResponse>(`/users/${id}/activate`);
+  return res.data.data;
+};
+
+/** CS bulk import from a parsed CSV; `dryRun` validates without creating anyone. */
+export const importUsers = async (data: ImportUsersRequest): Promise<ImportUsersResult> => {
+  const res = await api.post<{ success: boolean; data: ImportUsersResult }>("/users/import", data);
   return res.data.data;
 };

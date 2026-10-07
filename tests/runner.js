@@ -26,6 +26,7 @@ const suites = [
   { name: "Confirmation", file: "./13-confirmation.test.js" },
   { name: "Concurrency", file: "./14-concurrency.test.js" },
   { name: "Push + My Units", file: "./15-push.test.js" },
+  { name: "User Import", file: "./16-user-import.test.js" },
 ];
 
 async function main() {

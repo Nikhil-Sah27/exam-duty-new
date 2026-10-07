@@ -9,6 +9,8 @@ import TeacherRow from "./TeacherRow";
 
 interface TeacherTableProps {
   onCreateClick: () => void;
+  /** Shown only to CS — bulk import from a CSV. */
+  onImportClick?: () => void;
 }
 
 interface Filters {
@@ -17,7 +19,7 @@ interface Filters {
   department: string;
 }
 
-export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
+export default function TeacherTable({ onCreateClick, onImportClick }: TeacherTableProps) {
   // Admin table shows deactivated teachers too, pushed to the bottom.
   const { data: users, isLoading, isError, error } = useUsers({
     includeInactive: true,
@@ -80,12 +82,22 @@ export default function TeacherTable({ onCreateClick }: TeacherTableProps) {
             Manage all teachers and staff accounts.
           </p>
         </div>
-        <button
-          onClick={onCreateClick}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-        >
-          + Add Teacher
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {onImportClick && (
+            <button
+              onClick={onImportClick}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              Import CSV
+            </button>
+          )}
+          <button
+            onClick={onCreateClick}
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+          >
+            + Add Teacher
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

@@ -31,13 +31,25 @@ const toUserDTO = (user, activeRole = null) => ({
   activeRole: activeRole || (user.roles && user.roles.length === 1 ? user.roles[0] : null),
 });
 
+/**
+ * Public self-sign-up. CLOSED by default: accounts are created by the exam cell
+ * (Teachers page, CSV import). Left open it was an unauthenticated way to any
+ * role — "Other" + "cs" minted an admin — so it needs ALLOW_PUBLIC_REGISTER=true,
+ * and even then can never grant CS.
+ */
 const register = async ({ name, email, password, phone, designation, roles }) => {
+  if (String(process.env.ALLOW_PUBLIC_REGISTER).toLowerCase() !== "true") {
+    throw new AppError("Sign-up is closed — ask your exam cell to add you to Proctavo.", 403);
+  }
   const existing = await authRepository.findUserByEmail(email);
   if (existing) {
     throw new AppError("Email already registered", 409);
   }
 
   const finalRoles = enforceRolesForDesignation(designation, roles);
+  if (finalRoles.includes("cs")) {
+    throw new AppError("The CS role can't be self-registered", 403);
+  }
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
   const user = await authRepository.createUser({

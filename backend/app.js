@@ -9,6 +9,9 @@ const app = express();
 app.use(cors({ origin: corsOrigin, credentials: true }));
 
 // Body parsers
+// A CSV import of a whole faculty (up to 1000 rows) outgrows the 100 kb default;
+// only that route gets the bigger limit. The global parser skips bodies already parsed.
+app.use("/api/users/import", express.json({ limit: "2mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

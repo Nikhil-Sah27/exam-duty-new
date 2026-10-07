@@ -20,15 +20,15 @@ cd frontend && npm run lint  # eslint (non-blocking in CI)
 There is no backend unit-test framework. Tests are **API integration tests** in `tests/` that hit a *running* backend over HTTP:
 
 ```bash
-cd tests && npm test               # full suite (runner.js, ~137 tests) — requires backend up + seeded admin
-cd tests && npm run test:duties    # one suite (scripts 01-auth … 15-push mirror the filenames)
+cd tests && npm test               # full suite (runner.js, ~146 tests) — requires backend up + seeded admin
+cd tests && npm run test:duties    # one suite (scripts 01-auth … 16-user-import mirror the filenames)
 cd tests && node 07-duties.test.js # same thing — every suite self-runs via `require.main === module`
 API_URL=https://host/api npm test  # target a remote backend
 ```
 
 Prereqs for tests: MongoDB running, `node backend/scripts/seed-users.js` (creates `admin@examduty.com` / `Admin123`), backend started. CI (`.github/workflows/ci.yml`) runs both gates as blocking: frontend build/typecheck and the API suite against a throwaway Mongo.
 
-Test-suite gotchas: credentials come from `tests/config.js` (`API_URL` env overrides the base URL only) and shared assertions from `tests/helpers.js`. The suites **write to whatever DB the running backend points at** — run them against a throwaway Mongo, not a dev DB you care about. `runner.js` runs 01→15 in order (through `11-notification-events`, `12-unassign`, `13-confirmation`, `14-concurrency`, `15-push`) and threads the admin token from the auth suite onward; a single suite logs in for itself, but later suites lean on data earlier ones created, so a lone failure is worth re-checking under the full runner.
+Test-suite gotchas: credentials come from `tests/config.js` (`API_URL` env overrides the base URL only) and shared assertions from `tests/helpers.js`. The suites **write to whatever DB the running backend points at** — run them against a throwaway Mongo, not a dev DB you care about. `runner.js` runs 01→16 in order (through `11-notification-events`, `12-unassign`, `13-confirmation`, `14-concurrency`, `15-push`, `16-user-import`) and threads the admin token from the auth suite onward; a single suite logs in for itself, but later suites lean on data earlier ones created, so a lone failure is worth re-checking under the full runner.
 
 Backend env lives in `backend/.env` (`PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `CLIENT_ORIGINS` — comma-separated extra CORS origins; mail: `MAIL_ENABLED`, `MAIL_TRANSPORT` (**defaults to `console`, which renders without sending — leave it there locally and in CI**), `MAIL_USER`/`MAIL_PASS`/`MAIL_FROM`, `MAIL_HOST`/`MAIL_PORT` for plain SMTP, and `APP_URL` for email deep links; calendar: `CALENDAR_INVITES`, `APP_TIMEZONE`). Frontend needs no env locally — axios defaults to `/api` (overridable via `VITE_API_URL`) through the Vite proxy to :5000.
 
@@ -67,6 +67,7 @@ Frontend conventions worth knowing before adding UI: imports use the `@/` alias 
 
 ### Core invariants (violating these breaks real flows)
 
+- **Only CS manages CS accounts; nobody signs themselves up.** User writes (`POST/PUT/DELETE /users…`) need an active role of CS, DCS or RS (the Teachers page is shared), but `user.service` refuses any create/edit/delete/reactivate that touches a CS account unless the actor is CS — "Other" + "cs" used to let anyone mint an admin. `PUT /users/:id` whitelists profile fields (never password/OTP/status). `POST /auth/register` is closed (403) unless `ALLOW_PUBLIC_REGISTER=true`, and never grants CS. Bulk CSV import (`POST /users/import`, Teachers → Import CSV) is CS-only; proof: `tests/16-user-import.test.js`.
 - **Roles are derived, not edited.** `User.roles` is an array computed from `designation` by `backend/shared/utils/roleResolver.js` — the single source of truth for eligibility everywhere (user CRUD, CS assignment pickers). Only designation `Other` allows picking a role manually.
 - **Active role drives everything.** The JWT carries `activeRole`; multi-role users get a `tempToken` at login and pick a role via `POST /auth/select-role`. `protect` re-validates `activeRole` against `roles` on every request.
 - **Password reset is a two-step OTP.** `POST /auth/forgot-password` (public) mails a 6-digit code; `POST /auth/reset-password` (public) verifies it and sets the new password. The OTP is stored on `User` as `resetOtpHash`/`resetOtpExpires`/`resetOtpAttempts` (all `select: false`, hashed, 10-min TTL, attempt-limited) — never returned by the API.

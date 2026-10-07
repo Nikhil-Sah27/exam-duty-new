@@ -6,9 +6,10 @@ import {
   updateUser,
   deleteUser,
   activateUser,
+  importUsers,
   FetchUsersOptions,
 } from "../services";
-import { CreateUserRequest, UpdateUserRequest } from "../types";
+import { CreateUserRequest, ImportUsersRequest, UpdateUserRequest } from "../types";
 
 const USERS_KEY = ["users"];
 const usersKey = (options: FetchUsersOptions = {}) => [
@@ -69,6 +70,20 @@ export const useActivateUser = () => {
   return useMutation({
     mutationFn: (id: string) => activateUser(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      queryClient.invalidateQueries({ queryKey: ["duty-calculation"] });
+    },
+  });
+};
+
+/** CSV import. A real (non-dry) run refreshes the teacher list and duty targets. */
+export const useImportUsers = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ImportUsersRequest) => importUsers(data),
+    onSuccess: (result) => {
+      if (result.dryRun || result.summary.created === 0) return;
       queryClient.invalidateQueries({ queryKey: USERS_KEY });
       queryClient.invalidateQueries({ queryKey: ["duty-calculation"] });
     },

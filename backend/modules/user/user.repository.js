@@ -39,6 +39,27 @@ const findByIdIncludingInactive = (id) =>
 // active-only pre-find hook doesn't apply — soft-deleted users are removable.
 const hardDeleteById = (id) => User.deleteOne({ _id: id });
 
+/** Which of these emails already have an account (active or deactivated)? */
+const findExistingEmails = (emails) =>
+  User.find({ email: { $in: emails }, isActive: { $in: [true, false] } })
+    .select("email isActive")
+    .lean();
+
+/**
+ * Insert many users, continuing past individual failures (ordered: false).
+ * Returns the indexes (into `docs`) that failed — e.g. an email taken between
+ * the duplicate check and the insert.
+ */
+const createMany = async (docs) => {
+  try {
+    await User.insertMany(docs, { ordered: false });
+    return [];
+  } catch (err) {
+    if (Array.isArray(err.writeErrors)) return err.writeErrors.map((e) => e.index ?? e.err?.index);
+    throw err;
+  }
+};
+
 // Explicitly filters on isActive so the model's pre-find hook (which auto-scopes
 // queries to active users) does not hide the inactive record we want to update.
 const activateById = (id) => {
@@ -72,6 +93,8 @@ const findActiveIds = async (roles) => {
 };
 
 module.exports = {
+  findExistingEmails,
+  createMany,
   create,
   findAll,
   findById,

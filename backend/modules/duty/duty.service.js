@@ -8,11 +8,11 @@ const examRoomRepo = require("../exam/examRoom.repository");
 const examGroupRepo = require("../exam/examGroup.repository");
 const { emit, emitToMany } = require("../notification/notification.emitter");
 const userService = require("../user/user.service");
-const { buildRoomLabel } = require("../exam-cleanup/utils/examCleanupUtils");
+const { buildRoomLabel, buildExamLabel } = require("../exam-cleanup/utils/examCleanupUtils");
 const {
   assertTargetNotReached,
 } = require("../duty-calculation/dutyCalculation.service");
-const { unitFilter } = require("./duty.unit");
+const { unitFilter, unitKey, groupIntoUnits, locationFor, idOf } = require("./duty.unit");
 const confirmToken = require("./duty.confirmToken");
 const { localToUtc } = require("../../shared/utils/datetime");
 
@@ -739,6 +739,63 @@ const confirmDutyUnit = async (dutyId, { teacherId, via }) => {
 };
 
 /**
+ * The caller's live upcoming duty UNITS across all their roles — what the
+ * phone app schedules alarms from. One entry per unit (a 5-room RS group is one
+ * alarm, not five), each with exact UTC `startsAt`/`endsAt` computed from the
+ * local wall-clock times (APP_TIMEZONE), so the phone needs no timezone logic.
+ * Units already over (endsAt <= now) are dropped; sorted by start.
+ */
+const getMyUpcomingUnits = async (teacherId, now = new Date()) => {
+  const since = new Date(now);
+  since.setUTCHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - 1); // local "today" can still be UTC yesterday
+  const duties = await dutyRepository.findLiveForTeacherSince(teacherId, since);
+
+  const units = [];
+  for (const list of groupIntoUnits(duties).values()) {
+    const first = list[0];
+    const schedule = first.examSchedule;
+    const date = schedule?.date || first.date;
+    const startTime = schedule?.startTime || first.startTime;
+    const endTime = schedule?.endTime || first.endTime;
+    const startsAt = localToUtc(date, startTime);
+    const endsAt = localToUtc(date, endTime);
+    if (endsAt <= now) continue;
+
+    const examGroup = schedule?.examGroup;
+    const rooms = list
+      .map((d) => d.examRoom?.room?.roomNumber || d.room)
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+    const confirmedAt = list.every((d) => d.confirmedAt)
+      ? new Date(Math.max(...list.map((d) => d.confirmedAt.getTime())))
+      : null;
+
+    units.push({
+      key: unitKey(first),
+      role: first.role,
+      dutyIds: list.map((d) => idOf(d._id)),
+      primaryDutyId: idOf(first._id),
+      examScheduleId: idOf(schedule),
+      examLabel: buildExamLabel({ examGroup, exam: first.exam }),
+      examType: examGroup?.examType || first.exam?.type || null,
+      semester: examGroup?.semester ?? first.exam?.semester ?? null,
+      date: new Date(date).toISOString().slice(0, 10),
+      startTime,
+      endTime,
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      building: first.examRoom?.room?.building?.name || null,
+      rooms,
+      location: list.length === 1 ? buildRoomLabel(first) : locationFor(list),
+      confirmed: Boolean(confirmedAt),
+      confirmedAt: confirmedAt ? confirmedAt.toISOString() : null,
+    });
+  }
+  return units.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+};
+
+/**
  * One-off, idempotent: duties self-claimed before confirmation existed are
  * confirmed as of when they were claimed. CS-assigned ones stay unconfirmed —
  * the teacher is asked, which is the point of the feature.
@@ -809,6 +866,7 @@ module.exports = {
   adminAssignDuty,
   adminAssignDutyGroup,
   getAllDuties,
+  getMyUpcomingUnits,
   getDutyById,
   getInvigilatorsForRooms,
   cancelDuty,

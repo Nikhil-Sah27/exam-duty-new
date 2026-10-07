@@ -53,6 +53,12 @@ const findById = (id) => {
   return Duty.findById(id).populate(POPULATE_FIELDS);
 };
 
+/** A teacher's live duties dated on/after `since`, populated for unit building. */
+const findLiveForTeacherSince = (teacherId, since) =>
+  Duty.find({ teacher: teacherId, status: "assigned", date: { $gte: since } })
+    .populate(POPULATE_FIELDS)
+    .sort({ date: 1, startTime: 1 });
+
 const updateById = (id, data) => {
   return Duty.findByIdAndUpdate(id, data, {
     new: true,
@@ -154,6 +160,7 @@ const distinctTeachersForSchedules = (scheduleIds) => {
 };
 
 module.exports = {
+  findLiveForTeacherSince,
   findForResponsiveness,
   updateMany,
   cancelMany,

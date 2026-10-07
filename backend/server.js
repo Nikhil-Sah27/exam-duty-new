@@ -10,6 +10,7 @@ const {
 const {
   startMailDispatcher,
 } = require("./modules/mail/mail.dispatcher");
+const { startPushDispatcher } = require("./modules/push/push.dispatcher");
 const { attachRealtime } = require("./shared/realtime");
 
 const PORT = process.env.PORT || 5000;
@@ -27,4 +28,7 @@ connectDB().then(() => {
   // `console` transport, so nothing leaves the machine until MAIL_TRANSPORT is
   // pointed at a real mail server.
   startMailDispatcher();
+  // Drains the phone-push outbox (same emitter). Defaults to the `console`
+  // transport; PUSH_TRANSPORT=expo sends through Expo's push service.
+  startPushDispatcher();
 });

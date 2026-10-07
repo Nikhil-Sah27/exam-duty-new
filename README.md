@@ -202,6 +202,20 @@ Verify with `MAIL_TRANSPORT=console node scripts/verify-calendar.js` against a t
 
 Time-critical checks run on a 5-minute tick. Verify with `MAIL_TRANSPORT=console node scripts/verify-reminders.js` against a throwaway database.
 
+### Mobile App, Push Alerts & Duty Alarms
+A phone app for **Invigilators, RS and DCS** lives in `mobile/` (Expo / React Native — see `mobile/README.md` and `MOBILE_PLAN.md`). CS keeps using the web dashboard.
+
+- **Push alerts.** Every notification is also queued as a phone push, hooked in at the same emitter choke point as email: `emit` writes a `PushOutbox` row in the *same transaction* as the notification, and `push.dispatcher.js` (`backend/modules/push/`) sends it through Expo's push service to every phone the recipient has registered. Same guarantees as email — a rolled-back assignment buzzes nobody, Expo outages never fail a request, every attempt is recorded. Per-type policy is `modules/push/push.policy.js`: every teacher-facing type pushes (including `exam_created` — no quota to protect); CS-facing alerts (`request_submitted`, `duty_claimed_by_teacher`, …) don't, since CS has no app.
+- **Alarms.** The app pulls `GET /api/duties/my-units` (one entry per duty unit, with exact UTC `startsAt`/`endsAt`) and schedules **ringing alarms on the phone** — 1 h and 20 min before each duty by default, adjustable per teacher. They ring with no network at duty time; every push received re-syncs them, so a cancelled duty loses its alarm.
+
+```env
+PUSH_TRANSPORT=console          # console (default — logs, sends nothing) | expo
+PUSH_ENABLED=true               # false stops queueing pushes entirely
+EXPO_ACCESS_TOKEN=              # only if "enhanced push security" is on at expo.dev
+```
+
+Keep `console` locally and in CI (test devices carry fake tokens). Production sets `PUSH_TRANSPORT=expo`; FCM/APNs credentials live in the Expo project, not the backend.
+
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
 
@@ -305,11 +319,14 @@ exam-duty/
 │   │   ├── duty-calculation/        # Duty-target engine + per-teacher progress
 │   │   ├── notification/            # Emitter + typed notifications
 │   │   ├── notify/                  # CS broadcast announcements
+│   │   ├── push/                    # Phone push: device tokens, outbox + Expo dispatcher
 │   │   ├── exam-cleanup/            # Cascade delete + release
 │   │   ├── audit/                   # CS who-did-what trail (fire-and-forget writes)
 │   │   └── report/                  # Stub (reporting UI lives on the frontend)
 │   ├── scripts/                     # Seed + backfill + dump/restore + check-architecture
 │   └── shared/                      # DB config, auth middleware, roleResolver, utils
+│
+├── mobile/                          # Expo (React Native) app for Invigilator / RS / DCS — push + alarms
 │
 ├── frontend/
 │   ├── src/
@@ -512,6 +529,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | POST | `/admin-assign-group` | CS assigns a whole group (RS) to a teacher; notifies per room. |
 | POST | `/invigilators-for-rooms` | Look up assigned invigilators for a set of rooms. |
 | GET | `/` · `/:id` | List / get. |
+| GET | `/my-units` | The caller's live upcoming duty **units** across all their roles (an RS/DCS group is one), each with UTC `startsAt`/`endsAt`, rooms, location and `confirmed` — the mobile app's alarm source. |
 | PATCH | `/:id/cancel` | Cancel with notification. |
 
 ### DCS Groups (`/dcs`)
@@ -568,6 +586,13 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 | GET | `/` · `/unread-count` | Read. |
 | PATCH | `/read-all` · `/:id/read` | Mark read. |
 | DELETE | `/` · `/:id` | Delete all / one. |
+
+### Push (`/push`)
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/devices` | Register / refresh this phone: `{ token: "ExponentPushToken[…]", platform: "android"\|"ios", appVersion? }`. A token seen under another user moves to the caller. |
+| DELETE | `/devices` | Unregister on logout: `{ token }` (only the caller's own devices). |
+| GET | `/deliveries` | The caller's 30 most recent push deliveries (status, skip reason, devices reached). |
 
 ### Notify (`/notify`)
 | Method | Path | Description |

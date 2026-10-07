@@ -1,8 +1,11 @@
 import { View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
-import type { TeacherRole, UserRole } from "@/lib/types";
+import { ROLE_LABELS } from "@/lib/roles";
+import type { TeacherRole } from "@/lib/types";
 import { roleColors, useTheme } from "@/theme";
+
+export { ROLE_LABELS };
 
 export function Chip({ label, fg, bg }: { label: string; fg: string; bg: string }) {
   const { radius } = useTheme();
@@ -14,13 +17,6 @@ export function Chip({ label, fg, bg }: { label: string; fg: string; bg: string 
     </View>
   );
 }
-
-export const ROLE_LABELS: Record<UserRole, string> = {
-  cs: "CS",
-  dcs: "DCS",
-  rs: "RS",
-  invigilator: "Invigilator",
-};
 
 export function RoleChip({ role }: { role: TeacherRole }) {
   const c = roleColors[role];

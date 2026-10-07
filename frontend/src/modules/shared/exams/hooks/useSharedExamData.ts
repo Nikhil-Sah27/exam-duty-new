@@ -19,8 +19,8 @@ const KEYS = {
   groups: ["shared", "exam-groups"] as const,
   details: (id: string) => ["shared", "exam-details", id] as const,
   dutyStatus: (id: string) => ["shared", "duty-status", id] as const,
-  duties: (teacherId: string | undefined) =>
-    ["shared", "duties-by-teacher", teacherId] as const,
+  duties: (teacherId: string | undefined, role?: string) =>
+    ["shared", "duties-by-teacher", teacherId, role ?? null] as const,
 };
 
 export function useExamGroups() {
@@ -43,10 +43,26 @@ export function useExamDutyStatus(groupId: string | null) {
   });
 }
 
-export function useDutiesByTeacher(teacherId: string | undefined) {
+/**
+ * A teacher's duties, optionally scoped to one `role`. Operational dashboards
+ * pass their active role so a multi-role teacher's invigilator and RS/DCS
+ * duties stay in their own dashboards; CS views omit it to see every role.
+ * Role is part of the query key, so the two scopes cache independently.
+ */
+export function useDutiesByTeacher(
+  teacherId: string | undefined,
+  role?: string,
+) {
   return useQuery({
-    queryKey: KEYS.duties(teacherId),
-    queryFn: () => fetchDutiesByTeacher(teacherId as string),
+    queryKey: KEYS.duties(teacherId, role),
+    queryFn: async () => {
+      const data = await fetchDutiesByTeacher(teacherId as string, role);
+      // Belt-and-suspenders: scope client-side too. A multi-role teacher's
+      // invigilator and RS/DCS duties must never cross dashboards even if the
+      // API ignores `role` (e.g. an un-restarted backend). Callers that want
+      // every role (CS views, Select Duty conflict scans) pass no role.
+      return role ? data.filter((d) => (d.role ?? "invigilator") === role) : data;
+    },
     enabled: Boolean(teacherId),
   });
 }

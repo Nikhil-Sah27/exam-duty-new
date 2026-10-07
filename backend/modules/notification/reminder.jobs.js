@@ -73,6 +73,7 @@ const upcomingUnits = async (now) => {
     units.push({
       teacherId: idOf(first.teacher),
       teacherName: first.teacher.name,
+      role: first.role,
       key: unitKey(first),
       dutyId: idOf(first._id),
       start,
@@ -113,6 +114,7 @@ const runReminderTick = async () => {
       if (u.assignedAt.getTime() > due) continue;
       const r = await emitIfAbsent("duty_reminder", {
         recipient: u.teacherId,
+        role: u.role,
         refModel: "Duty",
         refId: u.dutyId,
         dedupeKey: `duty_reminder:${u.teacherId}:${u.key}:${stage.id}`,
@@ -129,6 +131,7 @@ const runReminderTick = async () => {
     if (sinceAssigned >= CONFIRM_NUDGE_AFTER && untilStart > 30 * MIN) {
       const r = await emitIfAbsent("duty_confirm_nudge", {
         recipient: u.teacherId,
+        role: u.role,
         refModel: "Duty",
         refId: u.dutyId,
         dedupeKey: `duty_confirm_nudge:${u.teacherId}:${u.key}`,

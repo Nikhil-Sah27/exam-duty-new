@@ -350,6 +350,7 @@ const _performClaim = async (
   if (notify) {
     emit("duty_group_assigned", {
       recipient: assigneeId,
+      role: "dcs",
       refModel: "Duty",
       refId: createdIds[0] || null,
       data: groupData,
@@ -359,6 +360,7 @@ const _performClaim = async (
     // DCS now gets a confirmation to hold onto, and CS learns the group is taken.
     emit("duty_self_claimed", {
       recipient: assigneeId,
+      role: "dcs",
       refModel: "Duty",
       refId: createdIds[0] || null,
       data: groupData,
@@ -451,6 +453,7 @@ const releaseGroup = async (groupId, actor, reason) => {
     if (group.assignedTeacher) {
       emit("duty_group_cancelled", {
         recipient: group.assignedTeacher._id,
+        role: "dcs",
         refModel: "Duty",
         refId: group.duties?.[0] || null,
         data: {
@@ -469,6 +472,7 @@ const releaseGroup = async (groupId, actor, reason) => {
     if (group.assignedTeacher) {
       emit("duty_group_cancelled", {
         recipient: group.assignedTeacher._id,
+        role: "dcs",
         refModel: "Duty",
         refId: group.duties?.[0] || null,
         data: {

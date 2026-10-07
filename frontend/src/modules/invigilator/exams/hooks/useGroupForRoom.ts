@@ -4,8 +4,12 @@ import { useAvailableDutySlots } from "@/modules/shared/exams/hooks/useSharedExa
 import { useRSDutyGrouping } from "@/modules/rs/select-duty/hooks/useRSDutyGrouping";
 import { EMPTY_RS_FILTERS } from "@/modules/rs/select-duty/types";
 import { buildDcsGroupOrdinalMap } from "@/modules/duties/services/dcsGroupingService";
+import { dcsGroupToSummary } from "@/modules/dcs/select-duty/utils/dcsGroupSummary";
+import { rsGroupToSummary } from "@/modules/rs/select-duty/utils/rsGroupSummary";
+import { useAuthStore } from "@/shared/store/auth.store";
 import type { DcsGroup } from "@/modules/dcs/select-duty/types";
 import type { RSDutyGroup } from "@/modules/rs/select-duty/types";
+import type { DutyGroupSummary } from "@/modules/shared/components/duty-group-summary/dutyGroupSummaryTypes";
 import type { OperationalRoleKey } from "@/modules/shared/utils/assignmentStatusUtils";
 
 /**
@@ -27,6 +31,13 @@ export interface DutyGroupForRoomResult {
   kind: DutyGroupKind | null;
   dcsGroup?: DcsGroup | null;
   rsGroup?: RSDutyGroup | null;
+  /**
+   * The matched group projected to the shared `DutyGroupSummary` shape, ready
+   * for the shared DutyGroup* components. `null` when no group matches. Built
+   * here (not in the shared components) so the shared layer stays free of the
+   * DCS/RS domain types.
+   */
+  summary: DutyGroupSummary | null;
   /**
    * Cross-schedule display number for the DCS group, computed against ALL
    * visible DCS groups. Unique per group; null when the viewer isn't DCS or
@@ -61,9 +72,11 @@ export function useGroupForRoom({
     EMPTY_RS_FILTERS,
   );
 
+  const myUserId = useAuthStore((s) => s.user?.id);
+
   return useMemo(() => {
     if (!examRoomId || !scheduleId) {
-      return { kind: null, isLoading: false };
+      return { kind: null, summary: null, isLoading: false };
     }
 
     if (viewerRole === "dcs") {
@@ -74,10 +87,14 @@ export function useGroupForRoom({
           g.assignedRooms.some((r) => r._id === examRoomId),
       );
       const ordinals = buildDcsGroupOrdinalMap(data);
+      const dcsDisplayOrdinal = match ? (ordinals.get(match._id) ?? null) : null;
       return {
         kind: "DCS",
         dcsGroup: match ?? null,
-        dcsDisplayOrdinal: match ? (ordinals.get(match._id) ?? null) : null,
+        dcsDisplayOrdinal,
+        summary: match
+          ? dcsGroupToSummary(match, myUserId, dcsDisplayOrdinal)
+          : null,
         isLoading: dcsQuery.isLoading,
       };
     }
@@ -91,17 +108,19 @@ export function useGroupForRoom({
       return {
         kind: "RS",
         rsGroup: match ?? null,
+        summary: match ? rsGroupToSummary(match) : null,
         isLoading: slotsQuery.isLoading,
       };
     }
 
-    return { kind: null, isLoading: false };
+    return { kind: null, summary: null, isLoading: false };
     // The dependency list intentionally includes the underlying data refs:
     // both the query data and the grouping output are memoised already.
   }, [
     examRoomId,
     scheduleId,
     viewerRole,
+    myUserId,
     dcsQuery.data,
     dcsQuery.isLoading,
     rsGroups,

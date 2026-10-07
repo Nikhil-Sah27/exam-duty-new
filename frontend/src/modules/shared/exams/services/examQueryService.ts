@@ -49,10 +49,13 @@ export const fetchExamDutyStatus = async (
 };
 
 export const fetchDutiesByTeacher = async (
-  teacherId: string
+  teacherId: string,
+  role?: string
 ): Promise<Duty[]> => {
   const res = await api.get<ApiList<Duty>>("/duties", {
-    params: { teacher: teacherId },
+    // `role` scopes a multi-role teacher's duties to one dashboard. Omitted by
+    // CS views, which want every role.
+    params: role ? { teacher: teacherId, role } : { teacher: teacherId },
   });
   return res.data.data;
 };

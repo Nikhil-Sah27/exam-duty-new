@@ -1,16 +1,10 @@
 import { useState } from "react";
 import { Loader2, ShieldCheck, X } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { claimDcsGroup } from "@/modules/dcs/select-duty/services/dcsDutyService";
-import { selectRSDutyGroup } from "@/modules/rs/select-duty/services/rsDutyService";
-import { useAuthStore } from "@/shared/store/auth.store";
+import { useMutation } from "@tanstack/react-query";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
-import type { DcsGroup } from "@/modules/dcs/select-duty/types";
-import type { RSDutyGroup } from "@/modules/rs/select-duty/types";
-import DutyGroupSummaryCard, {
-  dcsGroupToSummary,
-  rsGroupToSummary,
-} from "./DutyGroupSummaryCard";
+import { useAuthStore } from "@/shared/store/auth.store";
+import type { DutyGroupSummary } from "./duty-group-summary/dutyGroupSummaryTypes";
+import DutyGroupSummaryCard from "./DutyGroupSummaryCard";
 
 const minutesOf = (t: string): number => {
   const [h, m] = t.split(":").map(Number);
@@ -27,64 +21,47 @@ const sameDay = (a: string, b: string): boolean => {
 interface DutyGroupDetailsModalProps {
   open: boolean;
   onClose: () => void;
-  dcsGroup?: DcsGroup | null;
-  rsGroup?: RSDutyGroup | null;
   /**
-   * Cross-schedule display ordinal for the DCS group, so the modal title
-   * matches the "DCS Duty Group #N" label shown elsewhere. Optional; falls
-   * back to per-schedule `groupIndex`.
+   * The group projected to the shared summary shape by the role module's
+   * adapter. The modal renders purely from this — it never touches DCS/RS
+   * domain types.
    */
-  dcsDisplayOrdinal?: number | null;
+  summary: DutyGroupSummary | null;
+  /**
+   * Performs the claim. Injected by the caller (a role module) so the shared
+   * modal stays feature-agnostic — the caller routes to the right service
+   * (DCS `POST /api/dcs/groups/:id/claim`, RS `POST /api/duties/self-assign-group`)
+   * and invalidates its own caches. Resolves on success, rejects with an Error
+   * whose message is surfaced inline.
+   */
+  onClaim: () => Promise<void>;
   /** Notify the parent (the classroom modal) when claim succeeds. */
   onClaimed?: () => void;
 }
 
 /**
  * Full duty-group view with the only "claim" action a DCS or RS user can
- * trigger. Routes to the existing services:
- *   - DCS  → POST /api/dcs/groups/:id/claim
- *   - RS   → POST /api/duties/self-assign-group
- *
- * No new APIs introduced — this modal is purely a UI consolidation that
- * makes the group-level path the only path DCS / RS see when entering from
- * a classroom card.
+ * trigger. The modal is a pure UI consolidation that makes the group-level
+ * path the only path DCS / RS see when entering from a classroom card; the
+ * actual claim is delegated to the injected `onClaim` so this component
+ * carries no dependency on the DCS/RS feature modules.
  */
 export default function DutyGroupDetailsModal({
   open,
   onClose,
-  dcsGroup,
-  rsGroup,
-  dcsDisplayOrdinal,
+  summary,
+  onClaim,
   onClaimed,
 }: DutyGroupDetailsModalProps) {
-  const qc = useQueryClient();
   const userId = useAuthStore((s) => s.user?.id);
   const myDutiesQuery = useDutiesByTeacher(userId);
   const myDuties = myDutiesQuery.data ?? [];
 
   const [error, setError] = useState<string | null>(null);
 
-  const dcsMutation = useMutation({
-    mutationFn: (groupId: string) => claimDcsGroup(groupId),
+  const claimMutation = useMutation({
+    mutationFn: () => onClaim(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dcs"] });
-      qc.invalidateQueries({ queryKey: ["shared"] });
-      onClaimed?.();
-      onClose();
-    },
-    onError: (e) => {
-      setError(e instanceof Error ? e.message : "Failed to claim group.");
-    },
-  });
-
-  const rsMutation = useMutation({
-    mutationFn: (group: RSDutyGroup) =>
-      selectRSDutyGroup({
-        examScheduleId: group.scheduleId,
-        examRoomIds: group.rooms.map((r) => r.examRoomId),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["shared"] });
       onClaimed?.();
       onClose();
     },
@@ -94,13 +71,7 @@ export default function DutyGroupDetailsModal({
   });
 
   if (!open) return null;
-  if (!dcsGroup && !rsGroup) return null;
-
-  // Build a single summary regardless of group kind so the body renders one
-  // way. Adapters live in DutyGroupSummaryCard so this stays declarative.
-  const summary = dcsGroup
-    ? dcsGroupToSummary(dcsGroup, userId, dcsDisplayOrdinal)
-    : rsGroupToSummary(rsGroup!);
+  if (!summary) return null;
 
   // ── Selectability gates ─────────────────────────────────────────────
   const isPast = (() => {
@@ -133,12 +104,11 @@ export default function DutyGroupDetailsModal({
           ? "You already have a duty during this time slot."
           : null;
 
-  const isSubmitting = dcsMutation.isPending || rsMutation.isPending;
+  const isSubmitting = claimMutation.isPending;
 
   const handleClaim = () => {
     setError(null);
-    if (dcsGroup) dcsMutation.mutate(dcsGroup._id);
-    else if (rsGroup) rsMutation.mutate(rsGroup);
+    claimMutation.mutate();
   };
 
   return (

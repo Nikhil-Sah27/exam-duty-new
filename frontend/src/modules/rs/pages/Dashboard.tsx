@@ -27,7 +27,7 @@ import RoleImportantNotificationProvider from "@/modules/dashboard/important-not
  */
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
-  const dutiesQuery = useDutiesByTeacher(user?.id);
+  const dutiesQuery = useDutiesByTeacher(user?.id, "rs");
   const duties = dutiesQuery.data ?? [];
   const [selectedGroup, setSelectedGroup] = useState<RSUpcomingGroup | null>(
     null,

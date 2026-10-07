@@ -1,6 +1,11 @@
 import { Calendar, Clock, DoorOpen, ArrowLeftRight, Ban } from "lucide-react";
 import type { Duty } from "@/modules/duties/types";
 import { canRequestChange } from "@/modules/shared/change-requests/utils/changeRequestValidation";
+import {
+  describeRoom,
+  getExamType,
+  getSemester,
+} from "@/modules/shared/duties/utils/upcomingDutyUtils";
 
 function formatDate(s: string): string {
   return new Date(s).toLocaleDateString("en-IN", {
@@ -27,6 +32,12 @@ export default function MyDutyCard({ duty, pending, onRequestChange }: MyDutyCar
   const eligibility = canRequestChange(duty);
   const blocked = !eligibility.ok || pending;
 
+  const { roomNumber, buildingName } = describeRoom(duty);
+  const hasBuilding = buildingName && buildingName !== "—";
+  const roomLabel = hasBuilding ? `${buildingName} — ${roomNumber}` : roomNumber;
+  const examType = getExamType(duty);
+  const semester = getSemester(duty);
+
   return (
     <article className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-1.5">
@@ -39,11 +50,23 @@ export default function MyDutyCard({ duty, pending, onRequestChange }: MyDutyCar
         </div>
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
           <DoorOpen className="h-4 w-4 text-gray-400" />
-          {duty.room}
+          {roomLabel}
         </div>
-        {duty.exam?.name && (
-          <p className="text-xs text-gray-500">{duty.exam.name}</p>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {examType !== "—" && (
+            <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+              {examType}
+            </span>
+          )}
+          {semester !== "—" && (
+            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+              Sem {semester}
+            </span>
+          )}
+          {duty.exam?.name && (
+            <span className="text-xs text-gray-500">{duty.exam.name}</span>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col items-end gap-1">

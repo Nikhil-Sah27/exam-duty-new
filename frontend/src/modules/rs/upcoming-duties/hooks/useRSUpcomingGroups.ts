@@ -14,7 +14,7 @@ import {
  */
 export function useRSUpcomingGroups() {
   const userId = useAuthStore((s) => s.user?.id);
-  const dutiesQuery = useDutiesByTeacher(userId);
+  const dutiesQuery = useDutiesByTeacher(userId, "rs");
 
   const upcoming = useMemo(
     () => filterUpcomingRSDuties(dutiesQuery.data ?? []),

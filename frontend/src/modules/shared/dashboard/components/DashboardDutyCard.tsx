@@ -170,24 +170,24 @@ export default function DashboardDutyCard({
           {item.rooms.slice(0, 6).map((r) => (
             <span
               key={r.id}
-              className="inline-flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 text-[11px] font-medium text-gray-700 shadow-sm ring-1 ring-gray-200"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-sm font-bold text-gray-800 shadow-sm ring-1 ring-gray-200"
               title={
                 r.building
                   ? `${r.building} · Room ${r.roomNumber}${r.floor !== undefined ? ` · Floor ${r.floor}` : ""}`
                   : undefined
               }
             >
-              <DoorOpen className="h-2.5 w-2.5 text-gray-400" />
+              <DoorOpen className="h-3.5 w-3.5 text-gray-500" />
               {r.roomNumber}
               {r.floor !== undefined && (
-                <span className="text-[9px] font-semibold text-gray-400">
+                <span className="text-[11px] font-semibold text-gray-400">
                   · F{r.floor}
                 </span>
               )}
             </span>
           ))}
           {item.rooms.length > 6 && (
-            <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600">
+            <span className="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-bold text-gray-600">
               +{item.rooms.length - 6}
             </span>
           )}

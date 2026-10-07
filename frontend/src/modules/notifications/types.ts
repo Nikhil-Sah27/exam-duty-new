@@ -26,6 +26,12 @@ export interface Notification {
   _id: string;
   recipient: string;
   type: NotificationType;
+  /**
+   * Which role this notification concerns. Null = role-agnostic (announcements,
+   * exam updates, CS-facing alerts) and shown in every dashboard. Set by the
+   * backend; may be absent on notifications written before role scoping existed.
+   */
+  role?: "cs" | "dcs" | "rs" | "invigilator" | null;
   title: string;
   message: string;
   refModel: "Duty" | "ChangeRequest" | null;

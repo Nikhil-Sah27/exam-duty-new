@@ -58,25 +58,42 @@ function dutyMatchesSlot(d: Duty, slot: SlotContext): boolean {
   return d.room === slot.roomNumber;
 }
 
-/** Does the current user already have a duty in this exact slot+room? */
-export function isSelectedByMe(slot: SlotContext, myDuties: Duty[]): boolean {
+/**
+ * Does the current user already hold a duty FOR THIS ROLE in this exact
+ * slot+room? Role-scoped: holding the invigilator slot of a room is not the
+ * same as holding its RS slot. `viewerRole` omitted → role-agnostic (legacy).
+ */
+export function isSelectedByMe(
+  slot: SlotContext,
+  myDuties: Duty[],
+  viewerRole?: string,
+): boolean {
   return myDuties.some((d) => {
     if (d.status !== "assigned") return false;
+    if (viewerRole && (d.role ?? "invigilator") !== viewerRole) return false;
     if (!sameDay(d.date, slot.date)) return false;
     if (d.startTime !== slot.startTime || d.endTime !== slot.endTime) return false;
     return dutyMatchesSlot(d, slot);
   });
 }
 
-export function hasTimeConflict(slot: SlotContext, myDuties: Duty[]): boolean {
+export function hasTimeConflict(
+  slot: SlotContext,
+  myDuties: Duty[],
+  viewerRole?: string,
+): boolean {
   return myDuties.some((d) => {
     if (d.status !== "assigned") return false;
     if (!sameDay(d.date, slot.date)) return false;
-    const sameSlot =
+    // Only the viewer's OWN-role duty in this exact slot is "mine" (not a
+    // conflict). A different-role duty at the same room+time clashes: the
+    // person can't staff two roles at once.
+    const ownRoleHere =
+      (!viewerRole || (d.role ?? "invigilator") === viewerRole) &&
       d.startTime === slot.startTime &&
       d.endTime === slot.endTime &&
       dutyMatchesSlot(d, slot);
-    if (sameSlot) return false;
+    if (ownRoleHere) return false;
     return overlaps(d.startTime, d.endTime, slot.startTime, slot.endTime);
   });
 }
@@ -93,12 +110,13 @@ export function isDutyAvailable(
   slot: SlotContext,
   myDuties: Duty[],
   flagKey: keyof RoomDutyFlags,
-  isPending: boolean = false
+  isPending: boolean = false,
+  viewerRole?: string,
 ): boolean {
   if (isPending) return false;
   if (isRoleSlotFull(slot, flagKey)) return false;
-  if (isSelectedByMe(slot, myDuties)) return false;
-  if (hasTimeConflict(slot, myDuties)) return false;
+  if (isSelectedByMe(slot, myDuties, viewerRole)) return false;
+  if (hasTimeConflict(slot, myDuties, viewerRole)) return false;
   return true;
 }
 
@@ -106,11 +124,12 @@ export function deriveSelectionState(
   slot: SlotContext,
   myDuties: Duty[],
   flagKey: keyof RoomDutyFlags,
-  isPending: boolean = false
+  isPending: boolean = false,
+  viewerRole?: string,
 ): DutySelectionState {
-  if (isSelectedByMe(slot, myDuties)) return "SELECTED_BY_ME";
+  if (isSelectedByMe(slot, myDuties, viewerRole)) return "SELECTED_BY_ME";
   if (isPending) return "PENDING";
   if (isRoleSlotFull(slot, flagKey)) return "FULLY_OCCUPIED";
-  if (hasTimeConflict(slot, myDuties)) return "CONFLICT";
+  if (hasTimeConflict(slot, myDuties, viewerRole)) return "CONFLICT";
   return "AVAILABLE";
 }

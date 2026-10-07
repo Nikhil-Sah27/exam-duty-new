@@ -49,10 +49,15 @@ const templates = {
   // notify nobody at all, which meant a teacher had no record of what they'd
   // committed to outside the app — and nothing to email them.
   duty_self_claimed: ({ room, date, startTime, endTime, roleLabel, roomCount }) => {
-    const isGroup = roomCount != null && roomCount > 1;
+    // RS/DCS self-claims are group-based (they carry a roleLabel), so phrase
+    // them as a group even for a single room — they never pass a `room` label,
+    // which would otherwise render "a duty at undefined".
+    const isGroup = roleLabel === "RS" || roleLabel === "DCS";
     const article = roleLabel === "RS" ? "an" : "a";
     const what = isGroup
-      ? `${article} ${roleLabel} group of ${roomCount} rooms`
+      ? roomCount > 1
+        ? `${article} ${roleLabel} group of ${roomCount} rooms`
+        : `${article} ${roleLabel} duty`
       : `a duty at ${room}`;
     return {
       title: "Duty Confirmed",

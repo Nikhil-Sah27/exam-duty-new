@@ -253,6 +253,7 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
   if (!isSelfAssigned) {
     emit("duty_assigned", {
       recipient: teacherId,
+      role: dutyRole,
       refModel: "Duty",
       refId: duty._id,
       data: { room: roomLabel, date, startTime, endTime },
@@ -263,6 +264,7 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
     // was taken without having to re-open Manage Duties.
     emit("duty_self_claimed", {
       recipient: teacherId,
+      role: dutyRole,
       refModel: "Duty",
       refId: duty._id,
       data: { room: roomLabel, date, startTime, endTime },
@@ -377,6 +379,7 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
   const roleLabel = activeRole === "dcs" ? "DCS" : "RS";
   emit("duty_self_claimed", {
     recipient: userId,
+    role: activeRole,
     refModel: "Duty",
     refId: createdIds[0] || null,
     data: {
@@ -487,6 +490,7 @@ const adminAssignDutyGroup = async (data, adminId) => {
   const examGroup = populated[0]?.examSchedule?.examGroup;
   emit("duty_group_assigned", {
     recipient: teacherId,
+    role: dutyRole,
     refModel: "Duty",
     refId: createdIds[0] || null,
     data: {
@@ -508,6 +512,10 @@ const getAllDuties = async (query) => {
 
   if (query.exam) filter.exam = query.exam;
   if (query.teacher) filter.teacher = query.teacher;
+  // Scope a teacher's duties to one role so a multi-role user's invigilator and
+  // RS/DCS duties never leak into each other's dashboards. Omitted by CS views,
+  // which want every role.
+  if (query.role) filter.role = query.role;
   if (query.room) filter.room = query.room;
   if (query.status) filter.status = query.status;
   if (query.date) filter.date = new Date(query.date);
@@ -618,6 +626,7 @@ const cancelDuty = async (id, cancelReason, actor = {}) => {
 
   emit("duty_cancelled", {
     recipient: duty.teacher,
+    role: duty.role,
     refModel: "Duty",
     refId: duty._id,
     data: { room: roomLabel, date: duty.date, reason: byCs ? cancelReason || null : null },
@@ -683,6 +692,7 @@ const adminUnassignDutyGroup = async (dutyId, cancelReason, actor) => {
 
   emit("duty_group_cancelled", {
     recipient: teacherId,
+    role: "rs",
     refModel: "Duty",
     refId: duty._id,
     data: {

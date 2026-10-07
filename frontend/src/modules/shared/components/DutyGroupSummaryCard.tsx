@@ -12,13 +12,10 @@ import {
 } from "./duty-group-summary/DutyGroupSummarySections";
 
 export type { DutyGroupSummary } from "./duty-group-summary/dutyGroupSummaryTypes";
-// Adapters live beside the card (DutyGroup*-prefixed so the shared-layer
-// lint exemption for dcs/rs imports still applies); re-exported here so
-// existing call sites keep importing from this file.
-export {
-  dcsGroupToSummary,
-  rsGroupToSummary,
-} from "./DutyGroupSummaryAdapters";
+// Role → summary adapters live in the role modules that own those shapes
+// (`@/modules/dcs/select-duty/utils/dcsGroupSummary`,
+//  `@/modules/rs/select-duty/utils/rsGroupSummary`), so the shared layer stays
+// feature-agnostic. Callers build a `DutyGroupSummary` and pass it in.
 
 /**
  * Read-only at-a-glance card for a DCS / RS duty group. Used inside the

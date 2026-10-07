@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   loginUser,
@@ -47,6 +47,7 @@ export const useLogin = () => {
 export const useSelectRole = () => {
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (role: UserRole) => {
@@ -55,6 +56,10 @@ export const useSelectRole = () => {
     },
     onSuccess: ({ res, role }) => {
       setAuth(res.data.user, res.data.token);
+      // Duty lists and the notification feed are role-scoped server-side, so a
+      // switch must drop the previous role's cached data — otherwise the new
+      // dashboard briefly shows the old role's duties/messages until refetch.
+      queryClient.invalidateQueries();
       navigate(dashboardPathForRole(role));
     },
   });

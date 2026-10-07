@@ -24,7 +24,7 @@ import RoleImportantNotificationProvider from "@/modules/dashboard/important-not
  */
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
-  const dutiesQuery = useDutiesByTeacher(user?.id);
+  const dutiesQuery = useDutiesByTeacher(user?.id, "invigilator");
   const duties = dutiesQuery.data ?? [];
   const [selectedDuty, setSelectedDuty] = useState<Duty | null>(null);
 

@@ -12,7 +12,7 @@ import RequestChangeModal from "../components/RequestChangeModal";
 
 export default function InvigilatorChangeRequestsPage() {
   const userId = useAuthStore((s) => s.user?.id);
-  const dutiesQuery = useDutiesByTeacher(userId);
+  const dutiesQuery = useDutiesByTeacher(userId, "invigilator");
   const requestsQuery = useMyChangeRequests();
 
   const [activeDuty, setActiveDuty] = useState<Duty | null>(null);

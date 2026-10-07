@@ -58,19 +58,26 @@ function dutyMatchesRoom(d: Duty, roomNumber: string, roomId: string): boolean {
   return d.room === roomNumber;
 }
 
-/** True when one of `duties` matches the given schedule+room slot. */
+/**
+ * True when the viewer holds a duty FOR THIS ROLE in the given schedule+room
+ * slot. Role matters: an Associate Professor who invigilates room 005 does not
+ * "own" the RS slot of the same room — that slot is still vacant to them. When
+ * `viewerRole` is omitted the check stays role-agnostic (legacy callers).
+ */
 export function isMyDutyInRoom(
   duties: Duty[],
   scheduleDate: string,
   startTime: string,
   endTime: string,
   roomNumber: string,
-  roomId: string
+  roomId: string,
+  viewerRole?: string,
 ): boolean {
   const target = new Date(scheduleDate);
   target.setHours(0, 0, 0, 0);
   return duties.some((d) => {
     if (d.status !== "assigned") return false;
+    if (viewerRole && (d.role ?? "invigilator") !== viewerRole) return false;
     const dDate = new Date(d.date);
     dDate.setHours(0, 0, 0, 0);
     if (dDate.getTime() !== target.getTime()) return false;
@@ -97,6 +104,7 @@ export function hasTimeConflictForSlot(
   endTime: string,
   roomNumber: string,
   roomId: string,
+  viewerRole?: string,
 ): boolean {
   const target = new Date(scheduleDate);
   target.setHours(0, 0, 0, 0);
@@ -107,12 +115,16 @@ export function hasTimeConflictForSlot(
     const dDate = new Date(d.date);
     dDate.setHours(0, 0, 0, 0);
     if (dDate.getTime() !== target.getTime()) return false;
-    // Skip the exact same slot — that's MINE, not a conflict.
-    const sameSlot =
+    // Skip the exact same slot only when it's the viewer's OWN-role duty —
+    // that's "mine", not a conflict. A different-role duty in the same room+slot
+    // (e.g. my invigilator duty while viewing the RS slot) IS a conflict: one
+    // person can't staff two roles at once.
+    const ownRoleHere =
+      (!viewerRole || (d.role ?? "invigilator") === viewerRole) &&
       d.startTime === startTime &&
       d.endTime === endTime &&
       dutyMatchesRoom(d, roomNumber, roomId);
-    if (sameSlot) return false;
+    if (ownRoleHere) return false;
     return toMinutes(d.startTime) < end && start < toMinutes(d.endTime);
   });
 }

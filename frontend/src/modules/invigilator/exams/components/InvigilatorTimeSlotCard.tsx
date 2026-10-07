@@ -48,7 +48,8 @@ export default function InvigilatorTimeSlotCard({
         schedule.startTime,
         schedule.endTime,
         selectedRoom.room.roomNumber,
-        selectedRoom.room._id
+        selectedRoom.room._id,
+        viewerRole
       )
     : false;
 
@@ -79,9 +80,11 @@ export default function InvigilatorTimeSlotCard({
                 schedule.endTime,
                 r.room.roomNumber,
                 r.room._id,
+                viewerRole,
               );
-              // Conflict = a real overlap with another duty the viewer holds.
-              // Skipped when this exact slot is already MINE (handled above).
+              // Conflict = a real overlap with another duty the viewer holds
+              // (any role — one person, one place). Skipped only when this exact
+              // slot is already MINE for this role (handled above).
               const conflict =
                 !mine &&
                 hasTimeConflictForSlot(
@@ -91,6 +94,7 @@ export default function InvigilatorTimeSlotCard({
                   schedule.endTime,
                   r.room.roomNumber,
                   r.room._id,
+                  viewerRole,
                 );
               return (
                 <InvigilatorRoomChip

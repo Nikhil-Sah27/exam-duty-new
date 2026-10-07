@@ -3,13 +3,13 @@ const catchAsync = require("../../shared/utils/catchAsync");
 
 const getMine = catchAsync(async (req, res) => {
   const notifications = await notificationService.getMyNotifications(
-    req.user.id, req.query
+    req.user.id, req.query, req.user.activeRole
   );
   res.status(200).json({ success: true, count: notifications.length, data: notifications });
 });
 
 const getUnreadCount = catchAsync(async (req, res) => {
-  const result = await notificationService.getUnreadCount(req.user.id);
+  const result = await notificationService.getUnreadCount(req.user.id, req.user.activeRole);
   res.status(200).json({ success: true, data: result });
 });
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type {
   ExamRoomAssignment,
   ExamSchedule,
@@ -8,6 +9,8 @@ import type {
 import { useAuthStore } from "@/shared/store/auth.store";
 import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
 import { useDutySelection } from "@/modules/invigilator/duties/hooks/useDutySelection";
+import { claimDcsGroup } from "@/modules/dcs/select-duty/services/dcsDutyService";
+import { selectRSDutyGroup } from "@/modules/rs/select-duty/services/rsDutyService";
 import DutyGroupDetailsModal from "@/modules/shared/components/DutyGroupDetailsModal";
 import { useAssignmentStatus } from "@/modules/shared/hooks/useAssignmentStatus";
 import { useGroupForRoom } from "@/modules/invigilator/exams/hooks/useGroupForRoom";
@@ -79,6 +82,24 @@ export default function InvigilatorExamDetailsModal({
   });
 
   const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const qc = useQueryClient();
+
+  // Route the group claim to the right role service. Lives here (not in the
+  // shared modal) so the shared layer carries no dependency on DCS/RS — the
+  // modal just awaits this and surfaces any error.
+  const handleClaimGroup = async () => {
+    if (groupForRoom.dcsGroup) {
+      await claimDcsGroup(groupForRoom.dcsGroup._id);
+      qc.invalidateQueries({ queryKey: ["dcs"] });
+      qc.invalidateQueries({ queryKey: ["shared"] });
+    } else if (groupForRoom.rsGroup) {
+      await selectRSDutyGroup({
+        examScheduleId: groupForRoom.rsGroup.scheduleId,
+        examRoomIds: groupForRoom.rsGroup.rooms.map((r) => r.examRoomId),
+      });
+      qc.invalidateQueries({ queryKey: ["shared"] });
+    }
+  };
 
   // Drive header colour + "duty status" badge purely from the
   // teacher-perspective hook so the modal stays consistent with chips/cards.
@@ -159,9 +180,8 @@ export default function InvigilatorExamDetailsModal({
       <DutyGroupDetailsModal
         open={groupModalOpen}
         onClose={() => setGroupModalOpen(false)}
-        dcsGroup={groupForRoom.dcsGroup}
-        rsGroup={groupForRoom.rsGroup}
-        dcsDisplayOrdinal={groupForRoom.dcsDisplayOrdinal}
+        summary={groupForRoom.summary}
+        onClaim={handleClaimGroup}
         onClaimed={onClose}
       />
     </div>

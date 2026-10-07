@@ -1,12 +1,12 @@
-import type { DcsGroup } from "@/modules/dcs/select-duty/types";
-import type { RSDutyGroup } from "@/modules/rs/select-duty/types";
 import type { AssigneePublic } from "@/modules/exams/types";
-import type { DutyGroupSummary } from "./duty-group-summary/dutyGroupSummaryTypes";
+import type { DutyGroupSummary } from "@/modules/shared/components/duty-group-summary/dutyGroupSummaryTypes";
+import type { DcsGroup } from "../types";
 
 /**
- * Adapter: project a DcsGroup into the common summary shape used by the
- * card. Keeps the card decoupled from DCS-specific field naming so the same
- * component can render RS groups too.
+ * Adapter: project a DcsGroup into the common `DutyGroupSummary` shape the
+ * shared DutyGroup* components render. Lives in the DCS module (not shared) so
+ * the shared layer stays free of DCS-specific field knowledge — the dependency
+ * points inward (dcs → shared), never the reverse.
  */
 export function dcsGroupToSummary(
   group: DcsGroup,
@@ -54,31 +54,5 @@ export function dcsGroupToSummary(
     assignedTo,
     isMine: assignedToMe,
     isOccupied: occupied,
-  };
-}
-
-export function rsGroupToSummary(group: RSDutyGroup): DutyGroupSummary {
-  return {
-    kind: "RS",
-    title: `${group.buildingName} — ${group.rangeLabel}`,
-    buildingName: group.buildingName,
-    date: group.date,
-    startTime: group.startTime,
-    endTime: group.endTime,
-    rooms: group.rooms.map((r) => ({
-      examRoomId: r.examRoomId,
-      roomNumber: r.roomNumber,
-      // RS groups are always single-building (partitioned by building during
-      // grouping), so every room inherits the group's building name.
-      buildingName: group.buildingName,
-    })),
-    departments: group.departments,
-    capacity: group.rooms.reduce((sum, r) => sum + r.capacity, 0),
-    // RS groups are derived client-side and don't carry a single assignee —
-    // every room has its own duty. The classroom modal still tells the
-    // viewer if the slot is occupied via the per-role assignee on flags.
-    assignedTo: null,
-    isMine: false,
-    isOccupied: group.allAssigned,
   };
 }

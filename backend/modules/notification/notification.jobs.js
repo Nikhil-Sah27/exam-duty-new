@@ -133,7 +133,10 @@ const runTargetReachedSweep = async () => {
     if (!t.eligible || t.target <= 0 || t.remaining > 0) continue;
     const result = await emitIfAbsent("target_reached", {
       recipient: t.teacherId,
-      dedupeKey: `target_reached:${t.teacherId}:${t.target}`,
+      role: t.role,
+      // Role in the key so a dual-role teacher gets one congrats per role, each
+      // scoped to its own dashboard — not a single shared one.
+      dedupeKey: `target_reached:${t.teacherId}:${t.role}:${t.target}`,
       data: { target: t.target },
     });
     if (result) created += 1;

@@ -7,10 +7,8 @@ import {
   DoorOpen,
   Shield,
 } from "lucide-react";
-import type { DcsGroup } from "@/modules/dcs/select-duty/types";
-import type { RSDutyGroup } from "@/modules/rs/select-duty/types";
-import { useAuthStore } from "@/shared/store/auth.store";
 import type { OperationalRoleKey } from "../utils/assignmentStatusUtils";
+import type { DutyGroupSummary } from "./duty-group-summary/dutyGroupSummaryTypes";
 import ViewDutyGroupButton from "./ViewDutyGroupButton";
 
 /**
@@ -58,16 +56,14 @@ function formatDate(s: string): string {
 }
 
 interface DutyGroupInfoPanelProps {
+  /** Drives the empty-state copy (DCS vs RS) when no group is found. */
   viewerRole: OperationalRoleKey;
-  dcsGroup?: DcsGroup | null;
-  rsGroup?: RSDutyGroup | null;
   /**
-   * Cross-schedule display ordinal for the DCS group. When supplied, the
-   * panel labels the group "DCS Duty Group #N" using this number instead
-   * of the per-schedule backend `groupIndex` (which is always 1 for
-   * single-chunk schedules and confuses the user).
+   * The group projected to the shared summary shape by the role module's
+   * adapter (`dcsGroupToSummary` / `rsGroupToSummary`). `null` → no group for
+   * this room, which renders the role-specific "no group" block.
    */
-  dcsDisplayOrdinal?: number | null;
+  summary: DutyGroupSummary | null;
   isLoading?: boolean;
   onViewGroup: () => void;
 }
@@ -78,20 +74,17 @@ interface DutyGroupInfoPanelProps {
  * is part of group X with these other rooms; click View Duty Group to
  * see the full group and claim it."
  *
- * Pure presentation — does not call any APIs.  Group lookup is performed by
- * the parent via `useGroupForRoom` so the same panel works for both DCS and
- * RS without duplicating data plumbing.
+ * Pure presentation — does not call any APIs and knows nothing about the
+ * DCS/RS domain shapes. The parent (via `useGroupForRoom`) resolves the group
+ * and adapts it to `DutyGroupSummary` before handing it in, so this panel
+ * stays feature-agnostic.
  */
 export default function DutyGroupInfoPanel({
   viewerRole,
-  dcsGroup,
-  rsGroup,
-  dcsDisplayOrdinal,
+  summary,
   isLoading,
   onViewGroup,
 }: DutyGroupInfoPanelProps) {
-  const myUserId = useAuthStore((s) => s.user?.id);
-
   if (isLoading) {
     return (
       <div className="rounded-xl border border-blue-200 bg-blue-50/60 px-4 py-3 text-sm text-blue-700">
@@ -100,73 +93,40 @@ export default function DutyGroupInfoPanel({
     );
   }
 
-  if (viewerRole === "dcs") {
-    if (!dcsGroup) {
-      return (
-        <NoGroupBlock
-          message="No DCS duty group found for this room."
-          detail="The grouping is generated when the exam is created. Contact the controller if this looks wrong."
-        />
-      );
-    }
-    const isMine =
-      dcsGroup.assignedTeacher && dcsGroup.assignedTeacher._id === myUserId;
-    const isOccupied = Boolean(dcsGroup.assignedTeacher) && !isMine;
-    const ordinal = dcsDisplayOrdinal ?? dcsGroup.groupIndex;
-    return (
-      <Shell
-        kind="DCS"
-        title={`DCS Duty Group #${ordinal}`}
-        subtitle={`${dcsGroup.assignedRooms.length} rooms · serves ${dcsGroup.assignedStudents} students`}
-        date={dcsGroup.schedule.date}
-        startTime={dcsGroup.schedule.startTime}
-        endTime={dcsGroup.schedule.endTime}
-        rooms={dcsGroup.assignedRooms.map((r) => ({
-          examRoomId: r._id,
-          roomNumber: r.room.roomNumber,
-          buildingName: r.room.building?.name ?? "—",
-          floor: r.room.floor,
-        }))}
-        isMine={Boolean(isMine)}
-        isOccupied={isOccupied}
-        assignedTo={dcsGroup.assignedTeacher?.name ?? null}
-        onViewGroup={onViewGroup}
+  if (!summary) {
+    return viewerRole === "rs" ? (
+      <NoGroupBlock
+        message="No RS duty group found for this room."
+        detail="Groups update when rooms are added; refresh the page if you just changed the exam."
+      />
+    ) : (
+      <NoGroupBlock
+        message="No DCS duty group found for this room."
+        detail="The grouping is generated when the exam is created. Contact the controller if this looks wrong."
       />
     );
   }
 
-  if (viewerRole === "rs") {
-    if (!rsGroup) {
-      return (
-        <NoGroupBlock
-          message="No RS duty group found for this room."
-          detail="Groups update when rooms are added; refresh the page if you just changed the exam."
-        />
-      );
-    }
-    return (
-      <Shell
-        kind="RS"
-        title={`${rsGroup.buildingName} — ${rsGroup.rangeLabel}`}
-        subtitle={`${rsGroup.rooms.length} rooms in ${rsGroup.buildingName}`}
-        date={rsGroup.date}
-        startTime={rsGroup.startTime}
-        endTime={rsGroup.endTime}
-        rooms={rsGroup.rooms.map((r) => ({
-          examRoomId: r.examRoomId,
-          roomNumber: r.roomNumber,
-          buildingName: rsGroup.buildingName,
-        }))}
-        isMine={false}
-        isOccupied={rsGroup.allAssigned}
-        assignedTo={null}
-        onViewGroup={onViewGroup}
-      />
-    );
-  }
+  const subtitle =
+    summary.kind === "DCS"
+      ? `${summary.rooms.length} rooms · serves ${summary.studentCount ?? 0} students`
+      : `${summary.rooms.length} rooms in ${summary.buildingName}`;
 
-  // Invigilator never reaches this component — render null defensively.
-  return null;
+  return (
+    <Shell
+      kind={summary.kind}
+      title={summary.title}
+      subtitle={subtitle}
+      date={summary.date}
+      startTime={summary.startTime}
+      endTime={summary.endTime}
+      rooms={summary.rooms}
+      isMine={Boolean(summary.isMine)}
+      isOccupied={Boolean(summary.isOccupied)}
+      assignedTo={summary.assignedTo?.name ?? null}
+      onViewGroup={onViewGroup}
+    />
+  );
 }
 
 function Shell(props: {

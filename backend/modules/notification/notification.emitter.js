@@ -63,13 +63,14 @@ const queueEmails = async (entries, session) => {
 
 const emit = async (
   type,
-  { recipient, refModel, refId, data = {}, dedupeKey, session } = {},
+  { recipient, role, refModel, refId, data = {}, dedupeKey, session } = {},
 ) => {
   const { title, message } = templates[type](data);
 
   const notification = await notificationRepository.create(
     {
       recipient,
+      role: role || null,
       type,
       title,
       message,
@@ -114,12 +115,13 @@ const emitIfAbsent = async (type, { dedupeKey, ...rest } = {}) => {
 
 const emitToMany = async (
   type,
-  { recipients, refModel, refId, data = {}, session } = {},
+  { recipients, role, refModel, refId, data = {}, session } = {},
 ) => {
   const { title, message } = templates[type](data);
 
   const docs = recipients.map((recipient) => ({
     recipient,
+    role: role || null,
     type,
     title,
     message,
@@ -153,13 +155,14 @@ const emitToMany = async (
 const bulkEmit = async (notifications, { session } = {}) => {
   if (!Array.isArray(notifications) || notifications.length === 0) return [];
 
-  const rendered = notifications.map(({ type, recipient, refModel, refId, data = {} }) => {
+  const rendered = notifications.map(({ type, recipient, role, refModel, refId, data = {} }) => {
     const { title, message } = templates[type](data);
-    return { type, recipient, refModel, refId, data, title, message };
+    return { type, recipient, role, refModel, refId, data, title, message };
   });
 
-  const docs = rendered.map(({ type, recipient, refModel, refId, title, message }) => ({
+  const docs = rendered.map(({ type, recipient, role, refModel, refId, title, message }) => ({
     recipient,
+    role: role || null,
     type,
     title,
     message,

@@ -10,6 +10,7 @@ import { formatDate } from "@/shared/lib/utils";
 import type { Duty } from "@/modules/duties/types";
 
 const ROLE_LABEL: Record<string, string> = { invigilator: "Invigilator", rs: "RS", dcs: "DCS" };
+const OPERATIONAL_ROLES = new Set(["invigilator", "rs", "dcs"]);
 
 /**
  * One entry per duty UNIT (schedule + role) — the same unit the backend
@@ -38,7 +39,12 @@ const roomLabel = (d: Duty) => {
  */
 export default function PendingConfirmations() {
   const user = useAuthStore((s) => s.user);
-  const { data: duties } = useDutiesByTeacher(user?.id);
+  // Scope to the dashboard's role so a multi-role teacher only sees the duties
+  // to confirm for the role they're currently in.
+  const role = OPERATIONAL_ROLES.has(user?.activeRole ?? "")
+    ? user?.activeRole ?? undefined
+    : undefined;
+  const { data: duties } = useDutiesByTeacher(user?.id, role);
   const queryClient = useQueryClient();
 
   const pending = useMemo(() => {

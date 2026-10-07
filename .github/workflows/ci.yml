@@ -35,6 +35,25 @@ jobs:
         working-directory: frontend
 
   # ---------------------------------------------------------------------------
+  # Backend module-boundary ratchet. Blocking gate — fails if a NEW cross-domain
+  # `.model`/`.repository` import appears (CLAUDE.md: services call other
+  # domains' services). Pure Node, no deps or DB needed, so it's fast.
+  # ---------------------------------------------------------------------------
+  backend-architecture:
+    name: Backend architecture boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check module boundaries
+        run: node scripts/check-architecture.js
+        working-directory: backend
+
+  # ---------------------------------------------------------------------------
   # Backend API integration tests against a throwaway MongoDB service.
   # Blocking gate — the full suite (90 tests) must pass. It seeds the admin
   # users, boots the server against a fresh Mongo, then runs the runner.

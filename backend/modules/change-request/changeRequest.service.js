@@ -696,6 +696,7 @@ const approveDcsGroupSwap = async (request, reviewerId, reviewNote) => {
 
   emit("request_approved", {
     recipient: requesterId,
+    role: "dcs",
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type: "DCS swap", reviewNote },
@@ -827,6 +828,7 @@ const approveRsGroupSwap = async (request, reviewerId, reviewNote) => {
 
   emit("request_approved", {
     recipient: requesterId,
+    role: "rs",
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type: "RS swap", reviewNote },
@@ -954,6 +956,7 @@ const approveRequest = async (id, reviewerId, reviewNote) => {
 
   emit("request_approved", {
     recipient: request.requestedBy._id,
+    role: request.duty?.role || null,
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type: request.type, reviewNote },
@@ -962,6 +965,7 @@ const approveRequest = async (id, reviewerId, reviewNote) => {
   if (request.type === "swap" && request.swapWith) {
     emit("duty_swapped", {
       recipient: request.swapWith._id,
+      role: request.duty?.role || null,
       refModel: "Duty",
       refId: request.duty._id,
       data: {},
@@ -989,6 +993,7 @@ const rejectRequest = async (id, reviewerId, reviewNote) => {
 
   emit("request_rejected", {
     recipient: request.requestedBy._id,
+    role: request.duty?.role || null,
     refModel: "ChangeRequest",
     refId: request._id,
     data: { type: request.type, reviewNote },

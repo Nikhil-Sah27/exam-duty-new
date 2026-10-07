@@ -308,7 +308,7 @@ exam-duty/
 │   │   ├── exam-cleanup/            # Cascade delete + release
 │   │   ├── audit/                   # CS who-did-what trail (fire-and-forget writes)
 │   │   └── report/                  # Stub (reporting UI lives on the frontend)
-│   ├── scripts/                     # Seed + backfill + dump/restore helpers
+│   ├── scripts/                     # Seed + backfill + dump/restore + check-architecture
 │   └── shared/                      # DB config, auth middleware, roleResolver, utils
 │
 ├── frontend/
@@ -355,7 +355,7 @@ exam-duty/
 └── db-dump.json                     # EJSON database export (see dump/restore scripts)
 ```
 
-Each backend module follows the **controller → service → repository → model** pattern. Each frontend feature module owns its own `components/`, `hooks/`, `services/`, `types.ts`, and (where useful) `utils/` — cross-module imports are one-way toward `shared/`.
+Each backend module follows the **controller → service → repository → model** pattern. Each frontend feature module owns its own `components/`, `hooks/`, `services/`, `types.ts`, and (where useful) `utils/` — cross-module imports are one-way toward `shared/`. These boundaries are machine-checked: `backend/scripts/check-architecture.js` (a CI gate) blocks new cross-domain `.model`/`.repository` imports, and `frontend/eslint.config.js` blocks undeclared feature→feature imports.
 
 ## Getting Started
 
@@ -581,7 +581,7 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 
 ## Key Design Decisions
 
-- **Modular architecture** — every backend domain is a controller → service → repository → model tuple, with no cross-domain repository calls. Every frontend feature module owns its full slice (components, hooks, services, types).
+- **Modular architecture, enforced in CI** — every backend domain is a controller → service → repository → model tuple, with no cross-domain repository calls. `backend/scripts/check-architecture.js` is a blocking CI gate that fails on any _new_ cross-domain `.model`/`.repository` import (the existing set is baselined and burned down over time; services call other domains' services instead). Every frontend feature module owns its full slice (components, hooks, services, types), and `frontend/eslint.config.js` enforces one-way imports toward `shared/`: a feature may import `shared`, the `duties` domain, and `exams/types`; any other feature→feature edge must be an explicit, commented `LEGACY_ALLOW` entry.
 - **Designation-driven, multi-role auth** — role eligibility lives in one `roleResolver`; a user's roles are derived from their designation, and a per-session `activeRole` (carried in the JWT) drives routing and authorization. Multi-role users select or switch their active role via `POST /auth/select-role`.
 - **One duty record, two entry points** — a duty the CS assigns (Manage Duties or the Exams room-detail modal) is the same `Duty` a teacher would self-claim. The CS flow reuses the same eligibility, grouping, conflict, and notification services rather than duplicating them.
 - **Building-aware conflict detection** — `Duty` carries both a legacy string label (`room`) and a physical room reference (`roomRef`). All conflict queries prefer `roomRef` so the same room number in different buildings can be booked independently. Frontend selection utilities compare via `examRoom.room._id` for the same reason.
@@ -595,6 +595,7 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 
 ## Recent Enhancements
 
+- **Enforced module boundaries** — `backend/scripts/check-architecture.js` is a new blocking CI job (`.github/workflows/ci.yml`) that fails on any _new_ cross-domain `.model`/`.repository` import; the current set is baselined for incremental burn-down (run with `--update` to regenerate the baseline). This mirrors the frontend's ESLint boundary rules. As part of the same pass, the shared `DutyGroup*` components were inverted to consume a role-agnostic `DutyGroupSummary` — the role→summary adapters now live in the `dcs`/`rs` modules — so `modules/shared` no longer imports any role module.
 - **Reports module** — a CS **Duty Roster** (day → shift room roster with per-scope CSV export, group-correct coverage tiles, department per room) and a role-aware **Teacher Workload** table (per-role targets, one row per duty role, DCS → RS → Invigilator sort, per-role completion donuts). See [Reports](#reports-cs).
 - **Role-aware workload + DCS counting fix** — the cohort endpoint (`/all-teachers`) now measures each teacher against the correct role instead of always invigilator, and DCS completion counts **groups** (via `DCSGroup`) rather than per-room duties (which had inflated the figure). The invigilator "completed" counter is role-scoped so RS/DCS room duties can't leak in.
 - **Audit Log** — a CS who-did-what trail (`/audit`); self-claims hidden, CS assignments (single / RS group / DCS group) unified as "Duty assigned by CS", custom filter dropdown. See [Audit Log](#audit-log-cs).
@@ -628,3 +629,4 @@ Follow the existing patterns:
 - Cross-role behavior goes under `frontend/src/modules/shared/`.
 - Prefer using `roomRef` (ObjectId) over `room` (string) for any building-sensitive query.
 - Reuse the centralized `roleResolver` for eligibility and `notification.emitter.js` for user-visible state changes — don't duplicate that logic.
+- Respect module boundaries: a backend module must call another domain's **service**, never its repository/model directly — `node backend/scripts/check-architecture.js` enforces this in CI. On the frontend, import one-way toward `shared/`; if a new feature→feature import is truly unavoidable, add it to `LEGACY_ALLOW` in `frontend/eslint.config.js` with a comment (`npm run lint` flags undeclared ones).

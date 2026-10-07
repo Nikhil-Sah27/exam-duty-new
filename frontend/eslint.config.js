@@ -35,7 +35,10 @@ const EXAMS_REGEX = "^@/modules/exams(?:$|/(?!types(?:$|/)))";
 const LEGACY_ALLOW = {
   rs: ["invigilator", "duty-calculation", "dashboard"],
   dcs: ["invigilator", "duty-calculation", "dashboard"],
-  invigilator: ["dcs", "rs", "exams", "notifications", "duty-calculation", "dashboard"],
+  // `auth`: the role header embeds the auth role-switcher modal
+  // (RoleSelectionModal) — app-shell-style composition for the role tree, same
+  // class as the `notifications` bell it already composes.
+  invigilator: ["dcs", "rs", "exams", "auth", "notifications", "duty-calculation", "dashboard"],
   exams: ["rs", "dcs", "manage-duties", "create-exams", "duty-calculation", "users", "infrastructure"],
   "manage-duties": ["rs", "dcs", "exams", "duty-calculation", "users"],
   "change-requests": ["exams", "users"],
@@ -43,10 +46,16 @@ const LEGACY_ALLOW = {
   "create-exams": ["exams", "departments", "infrastructure", "users"],
   duties: ["exams", "users", "dcs"],
   "duty-calculation": ["exams", "users"],
-  reports: ["exams", "users", "departments", "duty-calculation"],
+  // `rs`/`dcs`: roster-coverage reuses the canonical RS grouping util
+  // (`groupRoomsIntoRSGroups`, whose location CLAUDE.md pins — must be reused,
+  // never re-derived) and the `DcsGroup` type.
+  reports: ["exams", "users", "departments", "duty-calculation", "rs", "dcs"],
   notify: ["users", "departments"],
   departments: ["users"],
   audit: ["users"],
+  // `departments`: the add/edit-teacher forms embed the shared DepartmentSelect
+  // picker — same reusable-widget pattern as create-exams/notify → departments.
+  users: ["departments"],
 };
 
 const FEATURE_MODULES = [
@@ -143,19 +152,6 @@ export default tseslint.config(
         SHARED_LAYER_FORBIDDEN.filter((m) => m !== "auth" && m !== "notifications"),
         (m) =>
           `The app shell may only compose auth/notifications — "${m}" must adapt to a shared contract instead.`,
-      ),
-    },
-  },
-  // TODO(boundaries): the DutyGroup* components still fetch via DCS/RS
-  // services and know both group shapes. Invert by passing data/adapters in
-  // from role modules, then delete this override.
-  {
-    files: ["src/modules/shared/components/DutyGroup*.tsx"],
-    rules: {
-      "no-restricted-imports": restrictedPatterns(
-        SHARED_LAYER_FORBIDDEN.filter((m) => m !== "dcs" && m !== "rs"),
-        (m) =>
-          `The shared layer must stay feature-agnostic — invert the dependency so "${m}" adapts to a contract defined in shared.`,
       ),
     },
   },

@@ -35,6 +35,15 @@ const notificationSchema = new mongoose.Schema(
         "announcement",
       ],
     },
+    // Which role this notification concerns. Null = role-agnostic (exam
+    // announcements, CS-facing alerts) and shows in every dashboard. A specific
+    // role scopes it: a multi-role teacher only sees it while that role is
+    // active. See notification.service.getMyNotifications.
+    role: {
+      type: String,
+      enum: ["cs", "dcs", "rs", "invigilator"],
+      default: null,
+    },
     title: {
       type: String,
       required: [true, "Title is required"],

@@ -15,7 +15,7 @@ import {
  */
 export function useUpcomingDuties() {
   const userId = useAuthStore((s) => s.user?.id);
-  const dutiesQuery = useDutiesByTeacher(userId);
+  const dutiesQuery = useDutiesByTeacher(userId, "invigilator");
 
   const upcoming = useMemo(
     () => filterUpcomingDuties(dutiesQuery.data ?? []),

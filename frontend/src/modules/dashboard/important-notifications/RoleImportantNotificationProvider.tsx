@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
-import { useNotifications } from "@/modules/notifications/hooks";
+import { useScopedNotifications } from "@/modules/notifications/hooks";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import { useMyUnread } from "@/modules/messages/hooks/useMessages";
 import { useImportantNotificationQueue } from "./useImportantNotificationQueue";
@@ -30,11 +30,13 @@ export default function RoleImportantNotificationProvider() {
   const userId = useAuthStore((s) => s.user?.id);
   const navigate = useNavigate();
 
-  const { data: feed } = useNotifications();
-  const { data: duties } = useDutiesByTeacher(userId);
-
   const isOpRole = OP_ROLES.includes(activeRole as OperationalRole);
   const role = activeRole as OperationalRole;
+
+  const { data: feed } = useScopedNotifications();
+  // Scope to the active role so "duty today" popups never surface another
+  // role's duty. The notification feed is already role-scoped server-side.
+  const { data: duties } = useDutiesByTeacher(userId, isOpRole ? role : undefined);
 
   const { data: unreadMessages = 0 } = useMyUnread(isOpRole);
 

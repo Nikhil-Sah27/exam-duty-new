@@ -53,6 +53,14 @@ export default function DashboardDutySection({
               {more > 0 ? ` · showing first ${shown.length}` : ""}
             </p>
           </div>
+          {tone === "upcoming" && (
+            <span
+              className="ml-1.5 inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 px-2 text-xs font-bold text-white shadow-sm shadow-indigo-900/30 ring-1 ring-white/20"
+              title={`${items.length} upcoming dut${items.length === 1 ? "y" : "ies"}`}
+            >
+              {items.length}
+            </span>
+          )}
         </div>
         {viewAllHref && items.length > 0 && (
           <a

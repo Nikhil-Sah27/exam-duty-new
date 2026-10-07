@@ -1,11 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, ArrowLeftRight } from "lucide-react";
 import { useAppStore } from "@/shared/store/app.store";
 import { useAuthStore } from "@/shared/store/auth.store";
-import { useUnreadCount } from "@/modules/notifications/hooks";
+import { useScopedUnreadCount } from "@/modules/notifications/hooks";
 import NotificationList from "@/modules/notifications/components/NotificationList";
+import RoleSelectionModal from "@/modules/auth/components/RoleSelectionModal";
 import DarkModeToggle from "@/shared/components/DarkModeToggle";
+
+const ROLE_LABELS: Record<string, string> = {
+  cs: "CS",
+  dcs: "DCS",
+  rs: "RS",
+  invigilator: "Invigilator",
+};
 
 export default function InvigilatorHeader() {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
@@ -14,9 +22,12 @@ export default function InvigilatorHeader() {
   const navigate = useNavigate();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [switchRoleOpen, setSwitchRoleOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: unreadCount } = useUnreadCount();
+  const hasMultipleRoles = (user?.roles?.length ?? 0) > 1;
+
+  const unreadCount = useScopedUnreadCount();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -69,6 +80,22 @@ export default function InvigilatorHeader() {
           )}
         </div>
 
+        {hasMultipleRoles && (
+          <button
+            onClick={() => setSwitchRoleOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm ring-1 ring-indigo-400/50 transition-colors hover:bg-indigo-400"
+            title="Switch to another dashboard"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+            <span className="hidden sm:inline">Switch Role</span>
+            {user?.activeRole && (
+              <span className="rounded bg-indigo-600/70 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                {ROLE_LABELS[user.activeRole] ?? user.activeRole}
+              </span>
+            )}
+          </button>
+        )}
+
         {user && <span className="text-sm text-gray-300">{user.name}</span>}
         <button
           onClick={handleLogout}
@@ -77,6 +104,11 @@ export default function InvigilatorHeader() {
           Logout
         </button>
       </div>
+
+      <RoleSelectionModal
+        open={switchRoleOpen}
+        onClose={() => setSwitchRoleOpen(false)}
+      />
     </header>
   );
 }

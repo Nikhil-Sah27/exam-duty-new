@@ -193,10 +193,20 @@ export default function RoleAssignmentCard({
           </span>
         </div>
       ) : (
-        <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-white/80 px-2.5 py-2 text-xs text-gray-500">
-          <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
+        <div
+          className={`flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 text-xs ${
+            own && state === "BLOCKED"
+              ? "border-red-200 bg-red-50/70 text-red-700"
+              : "border-gray-200 bg-white/80 text-gray-500"
+          }`}
+        >
+          <AlertCircle
+            className={`h-3.5 w-3.5 ${own && state === "BLOCKED" ? "text-red-400" : "text-gray-400"}`}
+          />
           {own
-            ? "Vacant — you can take this duty."
+            ? state === "BLOCKED"
+              ? "You already have a duty during this time slot — you can't take this."
+              : "Vacant — you can take this duty."
             : `Vacant — no one has been assigned as ${fullRoleLabel} yet.`}
         </div>
       )}

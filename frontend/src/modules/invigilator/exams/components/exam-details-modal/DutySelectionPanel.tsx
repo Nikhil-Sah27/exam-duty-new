@@ -161,9 +161,7 @@ export function DutyGroupSection({
     <Section icon={Users} title="Duty Group">
       <DutyGroupInfoPanel
         viewerRole={viewerRole}
-        dcsGroup={groupForRoom.dcsGroup}
-        rsGroup={groupForRoom.rsGroup}
-        dcsDisplayOrdinal={groupForRoom.dcsDisplayOrdinal}
+        summary={groupForRoom.summary}
         isLoading={groupForRoom.isLoading}
         onViewGroup={onViewGroup}
       />

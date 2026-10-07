@@ -3,14 +3,27 @@ const notificationRepository = require("./notification.repository");
 
 // User-facing CRUD only. For sending notifications, use notification.emitter.js.
 
-const getMyNotifications = async (userId, query) => {
-  const filter = {};
+// Operational roles get a role-scoped inbox: a multi-role teacher (e.g. an
+// Associate Professor who is both RS and invigilator) sees only the messages
+// for the role they're currently in, plus role-agnostic ones (role: null —
+// exam announcements, broadcasts). CS is single-role and every CS-facing alert
+// is role-agnostic, so CS sees everything unscoped. `{ role: null }` also
+// matches legacy rows written before this field existed.
+const OPERATIONAL_ROLES = new Set(["invigilator", "rs", "dcs"]);
+
+const roleScopeFilter = (activeRole) =>
+  OPERATIONAL_ROLES.has(activeRole)
+    ? { $or: [{ role: activeRole }, { role: null }] }
+    : {};
+
+const getMyNotifications = async (userId, query, activeRole) => {
+  const filter = { ...roleScopeFilter(activeRole) };
   if (query.unread === "true") filter.isRead = false;
   return notificationRepository.findByRecipient(userId, filter);
 };
 
-const getUnreadCount = async (userId) => {
-  const count = await notificationRepository.countUnread(userId);
+const getUnreadCount = async (userId, activeRole) => {
+  const count = await notificationRepository.countUnread(userId, roleScopeFilter(activeRole));
   return { count };
 };
 

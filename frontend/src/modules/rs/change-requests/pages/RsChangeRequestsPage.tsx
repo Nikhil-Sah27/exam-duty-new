@@ -22,7 +22,7 @@ import RsSwapTargetModal from "../components/RsSwapTargetModal";
  */
 export default function RsChangeRequestsPage() {
   const userId = useAuthStore((s) => s.user?.id);
-  const dutiesQuery = useDutiesByTeacher(userId);
+  const dutiesQuery = useDutiesByTeacher(userId, "rs");
   const requestsQuery = useMyChangeRequests();
 
   const [activeSource, setActiveSource] = useState<RSUpcomingGroup | null>(null);

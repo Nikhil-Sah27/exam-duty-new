@@ -1,10 +1,10 @@
-import { useNotifications, useMarkAllAsRead } from "../hooks";
+import { useScopedNotifications, useMarkAllAsRead } from "../hooks";
 import NotificationItem from "./NotificationItem";
 import ClearAllNotificationsButton from "./ClearAllNotificationsButton";
 import { Button } from "@/shared/components";
 
 export default function NotificationList() {
-  const { data: notifications, isLoading } = useNotifications();
+  const { data: notifications, isLoading } = useScopedNotifications();
   const markAll = useMarkAllAsRead();
 
   const list = notifications ?? [];

@@ -15,8 +15,8 @@ const findByRecipient = (recipientId, filter = {}) => {
     .limit(50);
 };
 
-const countUnread = (recipientId) => {
-  return Notification.countDocuments({ recipient: recipientId, isRead: false });
+const countUnread = (recipientId, filter = {}) => {
+  return Notification.countDocuments({ recipient: recipientId, isRead: false, ...filter });
 };
 
 const findById = (id) => {

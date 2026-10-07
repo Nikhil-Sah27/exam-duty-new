@@ -54,8 +54,11 @@ export function useDutySelection(
   // call from contexts where the user isn't an operational role.
   const config = getRoleConfig(user?.activeRole || undefined);
   const flagKey = config?.flagKey ?? "invigilatorAssigned";
+  // Role-scope ownership + conflict: an invigilator duty must not read as the
+  // RS slot being "mine", and it MUST clash when picking RS at the same time.
+  const viewerRole = config?.roleKey ?? "invigilator";
 
-  const state = deriveSelectionState(slot, myDuties, flagKey, isPending);
+  const state = deriveSelectionState(slot, myDuties, flagKey, isPending, viewerRole);
 
   const invalidateSharedExamData = () => {
     queryClient.invalidateQueries({ queryKey: ["shared", "duty-status"] });

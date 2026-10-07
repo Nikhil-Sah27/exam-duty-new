@@ -490,12 +490,12 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | --- | --- | --- |
 | POST | `/bootstrap` | Create the first admin — no auth. |
 | POST | `/import` | **CS only.** Bulk-add teachers from a parsed CSV: `{ rows: [{ line, name, email, phone, department?, designation, role?, password? }], defaultPassword?, dryRun? }`. Every row gets a result — `create`/`created`, `exists` (email already has an account → skipped, so re-uploads are safe) or `error` with the reason; valid rows are created even when others fail. Designations accept common spellings ("Asst. Prof"), departments match by name or code, roles follow designation. Max 1000 rows. |
-| POST | `/` | Create user (CS, DCS, RS). Requires `designation`; roles are resolved from it (or one role when `Other`). Only CS may create a CS account. |
+| POST | `/` | **CS only.** Create user. Requires `designation`; roles are resolved from it (or one role when `Other`). |
 | GET | `/` | List users. `?role=<role>` filters by roles-array membership; `?department=<code>`; `?includeInactive=true` includes deactivated users. |
 | GET | `/:id` | Get by id. |
-| PUT | `/:id` | Update (CS, DCS, RS). Only profile fields are accepted (name, email, phone, department, designation, role); changing `designation` re-resolves roles. Only CS may edit a CS account. |
-| DELETE | `/:id` | (CS, DCS, RS; CS accounts by CS only.) Two-step delete: an **active** user is soft-deleted (`isActive=false`); an **already-deactivated** user is **permanently** removed. |
-| PATCH | `/:id/activate` | Reactivate a soft-deleted user (bypasses the auto-active-only pre-find hook). CS accounts by CS only. |
+| PUT | `/:id` | **CS only.** Update. Only profile fields are accepted (name, email, phone, department, designation, role); changing `designation` re-resolves roles. |
+| DELETE | `/:id` | **CS only.** Two-step delete: an **active** user is soft-deleted (`isActive=false`); an **already-deactivated** user is **permanently** removed. |
+| PATCH | `/:id/activate` | **CS only.** Reactivate a soft-deleted user (bypasses the auto-active-only pre-find hook). |
 
 ### Exams (legacy, `/exams`)
 | Method | Path | Description |

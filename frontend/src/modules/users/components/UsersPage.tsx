@@ -7,7 +7,8 @@ import ImportUsersModal from "./ImportUsersModal";
 export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  // The page is open to CS, DCS and RS; bulk import is CS-only (as is the API).
+  // Teachers is a CS page (account writes are CS-only on the API too); the
+  // check keeps a deep-linked DCS/RS from seeing an import that would 403.
   const isCs = useAuthStore((s) => s.user?.activeRole === "cs");
 
   return (

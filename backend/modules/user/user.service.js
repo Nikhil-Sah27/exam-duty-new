@@ -12,9 +12,9 @@ const departmentService = require("../department/department.service");
 const SALT_ROUNDS = 10;
 
 // ── Who may manage which accounts ──────────────────────────────────────────
-// The Teachers page is open to CS, DCS and RS (routes enforce that), but only
-// CS may create, grant, edit or remove a CS account — otherwise any DCS/RS
-// could mint themselves an admin.
+// Routes already limit account writes to CS. This is the second line for the
+// one rule that must never slip if a route is reopened: only CS may create,
+// grant, edit or remove a CS account — otherwise a DCS/RS could mint an admin.
 const isCsActor = (actor) => !actor || actor.activeRole === "cs"; // no actor = internal/script call
 
 const assertMayTouch = (actor, { targetRoles = [], resultingRoles = [] } = {}) => {
@@ -24,7 +24,7 @@ const assertMayTouch = (actor, { targetRoles = [], resultingRoles = [] } = {}) =
   }
 };
 
-// Profile fields a manager may edit. Everything else (password, OTP fields,
+// Profile fields CS may edit. Everything else (password, OTP fields,
 // isActive, lastActiveAt…) has its own dedicated path and is never mass-assigned.
 const UPDATABLE_FIELDS = ["name", "email", "phone", "department", "designation", "roles", "role"];
 

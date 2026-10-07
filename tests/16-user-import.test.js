@@ -12,8 +12,9 @@ const {
  *     emails that already have an account (re-uploading is safe)
  *   - roles follow designation; departments match by name or code
  *   - imported teachers can sign in with the default password
- *   - only CS may import; only CS may create or change a CS account;
- *     invigilators can't write users; protected fields can't be mass-assigned
+ *   - account writes are CS-only: RS, DCS and invigilators can't import, add,
+ *     edit, remove or reactivate anyone (CS accounts included); protected
+ *     fields can't be mass-assigned
  */
 async function run(token) {
   console.log("\n📥 USER IMPORT + ACCOUNT GUARD TESTS\n");
@@ -152,6 +153,34 @@ async function run(token) {
     });
     csId = created.data.data._id || created.data.data.id;
     await expectStatus(403, () => as(rsToken, () => api.put(`/users/${csId}`, { email: email("hijack") })));
+  });
+
+  await test("RS and DCS can't add, edit, remove or reactivate teachers (403)", async () => {
+    const dcs = await api.post("/users", {
+      name: "Dean D",
+      email: email("dcs"),
+      password: "secret12",
+      phone: "9000000003",
+      designation: "HOD/Dean",
+    });
+    assertStatus(dcs, 201);
+    const dcsLogin = await api.post("/auth/login", { email: email("dcs"), password: "secret12" });
+    const dcsToken = dcsLogin.data.data.token;
+    assert(dcsToken, "DCS should get a role-bound token");
+
+    const asha = (await api.get("/users")).data.data.find((u) => u.email === email("asha"));
+    for (const [who, authToken] of [["RS", rsToken], ["DCS", dcsToken]]) {
+      await expectStatus(403, () =>
+        as(authToken, () =>
+          api.post("/users", { name: `${who} add`, email: email(`add${who}`), password: "secret1", phone: "9000000004", designation: "Assistant Professor" })
+        )
+      );
+      await expectStatus(403, () => as(authToken, () => api.put(`/users/${asha._id}`, { name: "Renamed" })));
+      await expectStatus(403, () => as(authToken, () => api.delete(`/users/${asha._id}`)));
+      await expectStatus(403, () => as(authToken, () => api.patch(`/users/${asha._id}/activate`)));
+    }
+    const after = (await api.get(`/users/${asha._id}`)).data.data;
+    assert(after.name === "Asha Rao" && after.isActive !== false, `asha must be untouched: ${JSON.stringify(after)}`);
   });
 
   await test("Edits ignore protected fields (no mass assignment)", async () => {

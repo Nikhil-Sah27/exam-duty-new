@@ -20,7 +20,7 @@ cd frontend && npm run lint  # eslint (non-blocking in CI)
 There is no backend unit-test framework. Tests are **API integration tests** in `tests/` that hit a *running* backend over HTTP:
 
 ```bash
-cd tests && npm test               # full suite (runner.js, ~146 tests) — requires backend up + seeded admin
+cd tests && npm test               # full suite (runner.js, ~147 tests) — requires backend up + seeded admin
 cd tests && npm run test:duties    # one suite (scripts 01-auth … 16-user-import mirror the filenames)
 cd tests && node 07-duties.test.js # same thing — every suite self-runs via `require.main === module`
 API_URL=https://host/api npm test  # target a remote backend
@@ -67,7 +67,7 @@ Frontend conventions worth knowing before adding UI: imports use the `@/` alias 
 
 ### Core invariants (violating these breaks real flows)
 
-- **Only CS manages CS accounts; nobody signs themselves up.** User writes (`POST/PUT/DELETE /users…`) need an active role of CS, DCS or RS (the Teachers page is shared), but `user.service` refuses any create/edit/delete/reactivate that touches a CS account unless the actor is CS — "Other" + "cs" used to let anyone mint an admin. `PUT /users/:id` whitelists profile fields (never password/OTP/status). `POST /auth/register` is closed (403) unless `ALLOW_PUBLIC_REGISTER=true`, and never grants CS. Bulk CSV import (`POST /users/import`, Teachers → Import CSV) is CS-only; proof: `tests/16-user-import.test.js`.
+- **Only CS manages CS accounts; nobody signs themselves up.** Every user write (`POST/PUT/DELETE/PATCH /users…`, import included) is `requireRole("cs")` — DCS and RS don't manage teachers (the Teachers page is CS-only; their shells never link it). `user.service` still refuses any create/edit/delete/reactivate touching a CS account unless the actor is CS, as a second line if a route is ever reopened — "Other" + "cs" used to let anyone mint an admin. `PUT /users/:id` whitelists profile fields (never password/OTP/status). `POST /auth/register` is closed (403) unless `ALLOW_PUBLIC_REGISTER=true`, and never grants CS. Bulk CSV import is `POST /users/import` (Teachers → Import CSV); proof: `tests/16-user-import.test.js`.
 - **Roles are derived, not edited.** `User.roles` is an array computed from `designation` by `backend/shared/utils/roleResolver.js` — the single source of truth for eligibility everywhere (user CRUD, CS assignment pickers). Only designation `Other` allows picking a role manually.
 - **Active role drives everything.** The JWT carries `activeRole`; multi-role users get a `tempToken` at login and pick a role via `POST /auth/select-role`. `protect` re-validates `activeRole` against `roles` on every request.
 - **Password reset is a two-step OTP.** `POST /auth/forgot-password` (public) mails a 6-digit code; `POST /auth/reset-password` (public) verifies it and sets the new password. The OTP is stored on `User` as `resetOtpHash`/`resetOtpExpires`/`resetOtpAttempts` (all `select: false`, hashed, 10-min TTL, attempt-limited) — never returned by the API.

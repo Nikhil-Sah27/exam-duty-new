@@ -4,6 +4,8 @@
  * the app was killed, so the same handler is registered as the background
  * handler from the app entry (index.ts) and as a foreground listener.
  */
+import type { Event } from "react-native-notify-kit";
+
 import { confirmDuty } from "@/features/duties/api";
 import { useAuthStore } from "@/store/auth";
 
@@ -25,9 +27,7 @@ export async function confirmFromAlarm(p: AlarmPayload): Promise<boolean> {
   }
 }
 
-type NotifyKitEvent = Parameters<Parameters<NonNullable<ReturnType<typeof getNotifyKit>>["default"]["onBackgroundEvent"]>[0]>[0];
-
-async function handleEvent({ type, detail }: NotifyKitEvent): Promise<void> {
+async function handleEvent({ type, detail }: Event): Promise<void> {
   const kit = getNotifyKit();
   if (!kit || type !== kit.EventType.ACTION_PRESS) return;
   const notificationId = detail.notification?.id;

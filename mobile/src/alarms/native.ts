@@ -37,6 +37,7 @@ export function getNotifyKit(): NotifyKit | null {
   if (Platform.OS !== "android") return null;
   if (notifyKit === undefined) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Android-only native module, loaded lazily
       notifyKit = require("react-native-notify-kit") as NotifyKit;
     } catch (e) {
       console.warn("[alarms] notify-kit unavailable, falling back to expo-notifications", e);
@@ -50,6 +51,7 @@ function getAlarmKit(): AlarmKit | null {
   if (Platform.OS !== "ios") return null;
   if (alarmKit === undefined) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- iOS-only native module, loaded lazily
       const mod = require("react-native-nitro-ios-alarm-kit") as AlarmKit;
       alarmKit = mod.isAvailable() ? mod : null;
     } catch {
@@ -129,7 +131,9 @@ function androidAlarmNotification(kit: NotifyKit, p: AlarmPayload) {
       showTimestamp: true,
       timestamp: new Date(p.startsAt).getTime() || p.fireAt,
       pressAction: { id: "default", launchActivity: "default" },
-      fullScreenAction: { id: "alarm", launchActivity: "default" },
+      // mainComponent "main" is the app itself; it only tags the launch so
+      // MainActivity may show over the lock screen (plugins/withAlarmLockScreen.js).
+      fullScreenAction: { id: "alarm", launchActivity: "default", mainComponent: "main" },
       actions: [
         { title: "Dismiss", pressAction: { id: "dismiss" } },
         { title: "Snooze 5 min", pressAction: { id: "snooze" } },

@@ -1,6 +1,8 @@
 # Mobile App + Duty Alarms — Plan
 
-**Status:** approved 2026-10-07 — Phase 1 (backend) **built and verified**; Phase 2/3 (app) in progress. Decisions in §6.
+**Status (2026-10-07):** Phase 1 (backend) **built, verified, live on proctavo.com**. Phase 2 app (incl.
+native Select Duty) **built** — typecheck/lint/expo-doctor clean, Android release compiles; **not yet
+run on a real device**. iOS not compiled (no Xcode here — EAS cloud). Decisions in §6, open items in §7.
 
 **Goal:** a phone app for **Invigilators, RS and DCS** that (1) pushes every duty alert to the
 phone and (2) **rings like an alarm clock** before each duty, so nobody misses one.
@@ -155,3 +157,18 @@ App identity proposal: name **Proctavo**, bundle id `com.proctavo.app`, existing
 - **Platforms:** Android **and** iPhone together (Phase 3 runs alongside Phase 2; iOS needs the
   Apple Developer account in §5 before it can be installed on phones).
 - **Default alarms:** 1 h and 20 min before duty start; editable per teacher in Settings.
+
+## 7. Open items after the first build
+
+- **Device test** — alarms ringing on a locked phone, full-screen takeover, snooze/confirm actions,
+  AlarmKit on iOS 26: all untested until the APK / a TestFlight build is on a real phone.
+- **Push credentials** — `eas init` (projectId), Firebase `google-services.json` + FCM v1 key in
+  the Expo project, APNs via Apple Developer account; then `PUSH_TRANSPORT=expo` on production.
+  Until then the app skips push registration (local alarms still work).
+- **Session length** — logins last `JWT_EXPIRES_IN=7d`. Alarms already scheduled keep ringing and
+  pushes keep arriving after expiry, but new duties get no alarm until the teacher signs in again.
+  A refresh-token flow for the app would close this.
+- **Google Play** may refuse `USE_FULL_SCREEN_INTENT`; the alarm then rings as a looping
+  heads-up notification. Sideloaded APKs are unaffected.
+- **Pre-existing:** duty-status / DCS-group APIs return holders' names+phones to every role (hidden
+  client-side only, as on the web).

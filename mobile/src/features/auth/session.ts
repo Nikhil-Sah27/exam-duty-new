@@ -2,7 +2,7 @@ import { cancelAllAlarms, syncAlarms } from "@/alarms";
 import { selectRole } from "@/features/auth/api";
 import { queryClient } from "@/lib/queryClient";
 import type { LoginResult, UserRole } from "@/lib/types";
-import { registerForPush, unregisterPush } from "@/push";
+import { ensureNotificationPermission, registerForPush, unregisterPush } from "@/push";
 import { useAuthStore } from "@/store/auth";
 
 /** Store a login result; a multi-role user continues on the role picker. */
@@ -12,23 +12,22 @@ export async function completeLogin(result: LoginResult): Promise<void> {
     await store.setTempAuth(result.user, result.tempToken ?? "");
     return;
   }
-  await store.setAuth(result.user, result.token);
-  void afterSignedIn();
+  await store.setAuth(result.user, result.token); // TeacherRuntime then runs afterSignedIn()
 }
 
 /** Pick (or switch to) a role. Works from the tempToken and from a full token. */
 export async function chooseRole(role: UserRole): Promise<void> {
   const { user, token } = await selectRole(role);
   const store = useAuthStore.getState();
-  await store.setAuth(user, token);
   queryClient.clear();
-  void afterSignedIn();
+  await store.setAuth(user, token); // TeacherRuntime re-runs afterSignedIn() for the new token
 }
 
-/** Device registration + alarm sync once a role-bound token exists. */
+/** Device registration + alarm sync once a role-bound teacher token exists (called by TeacherRuntime). */
 export async function afterSignedIn(): Promise<void> {
   const role = useAuthStore.getState().user?.activeRole;
   if (!role || role === "cs") return;
+  await ensureNotificationPermission().catch(() => false); // alarms need it even without push
   await Promise.allSettled([registerForPush(), syncAlarms()]);
 }
 

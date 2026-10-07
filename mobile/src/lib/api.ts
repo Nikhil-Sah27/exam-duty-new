@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth";
 // Same contract as the web client (frontend/src/shared/lib/api.ts): attach the
 // role token (or the tempToken before a role is picked), collapse every error
 // into `new Error(message)`, and log out on 401. Callers read `res.data.data`.
+// eslint-disable-next-line import/no-named-as-default-member
 const api = axios.create({
   baseURL: API_URL,
   timeout: 20000,

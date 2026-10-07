@@ -23,6 +23,7 @@ export function Screen({ children, scroll = true, refreshing, onRefresh, edges =
         <ScrollView
           contentContainerStyle={[padding, { paddingBottom: spacing.xxl * 2 }, contentStyle]}
           keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
           refreshControl={
             onRefresh ? (
               <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />

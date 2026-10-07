@@ -34,7 +34,12 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.WAKE_LOCK"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "output": "static",
@@ -61,10 +66,13 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#6366f1",
           "defaultChannel": "duty-alerts",
-          "sounds": ["./assets/sounds/duty_alarm.wav"]
+          "sounds": [
+            "./assets/sounds/duty_alarm.wav"
+          ]
         }
       ],
-      "react-native-notify-kit"
+      "react-native-notify-kit",
+      "./plugins/withAlarmLockScreen"
     ],
     "experiments": {
       "typedRoutes": true,

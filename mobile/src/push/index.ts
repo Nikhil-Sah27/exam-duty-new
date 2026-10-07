@@ -37,22 +37,26 @@ function projectId(): string | undefined {
   return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 }
 
+/** Notification permission — needed by server pushes AND by the local alarms. */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  await ensureChannels(); // Android 13+ shows the permission prompt only once a channel exists
+  let perm = await Notifications.getPermissionsAsync();
+  if (!perm.granted && perm.canAskAgain) {
+    perm = await Notifications.requestPermissionsAsync({
+      ios: { allowAlert: true, allowBadge: true, allowSound: true },
+    });
+  }
+  return perm.granted;
+}
+
 /**
- * Ask permission, fetch the Expo push token and register it with the backend.
+ * Fetch the Expo push token and register it with the backend.
  * Needs a role-bound token (POST /push/devices is behind `protect`). Never throws.
  */
 export async function registerForPush(): Promise<string | null> {
   try {
     if (Platform.OS === "web" || !Device.isDevice) return null; // simulators can't receive pushes
-    await ensureChannels(); // Android 13+ shows the permission prompt only once a channel exists
-
-    let perm = await Notifications.getPermissionsAsync();
-    if (!perm.granted && perm.canAskAgain) {
-      perm = await Notifications.requestPermissionsAsync({
-        ios: { allowAlert: true, allowBadge: true, allowSound: true },
-      });
-    }
-    if (!perm.granted) return null;
+    if (!(await ensureNotificationPermission())) return null;
 
     const id = projectId();
     if (!id) {

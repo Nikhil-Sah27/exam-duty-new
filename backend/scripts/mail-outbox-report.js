@@ -25,6 +25,7 @@ const pad = (s, n) => String(s ?? "").padEnd(n).slice(0, n);
 
 const main = async () => {
   await connectDB();
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
 
   if (retry) {
     const res = await EmailOutbox.updateMany(

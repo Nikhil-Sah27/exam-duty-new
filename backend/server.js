@@ -12,10 +12,21 @@ const {
 } = require("./modules/mail/mail.dispatcher");
 const { startPushDispatcher } = require("./modules/push/push.dispatcher");
 const { attachRealtime } = require("./shared/realtime");
+const { ensureCollegeSetup } = require("./modules/college/college.migration");
 
 const PORT = process.env.PORT || 5000;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Every document must belong to a college before the first request is
+  // served — on first deploy this moves the existing data into "Main college"
+  // (MULTI_COLLEGE_PLAN.md §3.5). Idempotent; refuse to start if it fails.
+  try {
+    await ensureCollegeSetup();
+  } catch (err) {
+    console.error("[college] setup failed — not starting:", err);
+    process.exit(1);
+  }
+
   const server = http.createServer(app);
   // Live "duties changed" pushes to open pages (no-op if socket.io is absent).
   attachRealtime(server);

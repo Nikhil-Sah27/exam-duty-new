@@ -20,6 +20,7 @@ const REASON = "Bulk release via release-all-duties.js";
 
 async function main() {
   await connectDB();
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
   console.log("\n=== Release-all-duties sweep ===");
 
   // 1. Snapshot pre-state grouped by teacher role.

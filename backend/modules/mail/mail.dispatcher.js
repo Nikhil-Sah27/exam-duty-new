@@ -16,6 +16,7 @@ const { buildIcs, parseAddress } = require("../calendar/calendar.ics");
 
 // Lazy: duty.service → notification emitter → this file.
 const dutyService = () => require("../duty/duty.service");
+const { runAsPlatform } = require("../../shared/tenancy/context");
 
 // Emails about a duty the teacher may still need to confirm.
 const CONFIRMABLE = new Set([
@@ -142,7 +143,7 @@ const deliver = async (row) => {
  * One drain pass. Safe to call concurrently — overlapping calls return early
  * rather than double-sending.
  */
-const drainOnce = async () => {
+const drainPass = async () => {
   if (draining) return { sent: 0, skipped: 0, failed: 0 };
   draining = true;
   const tally = { sent: 0, skipped: 0, failed: 0 };
@@ -179,6 +180,10 @@ const drainOnce = async () => {
   }
   return tally;
 };
+
+// Outbox rows each name their own recipient, so one pass serves every college
+// (platform scope — MULTI_COLLEGE_PLAN.md).
+const drainOnce = () => runAsPlatform(drainPass);
 
 /**
  * Ask for a drain shortly (default 1s). Called after a non-transactional emit so

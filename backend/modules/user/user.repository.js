@@ -92,7 +92,30 @@ const findActiveIds = async (roles) => {
   return docs.map((d) => d._id);
 };
 
+/** Just the user's college (any active state). */
+const findCollegeOf = (id) =>
+  User.findOne({ _id: id, isActive: { $in: [true, false] } }).select("college").lean();
+
+const setPasswordById = (id, hashedPassword) =>
+  User.findOneAndUpdate(
+    { _id: id, isActive: { $in: [true, false] } },
+    { password: hashedPassword, resetOtpHash: null, resetOtpExpires: null, resetOtpAttempts: 0 },
+    { new: true }
+  ).select(ALLOWED_FIELDS);
+
+/** { collegeId: count } of active, non-superadmin users. */
+const countActiveByCollege = async () => {
+  const rows = await User.aggregate([
+    { $match: { isActive: true, college: { $ne: null } } },
+    { $group: { _id: "$college", n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+};
+
 module.exports = {
+  findCollegeOf,
+  setPasswordById,
+  countActiveByCollege,
   findExistingEmails,
   createMany,
   create,

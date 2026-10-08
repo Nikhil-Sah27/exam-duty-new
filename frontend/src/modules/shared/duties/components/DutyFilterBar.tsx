@@ -1,7 +1,8 @@
 import { X } from "lucide-react";
 import type { DutyFilters } from "../types";
+import { useCollegeFeatures } from "@/shared/hooks/useCollegeFeatures";
 
-const EXAM_TYPES = ["IA1", "IA2", "IA3", "SEE"];
+const CIE_TYPES = ["IA1", "IA2", "IA3"];
 const SEMESTERS = Array.from({ length: 8 }, (_, i) => String(i + 1));
 
 interface DutyFilterBarProps {
@@ -17,6 +18,9 @@ export default function DutyFilterBar({
   onChange,
   onClear,
 }: DutyFilterBarProps) {
+  // Only the exam types the college has switched on.
+  const features = useCollegeFeatures();
+  const examTypes = [...(features.cie ? CIE_TYPES : []), ...(features.see ? ["SEE"] : [])];
   const hasAnyFilter = Object.values(filters).some(Boolean);
 
   return (
@@ -38,7 +42,7 @@ export default function DutyFilterBar({
         className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
       >
         <option value="">All exam types</option>
-        {EXAM_TYPES.map((t) => (
+        {examTypes.map((t) => (
           <option key={t} value={t}>
             {t}
           </option>

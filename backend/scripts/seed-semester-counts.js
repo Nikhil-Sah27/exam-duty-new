@@ -19,6 +19,7 @@ const INTAKE_BY_DEPT = {
 
 const main = async () => {
   await mongoose.connect(process.env.MONGO_URI);
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
   console.log("Connected to MongoDB");
 
   const departments = await Department.find({ isActive: true });

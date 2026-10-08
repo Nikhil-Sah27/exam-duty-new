@@ -62,6 +62,7 @@ const main = async () => {
     process.exit(1);
   }
   await mongoose.connect(process.env.MONGO_URI);
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
   console.log(`\nconnected: ${process.env.MONGO_URI}\n`);
 
   // ── 1. .ics text ────────────────────────────────────────────────────────

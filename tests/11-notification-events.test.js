@@ -1,5 +1,5 @@
 const {
-  api, setToken, test,
+  api, eventually, setToken, test,
   assert, assertExists, assertStatus, summary, resetCounters, futureDate, CONFIG,
 } = require("./helpers");
 
@@ -138,7 +138,11 @@ async function run(token) {
       setToken(adminToken);
     }
 
-    const feed = await myNotifications(adminToken);
+    // The CS alert is fire-and-forget (written just after the response).
+    const feed = await eventually(
+      () => myNotifications(adminToken),
+      (list) => hasType(list, "duty_released_by_teacher")
+    );
     const match = feed.find((n) => n.type === "duty_released_by_teacher");
     assert(
       Boolean(match),

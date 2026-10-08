@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 /**
  * A phone running the Proctavo app that wants pushes for a user.
@@ -24,5 +25,7 @@ const deviceTokenSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+deviceTokenSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("DeviceToken", deviceTokenSchema);

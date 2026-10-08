@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 /**
  * What each teacher's calendar was last told about one duty unit — a teacher's
@@ -34,5 +35,7 @@ const calendarEventSchema = new mongoose.Schema(
 
 calendarEventSchema.index({ teacher: 1, key: 1 }, { unique: true });
 calendarEventSchema.index({ status: 1, endsAt: 1 });
+
+calendarEventSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("CalendarEvent", calendarEventSchema);

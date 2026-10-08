@@ -5,10 +5,8 @@ const requireRole = require("../../shared/middleware/requireRole");
 
 const router = express.Router();
 
-// Public — no auth required (one-time setup)
-router.post("/bootstrap", userController.bootstrap);
-
-// All remaining user routes are protected
+// Every user route is protected. (The old unauthenticated `POST /bootstrap`
+// is gone: colleges get their first CS from the superadmin — MULTI_COLLEGE_PLAN.md.)
 router.use(protect);
 
 // Reads stay open (assignment pickers, messaging); every account write is the

@@ -4,9 +4,6 @@ const jwt = require("jsonwebtoken");
 const AppError = require("../../shared/utils/AppError");
 const authRepository = require("./auth.repository");
 const { sendOtpEmail } = require("../../shared/utils/mailer");
-const {
-  enforceRolesForDesignation,
-} = require("../../shared/utils/roleResolver");
 
 const SALT_ROUNDS = 10;
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -20,7 +17,10 @@ const generateToken = (userId, activeRole) => {
   );
 };
 
-const toUserDTO = (user, activeRole = null) => ({
+// Lazy: college.service → user.service → … would otherwise load in a cycle.
+const collegeService = () => require("../college/college.service");
+
+const toUserDTO = (user, activeRole = null, college = null) => ({
   id: user._id,
   name: user.name,
   email: user.email,
@@ -29,44 +29,18 @@ const toUserDTO = (user, activeRole = null) => ({
   designation: user.designation || null,
   roles: user.roles || [],
   activeRole: activeRole || (user.roles && user.roles.length === 1 ? user.roles[0] : null),
+  // The college this account works in, with its feature switches; null for the superadmin.
+  college: collegeService().toSummary(college),
 });
 
 /**
- * Public self-sign-up. CLOSED by default: accounts are created by the exam cell
- * (Teachers page, CSV import). Left open it was an unauthenticated way to any
- * role — "Other" + "cs" minted an admin — so it needs ALLOW_PUBLIC_REGISTER=true,
- * and even then can never grant CS.
+ * Public self-sign-up — permanently closed. Accounts are created inside a
+ * college by its exam cell (Teachers page, CSV import), and a signed-out
+ * visitor has no college to join. Left open it was an unauthenticated way to
+ * any role ("Other" + "cs" minted an admin).
  */
-const register = async ({ name, email, password, phone, designation, roles }) => {
-  if (String(process.env.ALLOW_PUBLIC_REGISTER).toLowerCase() !== "true") {
-    throw new AppError("Sign-up is closed — ask your exam cell to add you to Proctavo.", 403);
-  }
-  const existing = await authRepository.findUserByEmail(email);
-  if (existing) {
-    throw new AppError("Email already registered", 409);
-  }
-
-  const finalRoles = enforceRolesForDesignation(designation, roles);
-  if (finalRoles.includes("cs")) {
-    throw new AppError("The CS role can't be self-registered", 403);
-  }
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-  const user = await authRepository.createUser({
-    name,
-    email,
-    password: hashedPassword,
-    phone,
-    designation,
-    roles: finalRoles,
-  });
-
-  const activeRole = finalRoles.length === 1 ? finalRoles[0] : null;
-  return {
-    user: toUserDTO(user, activeRole),
-    token: activeRole ? generateToken(user._id, activeRole) : null,
-    requiresRoleSelection: !activeRole,
-  };
+const register = async () => {
+  throw new AppError("Sign-up is closed — ask your college's exam cell to add you to Proctavo.", 403);
 };
 
 const login = async ({ email, password }) => {
@@ -79,12 +53,14 @@ const login = async ({ email, password }) => {
   if (!isMatch) {
     throw new AppError("Invalid email or password", 401);
   }
+  // Checked only after the password, so a wrong guess learns nothing about the college.
+  const college = await collegeService().resolveUserCollege(user);
 
   const roles = user.roles || [];
   const activeRole = roles.length === 1 ? roles[0] : null;
 
   return {
-    user: toUserDTO(user, activeRole),
+    user: toUserDTO(user, activeRole, college),
     // Single-role user: full token issued immediately.
     // Multi-role user: tempToken lets them call /select-role but is not accepted by protected routes.
     token: activeRole ? generateToken(user._id, activeRole) : null,
@@ -101,9 +77,10 @@ const selectRole = async (userId, requestedRole) => {
   if (!roles.includes(requestedRole)) {
     throw new AppError("Role not assigned to this user", 403);
   }
+  const college = await collegeService().resolveUserCollege(user);
 
   return {
-    user: toUserDTO(user, requestedRole),
+    user: toUserDTO(user, requestedRole, college),
     token: generateToken(user._id, requestedRole),
   };
 };
@@ -177,7 +154,8 @@ const getUserById = async (id, activeRole = null) => {
   if (!user) {
     throw new AppError("User not found", 404);
   }
-  return toUserDTO(user, activeRole);
+  const college = user.college ? await collegeService().getCollege(user.college) : null;
+  return toUserDTO(user, activeRole, college);
 };
 
 module.exports = {

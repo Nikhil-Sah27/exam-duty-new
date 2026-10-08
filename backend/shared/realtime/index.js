@@ -11,9 +11,14 @@
  * touching call sites. Bursts are coalesced: a 5-room group claim is one
  * signal, sent once the writes go quiet — i.e. after their transaction commits.
  *
+ * Per college (MULTI_COLLEGE_PLAN.md): each socket joins its college's room and
+ * a write signals only the college it happened in, so one college's rush of
+ * claims never makes another college's pages refetch.
+ *
  * Optional by design: if socket.io isn't installed the server runs exactly as
  * before and pages just don't update on their own.
  */
+const { currentScope } = require("../tenancy/context");
 
 // Under the API prefix so it rides the existing proxies (Vite /api in dev,
 // nginx /api in production) — no new public route.
@@ -26,17 +31,30 @@ const MAX_WAIT_MS = 2000;
 let io = null;
 let quietTimer = null;
 let firstPendingAt = 0;
+// Colleges with a pending signal; EVERYONE when a write couldn't name its college.
+const EVERYONE = "*";
+const pending = new Set();
+
+const roomFor = (collegeId) => `college:${collegeId}`;
 
 const flush = () => {
   clearTimeout(quietTimer);
   quietTimer = null;
   firstPendingAt = 0;
-  if (io) io.emit("duties:changed");
+  const targets = [...pending];
+  pending.clear();
+  if (!io) return;
+  if (targets.includes(EVERYONE)) {
+    io.emit("duties:changed");
+    return;
+  }
+  for (const collegeId of targets) io.to(roomFor(collegeId)).emit("duties:changed");
 };
 
-/** Tell every open page that who-holds-which-duty may have changed. */
-const notifyDutiesChanged = () => {
+/** Tell a college's open pages that who-holds-which-duty may have changed. */
+const notifyDutiesChanged = (collegeId) => {
   if (!io) return;
+  pending.add(collegeId ? String(collegeId) : EVERYONE);
   const now = Date.now();
   if (!firstPendingAt) firstPendingAt = now;
   clearTimeout(quietTimer);
@@ -62,7 +80,12 @@ const WRITE_HOOKS = [
 
 /** Register the hooks that make writes to this schema signal open pages. */
 const signalDutyChangesFrom = (schema) => {
-  schema.post(WRITE_HOOKS, () => notifyDutiesChanged());
+  schema.post(WRITE_HOOKS, function signal() {
+    // The write's own scope; failing that the document / filter it touched.
+    const scoped = currentScope()?.collegeId;
+    const fromDoc = this && (this.college || (typeof this.getFilter === "function" && this.getFilter().college));
+    notifyDutiesChanged(scoped || fromDoc || null);
+  });
 };
 
 /** Attach socket.io to the HTTP server. Returns null when it isn't installed. */
@@ -85,8 +108,9 @@ const attachRealtime = (httpServer) => {
   // Same rules as `protect`: a role-bound token for a user who still holds the role.
   io.use(async (socket, next) => {
     try {
-      const { decoded } = await authenticateToken(socket.handshake.auth?.token);
+      const { decoded, college } = await authenticateToken(socket.handshake.auth?.token);
       socket.data.userId = decoded.id;
+      if (college) socket.join(roomFor(college._id));
       next();
     } catch {
       next(new Error("unauthorized"));

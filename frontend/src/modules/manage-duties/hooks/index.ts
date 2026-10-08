@@ -21,7 +21,7 @@ import {
   listDcsGroups,
 } from "@/modules/dcs/select-duty/services/dcsDutyService";
 import { DUTY_CALC_ROOT } from "@/modules/duty-calculation/hooks/useDutyProgress";
-import type { UserRole } from "@/shared/lib/types";
+import type { DutyRole } from "@/shared/lib/types";
 
 const TEACHERS_KEY = ["manage-duties", "teachers"];
 const teacherDetailKey = (id: string) => ["manage-duties", "teacher", id];
@@ -122,10 +122,10 @@ export const useAssignDutyBySlot = (teacherId: string) => {
  * Eligible teachers for a duty role, backed by the centralized `role` filter
  * on `GET /users`. Cached per role so re-opening the modal is instant.
  */
-export const useEligibleTeachers = (role: Exclude<UserRole, "cs"> | null) => {
+export const useEligibleTeachers = (role: DutyRole | null) => {
   return useQuery({
     queryKey: eligibleTeachersKey(role || ""),
-    queryFn: () => getEligibleTeachers(role as Exclude<UserRole, "cs">),
+    queryFn: () => getEligibleTeachers(role as DutyRole),
     enabled: !!role,
     staleTime: 60_000,
   });

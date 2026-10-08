@@ -11,6 +11,9 @@ const upsertDevice = ({ user, token, platform, appVersion }) =>
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   );
 
+/** Drop this token from every other college (call in the platform scope). */
+const deleteTokenOutsideCollege = (token, college) => DeviceToken.deleteMany({ token, college: { $ne: college } });
+
 const deleteDevice = (token, user) => DeviceToken.deleteOne(user ? { token, user } : { token });
 
 const deleteDevicesByToken = (tokens) => DeviceToken.deleteMany({ token: { $in: tokens } });
@@ -46,6 +49,7 @@ const listForRecipient = (recipient, limit = 50) =>
   PushOutbox.find({ recipient }).sort({ createdAt: -1 }).limit(limit).lean();
 
 module.exports = {
+  deleteTokenOutsideCollege,
   upsertDevice,
   deleteDevice,
   deleteDevicesByToken,

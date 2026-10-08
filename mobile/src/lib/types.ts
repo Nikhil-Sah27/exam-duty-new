@@ -1,9 +1,9 @@
 // Shared API types. Mirrors frontend/src/shared/lib/types.ts — keep in step.
 
-export type UserRole = "cs" | "dcs" | "rs" | "invigilator";
+export type UserRole = "superadmin" | "cs" | "dcs" | "rs" | "invigilator";
 
-/** Roles the phone app serves. CS uses the web dashboard. */
-export type TeacherRole = Exclude<UserRole, "cs">;
+/** Roles the phone app serves. CS and the platform superadmin use the website. */
+export type TeacherRole = Exclude<UserRole, "cs" | "superadmin">;
 
 export interface User {
   id: string;

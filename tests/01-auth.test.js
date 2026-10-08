@@ -9,18 +9,15 @@ async function run() {
   let token = null;
   let userId = null;
 
-  // --- Bootstrap ---
-  await test("POST /users/bootstrap - create initial admin", async () => {
+  // --- Bootstrap (removed) ---
+  // The unauthenticated "create the first CS" endpoint is gone: colleges get
+  // their first CS from the superadmin (MULTI_COLLEGE_PLAN.md).
+  await test("POST /users/bootstrap - no longer exists", async () => {
     try {
-      const res = await api.post("/users/bootstrap");
-      assertExists(res.data.data, "response data");
+      await api.post("/users/bootstrap");
+      throw new Error("expected the bootstrap endpoint to be gone");
     } catch (err) {
-      // 409 means already bootstrapped - that's fine
-      if (err.response && err.response.status === 409) {
-        console.log("     (admin already exists, continuing)");
-      } else {
-        throw err;
-      }
+      assert(err.response && [401, 404].includes(err.response.status), `got ${err.response ? err.response.status : err.message}`);
     }
   });
 

@@ -101,3 +101,10 @@ export function isOperationalRole(
 ): role is OperationalRole {
   return role === "invigilator" || role === "rs" || role === "dcs";
 }
+
+/** Where a signed-in user lands for their active role. */
+export const homePathForRole = (role: string | null | undefined): string => {
+  if (role === "superadmin") return "/platform";
+  const cfg = getRoleConfig(role);
+  return cfg ? cfg.defaultPath : "/dashboard";
+};

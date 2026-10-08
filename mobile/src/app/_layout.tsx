@@ -35,7 +35,8 @@ export default function RootLayout() {
   }, [isHydrated]);
 
   const isTeacher = !!token && isTeacherRole(role);
-  const isCs = !!token && role === "cs";
+  // CS and the superadmin work on the website; the app just points them there.
+  const isCs = !!token && (role === "cs" || role === "superadmin");
   const pickingRole = !isTeacher && !isCs && !!(tempToken || token);
   const signedOut = !token && !tempToken;
 

@@ -1,5 +1,5 @@
 import type { UserRole } from "@/shared/lib/types";
-import { GraduationCap, ClipboardCheck, Shield, Users } from "lucide-react";
+import { GraduationCap, ClipboardCheck, Shield, Users, Building2 } from "lucide-react";
 
 interface RoleMeta {
   icon: React.ComponentType<{ className?: string }>;
@@ -13,6 +13,14 @@ interface RoleMeta {
 // Vibrant card presentation for each dashboard role, matching the SEE-theme
 // color palette used elsewhere in the app.
 const ROLE_META: Record<UserRole, RoleMeta> = {
+  superadmin: {
+    icon: Building2,
+    title: "Superadmin Console",
+    description: "Manage colleges, their CS accounts and features.",
+    gradient: "from-slate-600 to-slate-800",
+    iconBg: "bg-slate-100",
+    iconColor: "text-slate-700",
+  },
   cs: {
     icon: Shield,
     title: "Controller Dashboard",

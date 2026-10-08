@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 const { signalDutyChangesFrom } = require("../../shared/realtime");
 
 const dutySchema = new mongoose.Schema(
@@ -133,6 +134,8 @@ dutySchema.index({ roomRef: 1, role: 1, date: 1, startTime: 1, status: 1 });
 
 // Any change to who holds what pings open pages to refetch (shared/realtime).
 signalDutyChangesFrom(dutySchema);
+
+dutySchema.plugin(collegeScoped, { examTypeFrom: "examSchedule" }); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 const Duty = mongoose.model("Duty", dutySchema);
 

@@ -10,6 +10,7 @@ const AppError = require("../../shared/utils/AppError");
 const pushRepository = require("./push.repository");
 const policy = require("./push.policy");
 const transport = require("./push.transport");
+const { runAsPlatform, currentScope } = require("../../shared/tenancy/context");
 
 // Expo push tokens look like ExponentPushToken[...] (or ExpoPushToken[...]).
 const EXPO_TOKEN = /^Expo(nent)?PushToken\[[^\]]+\]$/;
@@ -21,6 +22,10 @@ const registerDevice = async (userId, { token, platform, appVersion } = {}) => {
   if (!["android", "ios"].includes(platform)) {
     throw new AppError('platform must be "android" or "ios"', 400);
   }
+  // Tokens are unique platform-wide. A phone last signed into an account at
+  // another college still has its token filed there — release it first.
+  const collegeId = currentScope()?.collegeId;
+  await runAsPlatform(() => pushRepository.deleteTokenOutsideCollege(String(token).trim(), collegeId));
   const device = await pushRepository.upsertDevice({
     user: userId,
     token: String(token).trim(),

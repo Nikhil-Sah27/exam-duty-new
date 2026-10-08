@@ -812,7 +812,12 @@ const backfillSelfClaimConfirmations = async () => {
 const confirmDutyByToken = async (token) => {
   const claim = confirmToken.verify(token);
   if (!claim) throw new AppError("This confirmation link is invalid or has expired", 400);
-  return confirmDutyUnit(claim.dutyId, { teacherId: claim.teacherId, via: "email" });
+  // Signed-out link: the signed teacher's own college is the scope.
+  const confirmed = await require("../college/college.service").runAsUsersCollege(claim.teacherId, () =>
+    confirmDutyUnit(claim.dutyId, { teacherId: claim.teacherId, via: "email" })
+  );
+  if (confirmed === undefined) throw new AppError("This confirmation link is invalid or has expired", 400);
+  return confirmed;
 };
 
 /**
@@ -852,7 +857,15 @@ const getTeacherIdsForSchedules = async (scheduleIds) => {
   return dutyRepository.distinctTeachersForSchedules(scheduleIds);
 };
 
+/** { collegeId: duty slots from today on } for the superadmin overview. */
+const countUpcomingByCollege = () => {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return dutyRepository.countUpcomingByCollege(today);
+};
+
 module.exports = {
+  countUpcomingByCollege,
   confirmDutyUnit,
   confirmDutyByToken,
   backfillSelfClaimConfirmations,

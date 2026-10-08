@@ -57,7 +57,8 @@ Assistant Professors are **Invigilator-only** — RS duty is carried by Professo
 - **Exams** — list, filter, edit; timetable per exam with per-room duty status. The timetable groups rooms by date and time slot, with highlighted date and time-slot headers and a highlighted **Department** filter for quickly narrowing multi-department schedules.
 - **Departments** — CRUD for departments, semesters, courses (core or elective), and elective groups (a named group of subjects — no professional/open sub-type, no per-elective student count).
 - **Infrastructure** — buildings and rooms with capacity, floor, and bulk-import support.
-- **Users** — teacher profiles with designation-driven roles and department; reactivate soft-deleted teachers; one-time admin bootstrap endpoint.
+- **Users** — teacher profiles with designation-driven roles and department; reactivate soft-deleted teachers; CSV bulk import (CS).
+- **Colleges (multi-college)** — a platform superadmin creates isolated colleges, their CS accounts, and per-college feature switches (CIE / SEE exams). See `MULTI_COLLEGE_PLAN.md`.
 
 ### Duty Assignment
 - **Self-assign** — Invigilators claim single rooms; RS and DCS claim groups (one API call creates a duty per room in the group, transactionally).
@@ -259,7 +260,7 @@ Backend uses Mongoose models under `backend/modules/*/[name].model.js`.
 ## Workflows by Role
 
 ### CS — Administrator
-1. **Bootstrap** the first admin via `POST /api/users/bootstrap`, log in.
+1. **Set up** the college: the superadmin (`node backend/scripts/create-superadmin.js you@example.com`) creates it at `/platform` along with its first CS, who logs in. (On an existing single-college database, everything lands in "Main college" on first boot.)
 2. Set up **Departments** (with semesters, courses, elective groups) and **Infrastructure** (buildings + rooms).
 3. Create **Users** for faculty — pick a designation and the roles resolve automatically (or pick one role for `Other`).
 4. Open **Create Exams**:
@@ -307,7 +308,8 @@ exam-duty/
 │   ├── app.js                       # Express setup, CORS, route mounting
 │   ├── modules/
 │   │   ├── auth/                    # Register, login, /me, select-role, JWT
-│   │   ├── user/                    # User CRUD, roles-by-designation, bootstrap, activate
+│   │   ├── user/                    # User CRUD, roles-by-designation, activate, CSV import
+│   │   ├── college/                 # Colleges (tenants), superadmin console API, boot migration
 │   │   ├── department/              # Dept + Semester + Course + ElectiveGroup
 │   │   ├── infrastructure/          # Building + Room
 │   │   ├── exam/                    # Legacy Exam + ExamGroup/Schedule/Room
@@ -400,7 +402,6 @@ MONGO_URI=mongodb://localhost:27017/exam-duty
 NODE_ENV=development
 JWT_SECRET=change-me
 JWT_EXPIRES_IN=7d
-# ALLOW_PUBLIC_REGISTER=true     # re-opens POST /auth/register (closed by default; never grants CS)
 
 # Email — `console` renders without sending. See "Email Notifications".
 MAIL_ENABLED=true
@@ -475,12 +476,12 @@ See `NGROK_SETUP_GUIDE.md` for troubleshooting.
 
 ## API Reference
 
-All endpoints are prefixed with `/api`. All routes except `POST /auth/register`, `POST /auth/login`, and `POST /users/bootstrap` require a `Bearer <token>` header. `POST /auth/select-role` accepts the `tempToken` issued at login.
+All endpoints are prefixed with `/api`. All routes except `POST /auth/register` (always 403), `POST /auth/login`, the password-reset pair and the signed `GET /duties/confirm/:token` require a `Bearer <token>` header. Every request runs inside the caller's college. `POST /auth/select-role` accepts the `tempToken` issued at login.
 
 ### Auth (`/auth`)
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/register` | **Closed (403)** — accounts are created by the exam cell (Teachers page / CSV import). Only with `ALLOW_PUBLIC_REGISTER=true`, and even then it never grants CS. |
+| POST | `/register` | **Closed (403)** — accounts are created inside a college by its exam cell (Teachers page / CSV import). |
 | POST | `/login` | Same shape as register — full token for single-role, tempToken for multi-role. |
 | POST | `/select-role` | Multi-role user picks an active role (`{ role }`); returns the full token. |
 | GET | `/me` | Current user profile with the active role. |
@@ -488,7 +489,6 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 ### Users (`/users`)
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/bootstrap` | Create the first admin — no auth. |
 | POST | `/import` | **CS only.** Bulk-add teachers from a parsed CSV: `{ rows: [{ line, name, email, phone, department?, designation, role?, password? }], defaultPassword?, dryRun? }`. Every row gets a result — `create`/`created`, `exists` (email already has an account → skipped, so re-uploads are safe) or `error` with the reason; valid rows are created even when others fail. Designations accept common spellings ("Asst. Prof"), departments match by name or code, roles follow designation. Max 1000 rows. |
 | POST | `/` | **CS only.** Create user. Requires `designation`; roles are resolved from it (or one role when `Other`). |
 | GET | `/` | List users. `?role=<role>` filters by roles-array membership; `?department=<code>`; `?includeInactive=true` includes deactivated users. |
@@ -595,6 +595,19 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 | POST | `/devices` | Register / refresh this phone: `{ token: "ExponentPushToken[…]", platform: "android"\|"ios", appVersion? }`. A token seen under another user moves to the caller. |
 | DELETE | `/devices` | Unregister on logout: `{ token }` (only the caller's own devices). |
 | GET | `/deliveries` | The caller's 30 most recent push deliveries (status, skip reason, devices reached). |
+
+### Platform (`/platform`) — superadmin only
+The superadmin belongs to no college and can reach only these endpoints (and `/auth`); every other route answers 403. Create the account on the server: `SUPERADMIN_PASSWORD='…' node scripts/create-superadmin.js you@example.com "Your Name"`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/colleges` | Every college with status, feature switches and counts (`teachers`, `exams`, `upcomingDuties`) — never people or exams. |
+| POST | `/colleges` | `{ name, code, features?: { cie, see }, cs: { name, email, phone, password } }` — the college and its first CS in one step. |
+| GET | `/colleges/:id` | One college plus its CS accounts. |
+| PATCH | `/colleges/:id` | `{ name?, code?, status?: "active"\|"suspended", features?: { cie?, see? } }`. Suspending signs everyone in the college out and blocks sign-in; a switched-off exam type is hidden (not deleted) across the college. |
+| POST | `/colleges/:id/cs` | Add a CS account. |
+| PATCH | `/colleges/:id/cs/:userId` | `{ active }` — deactivate / reactivate a CS. |
+| POST | `/colleges/:id/cs/:userId/reset-password` | `{ password }`. |
 
 ### Notify (`/notify`)
 | Method | Path | Description |

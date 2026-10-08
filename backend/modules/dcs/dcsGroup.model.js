@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 const { signalDutyChangesFrom } = require("../../shared/realtime");
 
 /**
@@ -85,5 +86,7 @@ dcsGroupSchema.index({ examGroup: 1 });
 
 // Any change to who holds what pings open pages to refetch (shared/realtime).
 signalDutyChangesFrom(dcsGroupSchema);
+
+dcsGroupSchema.plugin(collegeScoped, { examTypeFrom: "examGroup" }); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("DCSGroup", dcsGroupSchema);

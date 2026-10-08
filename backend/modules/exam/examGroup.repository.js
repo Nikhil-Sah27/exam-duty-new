@@ -92,7 +92,17 @@ const findAllWithStats = async (filter = {}) => {
   });
 };
 
+/** { collegeId: live exam groups } — superadmin overview, platform scope. */
+const countByCollege = async () => {
+  const rows = await ExamGroup.aggregate([
+    { $match: { isActive: true } },
+    { $group: { _id: "$college", n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+};
+
 module.exports = {
+  countByCollege,
   create,
   findAll,
   findById,

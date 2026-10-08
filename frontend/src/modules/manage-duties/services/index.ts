@@ -1,6 +1,6 @@
 import api from "@/shared/lib/api";
 import { Teacher, TeacherDuty } from "../types";
-import type { UserRole } from "@/shared/lib/types";
+import type { DutyRole } from "@/shared/lib/types";
 
 interface ListResponse<T> {
   success: boolean;
@@ -32,7 +32,7 @@ export const getTeacherById = async (id: string): Promise<Teacher> => {
  * No CS-specific eligibility logic is introduced.
  */
 export const getEligibleTeachers = async (
-  role: Exclude<UserRole, "cs">
+  role: DutyRole
 ): Promise<Teacher[]> => {
   const res = await api.get<ListResponse<Teacher>>("/users", {
     params: { role },
@@ -62,7 +62,7 @@ export interface AssignByScheduleSlotPayload {
    * `"invigilator"` so multi-role teachers (e.g. Associate Professors who are
    * both RS and invigilator) resolve unambiguously.
    */
-  role?: Exclude<UserRole, "cs">;
+  role?: DutyRole;
 }
 
 export const assignDutyBySlot = async (

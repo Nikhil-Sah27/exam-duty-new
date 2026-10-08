@@ -11,6 +11,7 @@ const policy = require("./push.policy");
 
 // Lazy: user.service is a sibling domain; keep load order independent.
 const userService = () => require("../user/user.service");
+const { runAsPlatform } = require("../../shared/tenancy/context");
 
 const INTERVAL_MS = 15 * 1000;
 const INITIAL_DELAY_MS = 8 * 1000;
@@ -103,7 +104,7 @@ const deliver = async (row) => {
   }
 };
 
-const drainOnce = async () => {
+const drainPass = async () => {
   if (draining) return { sent: 0, skipped: 0, failed: 0 };
   draining = true;
   const tally = { sent: 0, skipped: 0, failed: 0 };
@@ -129,6 +130,10 @@ const drainOnce = async () => {
   }
   return tally;
 };
+
+// Outbox rows each name their own recipient, so one pass serves every college
+// (platform scope — MULTI_COLLEGE_PLAN.md).
+const drainOnce = () => runAsPlatform(drainPass);
 
 const kick = (delayMs = 1000) => {
   if (kickTimer || draining) return;

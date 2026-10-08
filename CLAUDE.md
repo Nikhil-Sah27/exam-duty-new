@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Exam Duty (Proctavo) — a role-based exam-invigilation planner. CS (Controller of Superintendents) is the admin role; there is no separate "admin". DCS and RS supervise *groups* of rooms; Invigilators handle single rooms. The README.md is comprehensive and current — consult it for the full domain model, API reference, and role workflows. `APP_FLOW.md` walks each role's screens; `CREDENTIALS.md` lists local test logins; `NGROK_SETUP_GUIDE.md` covers exposing the app through a tunnel (needs the built frontend, not the dev server).
+Exam Duty (Proctavo) — a role-based exam-invigilation planner, **multi-college**: a platform **superadmin** creates colleges (each isolated, with its own feature switches) and their CS accounts. Inside a college, CS (Controller of Superintendents) is the admin role; there is no separate "admin". See `MULTI_COLLEGE_PLAN.md`. DCS and RS supervise *groups* of rooms; Invigilators handle single rooms. The README.md is comprehensive and current — consult it for the full domain model, API reference, and role workflows. `APP_FLOW.md` walks each role's screens; `CREDENTIALS.md` lists local test logins; `NGROK_SETUP_GUIDE.md` covers exposing the app through a tunnel (needs the built frontend, not the dev server).
 
 ## Commands
 
@@ -20,21 +20,21 @@ cd frontend && npm run lint  # eslint (non-blocking in CI)
 There is no backend unit-test framework. Tests are **API integration tests** in `tests/` that hit a *running* backend over HTTP:
 
 ```bash
-cd tests && npm test               # full suite (runner.js, ~147 tests) — requires backend up + seeded admin
-cd tests && npm run test:duties    # one suite (scripts 01-auth … 16-user-import mirror the filenames)
+cd tests && npm test               # full suite (runner.js, ~167 tests) — requires backend up + seeded admin + test superadmin
+cd tests && npm run test:duties    # one suite (scripts 01-auth … 17-colleges mirror the filenames)
 cd tests && node 07-duties.test.js # same thing — every suite self-runs via `require.main === module`
 API_URL=https://host/api npm test  # target a remote backend
 ```
 
-Prereqs for tests: MongoDB running, `node backend/scripts/seed-users.js` (creates `admin@examduty.com` / `Admin123`), backend started. CI (`.github/workflows/ci.yml`) runs both gates as blocking: frontend build/typecheck and the API suite against a throwaway Mongo.
+Prereqs for tests: MongoDB running, `node backend/scripts/seed-users.js` (creates `admin@examduty.com` / `Admin123` in "Main college"), `SUPERADMIN_PASSWORD=Super@12345 node backend/scripts/create-superadmin.js superadmin@examduty.test` (for `17-colleges`), backend started. CI (`.github/workflows/ci.yml`) runs both gates as blocking: frontend build/typecheck and the API suite against a throwaway Mongo.
 
-Test-suite gotchas: credentials come from `tests/config.js` (`API_URL` env overrides the base URL only) and shared assertions from `tests/helpers.js`. The suites **write to whatever DB the running backend points at** — run them against a throwaway Mongo, not a dev DB you care about. `runner.js` runs 01→16 in order (through `11-notification-events`, `12-unassign`, `13-confirmation`, `14-concurrency`, `15-push`, `16-user-import`) and threads the admin token from the auth suite onward; a single suite logs in for itself, but later suites lean on data earlier ones created, so a lone failure is worth re-checking under the full runner.
+Test-suite gotchas: credentials come from `tests/config.js` (`API_URL` env overrides the base URL only) and shared assertions from `tests/helpers.js`. The suites **write to whatever DB the running backend points at** — run them against a throwaway Mongo, not a dev DB you care about. `runner.js` runs 01→17 in order (through `11-notification-events`, `12-unassign`, `13-confirmation`, `14-concurrency`, `15-push`, `16-user-import`, `17-colleges`) and threads the admin token from the auth suite onward; a single suite logs in for itself, but later suites lean on data earlier ones created, so a lone failure is worth re-checking under the full runner.
 
 Backend env lives in `backend/.env` (`PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `CLIENT_ORIGINS` — comma-separated extra CORS origins; mail: `MAIL_ENABLED`, `MAIL_TRANSPORT` (**defaults to `console`, which renders without sending — leave it there locally and in CI**), `MAIL_USER`/`MAIL_PASS`/`MAIL_FROM`, `MAIL_HOST`/`MAIL_PORT` for plain SMTP, and `APP_URL` for email deep links; calendar: `CALENDAR_INVITES`, `APP_TIMEZONE`). Frontend needs no env locally — axios defaults to `/api` (overridable via `VITE_API_URL`) through the Vite proxy to :5000.
 
 Password-reset OTP email is a *separate*, direct-send path (`backend/shared/utils/mailer.js`, not the outbox): `GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` (+ `SMTP_SECURE`), with `EMAIL_FROM` overriding the sender. When none are set the transport is null and the OTP is logged to the server console instead, so the reset flow stays testable in dev.
 
-Seed/maintenance scripts are in `backend/scripts/` (seed-users, seed-departments, seed-rooms, backfill-dcs-groups, dump-database/restore-database, etc.) — run with plain `node`.
+Seed/maintenance scripts are in `backend/scripts/` (seed-users, seed-departments, seed-rooms, backfill-dcs-groups, dump-database/restore-database, etc.) — run with plain `node`. Scripts that touch models call `useCollegeForScript()` (`shared/tenancy/script.js`) right after connecting: they work on Main college, or `COLLEGE=<code> node scripts/…` for another. A new script that skips it throws on its first query (fail-closed). The platform superadmin is created only by `node scripts/create-superadmin.js <email> ["Name"]` (`SUPERADMIN_PASSWORD` env, else a generated one printed once; `--reset` re-keys it).
 
 Bootstrapping an empty DB, in this order (later scripts assume the earlier docs exist):
 
@@ -47,7 +47,7 @@ node scripts/fix-elective-groups.js # bundle those electives under ElectiveGroup
 node scripts/seed-rooms.js          # buildings + rooms
 ```
 
-Faster alternative for a realistic dataset: `node scripts/restore-database.js ../db-dump.json --drop` (without `--drop` the existing `_id`s collide). `POST /users/bootstrap` is the unauthenticated escape hatch that creates the first CS when no users exist.
+Faster alternative for a realistic dataset: `node scripts/restore-database.js ../db-dump.json --drop` (without `--drop` the existing `_id`s collide). The next server boot files restored single-college data under Main college. There is no unauthenticated bootstrap endpoint any more — a new college's first CS comes from the superadmin.
 
 ## Architecture
 
@@ -67,7 +67,21 @@ Frontend conventions worth knowing before adding UI: imports use the `@/` alias 
 
 ### Core invariants (violating these breaks real flows)
 
-- **Only CS manages CS accounts; nobody signs themselves up.** Every user write (`POST/PUT/DELETE/PATCH /users…`, import included) is `requireRole("cs")` — DCS and RS don't manage teachers (the Teachers page is CS-only; their shells never link it). `user.service` still refuses any create/edit/delete/reactivate touching a CS account unless the actor is CS, as a second line if a route is ever reopened — "Other" + "cs" used to let anyone mint an admin. `PUT /users/:id` whitelists profile fields (never password/OTP/status). `POST /auth/register` is closed (403) unless `ALLOW_PUBLIC_REGISTER=true`, and never grants CS. Bulk CSV import is `POST /users/import` (Teachers → Import CSV); proof: `tests/16-user-import.test.js`.
+- **Every college is fenced off, automatically and fail-closed.** All 25 college-owned models carry `schema.plugin(collegeScoped)` (`shared/tenancy/plugin.js`): reads, updates, deletes and aggregates get `college = <current>` added, and new docs are stamped. "Current" comes from AsyncLocalStorage (`shared/tenancy/context.js`): `protect` runs the rest of each request in the caller's college, which it reads from the **user record**, never from the request. A college-owned query with **no scope throws** — so anything outside a request must choose a scope:
+  - background sweeps loop with `collegeService.forEachActiveCollege` (a sweep must never see two colleges; "tell CS" would reach every college's CS);
+  - outbox dispatchers and signed-out auth endpoints use `runAsPlatform` / `platformScope` (unfiltered, by design);
+  - the email confirm link uses `runAsUsersCollege`.
+
+  Timers that batch work from many requests must record the college per item rather than inherit one: calendar-sync debounce, realtime coalescer (which emits to a per-college socket room). `runAs*` starts lazy Mongoose queries inside the scope — return the query, don't build it outside.
+
+  Uniqueness: department name/code and building name are unique per college; user email is unique platform-wide (one login = one college). `College` itself is platform-level (no plugin).
+
+  The **superadmin** (role `superadmin`, `college: null`) may only reach `/api/platform` and `/api/auth`. `protect` 403s it everywhere else, because unscoped it would see every college. It manages colleges, CS accounts and switches (`modules/college`, UI `frontend/src/modules/platform`), never teachers, exams or duties.
+
+  First boot of this code moved single-college data into "Main college". `college.migration.ensureCollegeSetup` runs idempotently at every boot before `listen`. Proof: `tests/17-colleges.test.js`.
+- **Exam-type switches hide, never delete.** `College.features` (`shared/tenancy/features.js` registry: `cie` → IA1–IA3, `see` → SEE). When one is off, the plugin drops that type from *listings* of `ExamGroup` and of `Duty`/`DCSGroup`, which carry a denormalised `examType` stamped on create via `examTypeFrom` and backfilled by the migration. That covers pages, counts, reminders, alarms and calendar invites. Lookups by `_id` (findById, populate) still resolve, so references never turn null. Creating an exam group of a disabled type is a 403 from the plugin, whichever flow does it. The client reads switches from `user.college.features` (`/auth/me`, `useCollegeFeatures`); Create Exams offers only enabled types.
+
+- **Only CS manages CS accounts; nobody signs themselves up.** Every user write (`POST/PUT/DELETE/PATCH /users…`, import included) is `requireRole("cs")` — DCS and RS don't manage teachers (the Teachers page is CS-only; their shells never link it). `user.service` still refuses any create/edit/delete/reactivate touching a CS account unless the actor is CS, as a second line if a route is ever reopened — "Other" + "cs" used to let anyone mint an admin. `PUT /users/:id` whitelists profile fields (never password/OTP/status). `POST /auth/register` is permanently closed (403) — a signed-out visitor has no college to join. Bulk CSV import is `POST /users/import` (Teachers → Import CSV); proof: `tests/16-user-import.test.js`.
 - **Roles are derived, not edited.** `User.roles` is an array computed from `designation` by `backend/shared/utils/roleResolver.js` — the single source of truth for eligibility everywhere (user CRUD, CS assignment pickers). Only designation `Other` allows picking a role manually.
 - **Active role drives everything.** The JWT carries `activeRole`; multi-role users get a `tempToken` at login and pick a role via `POST /auth/select-role`. `protect` re-validates `activeRole` against `roles` on every request.
 - **Password reset is a two-step OTP.** `POST /auth/forgot-password` (public) mails a 6-digit code; `POST /auth/reset-password` (public) verifies it and sets the new password. The OTP is stored on `User` as `resetOtpHash`/`resetOtpExpires`/`resetOtpAttempts` (all `select: false`, hashed, 10-min TTL, attempt-limited) — never returned by the API.

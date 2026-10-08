@@ -19,6 +19,10 @@ export default function ProtectedLayout() {
   if (operationalConfig) {
     return <Navigate to={operationalConfig.defaultPath} replace />;
   }
+  // The superadmin has its own console and no college to show here.
+  if (user?.activeRole === "superadmin") {
+    return <Navigate to="/platform" replace />;
+  }
 
   return (
     <AuthGuard>

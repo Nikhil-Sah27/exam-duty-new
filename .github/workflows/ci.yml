@@ -93,6 +93,13 @@ jobs:
         run: node scripts/seed-users.js
         working-directory: backend
 
+      # Platform superadmin for tests/17-colleges (credentials match tests/config.js).
+      - name: Create test superadmin
+        run: node scripts/create-superadmin.js superadmin@examduty.test "CI Superadmin"
+        working-directory: backend
+        env:
+          SUPERADMIN_PASSWORD: Super@12345
+
       - name: Start backend
         working-directory: backend
         run: |

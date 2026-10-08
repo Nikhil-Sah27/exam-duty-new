@@ -8,6 +8,7 @@ const {
   SELECTABLE_ROLES_FOR_OTHER,
 } = require("../../shared/utils/roleResolver");
 const departmentService = require("../department/department.service");
+const { runAsPlatform } = require("../../shared/tenancy/context");
 
 const SALT_ROUNDS = 10;
 
@@ -139,25 +140,6 @@ const activateUser = async (id, actor) => {
   return user;
 };
 
-const bootstrapAdmin = async () => {
-  const count = await userRepository.countByRole("cs");
-  if (count > 0) {
-    throw new AppError("Bootstrap admin already exists", 409);
-  }
-
-  const hashedPassword = await bcrypt.hash("Admin123", SALT_ROUNDS);
-
-  const user = await userRepository.create({
-    name: "Admin",
-    email: "admin@examduty.com",
-    password: hashedPassword,
-    designation: "Other",
-    roles: ["cs"],
-  });
-
-  return userRepository.findById(user._id);
-};
-
 /**
  * Ids of every active CS user — the recipient list for "a teacher did
  * something you should know about" alerts. Other domains' services call this
@@ -265,7 +247,8 @@ const importUsers = async (rows, { defaultPassword, dryRun = false } = {}) => {
 
   // Emails that already have an account are skipped, not errors.
   if (valid.length) {
-    const existing = await userRepository.findExistingEmails(valid.map((v) => v.doc.email));
+    // Emails are unique across all colleges, so look platform-wide.
+    const existing = await runAsPlatform(() => userRepository.findExistingEmails(valid.map((v) => v.doc.email)));
     const byEmail = new Map(existing.map((u) => [u.email, u]));
     for (let k = valid.length - 1; k >= 0; k--) {
       const hit = byEmail.get(valid[k].doc.email);
@@ -313,4 +296,47 @@ const getCsUserIds = () => userRepository.findActiveIds(["cs"]);
 
 const getLastActiveMap = (ids) => userRepository.findLastActive(ids);
 
-module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser, activateUser, bootstrapAdmin, getCsUserIds, getLastActiveMap, importUsers };
+// ── Multi-college helpers (MULTI_COLLEGE_PLAN.md) ──────────────────────────
+
+/** Is this email taken anywhere on the platform? (Emails are globally unique.) */
+const emailExists = async (email) =>
+  (await runAsPlatform(() => userRepository.findExistingEmails([String(email || "").trim().toLowerCase()]))).length > 0;
+
+/** The college a user belongs to (null for the superadmin). Caller sets the scope. */
+const getCollegeIdOf = async (id) => {
+  const user = await userRepository.findCollegeOf(id);
+  return user && user.college ? String(user.college) : null;
+};
+
+/** A user by id, active or not — for checks before a status change. */
+const findAnyById = (id) => userRepository.findByIdIncludingInactive(id);
+
+const setPassword = async (id, password) => {
+  if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
+    throw new AppError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 400);
+  }
+  const hashed = await bcrypt.hash(String(password), SALT_ROUNDS);
+  const user = await userRepository.setPasswordById(id, hashed);
+  if (!user) throw new AppError("User not found", 404);
+  return user;
+};
+
+/** { collegeId: active teachers + CS } for the superadmin overview (platform scope). */
+const countByCollege = () => userRepository.countActiveByCollege();
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  activateUser,
+  getCsUserIds,
+  getLastActiveMap,
+  importUsers,
+  emailExists,
+  getCollegeIdOf,
+  findAnyById,
+  setPassword,
+  countByCollege,
+};

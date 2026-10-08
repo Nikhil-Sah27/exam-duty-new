@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const userSchema = new mongoose.Schema(
   {
@@ -29,7 +30,9 @@ const userSchema = new mongoose.Schema(
       type: [
         {
           type: String,
-          enum: ["cs", "dcs", "rs", "invigilator"],
+          // superadmin: platform owner, belongs to no college (MULTI_COLLEGE_PLAN.md).
+          // Never derived from a designation — only scripts/create-superadmin.js grants it.
+          enum: ["superadmin", "cs", "dcs", "rs", "invigilator"],
         },
       ],
       default: ["invigilator"],
@@ -72,5 +75,7 @@ userSchema.pre(/^find/, function () {
     this.where({ isActive: true });
   }
 });
+
+userSchema.plugin(collegeScoped, { optional: true }); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("User", userSchema);

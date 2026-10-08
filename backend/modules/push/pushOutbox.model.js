@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 /**
  * Transactional outbox for push notifications — the phone-side twin of
@@ -47,5 +48,7 @@ const pushOutboxSchema = new mongoose.Schema(
 
 pushOutboxSchema.index({ status: 1, nextAttemptAt: 1 });
 pushOutboxSchema.index({ recipient: 1, createdAt: -1 });
+
+pushOutboxSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("PushOutbox", pushOutboxSchema);

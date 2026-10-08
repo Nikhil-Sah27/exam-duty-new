@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const examGroupSchema = new mongoose.Schema(
   {
@@ -42,5 +43,7 @@ examGroupSchema.pre(/^find/, function () {
     this.where({ isActive: true });
   }
 });
+
+examGroupSchema.plugin(collegeScoped, { examTypeFilter: true }); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("ExamGroup", examGroupSchema);

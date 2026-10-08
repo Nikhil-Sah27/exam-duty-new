@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Loader2, Search, UserCheck } from "lucide-react";
-import type { UserRole } from "@/shared/lib/types";
+import type { DutyRole } from "@/shared/lib/types";
 import { useEligibleTeachers } from "@/modules/manage-duties/hooks";
 import { useBusyTeacherIds } from "@/modules/duties/hooks";
 import { useAllTeachersProgress } from "@/modules/duty-calculation/hooks/useDutyProgress";
@@ -28,7 +28,7 @@ export default function EligibleTeacherList({
   actionLabel = "Assign",
   conflict,
 }: {
-  role: Exclude<UserRole, "cs">;
+  role: DutyRole;
   onAssign: (teacherId: string) => void;
   assigningId: string | null;
   isPending: boolean;

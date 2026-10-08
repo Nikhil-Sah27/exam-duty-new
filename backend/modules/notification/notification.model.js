@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const notificationSchema = new mongoose.Schema(
   {
@@ -96,5 +97,7 @@ notificationSchema.index(
     partialFilterExpression: { dedupeKey: { $type: "string" } },
   },
 );
+
+notificationSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("Notification", notificationSchema);

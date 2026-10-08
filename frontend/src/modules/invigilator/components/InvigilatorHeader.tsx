@@ -7,6 +7,7 @@ import { useScopedUnreadCount } from "@/modules/notifications/hooks";
 import NotificationList from "@/modules/notifications/components/NotificationList";
 import RoleSelectionModal from "@/modules/auth/components/RoleSelectionModal";
 import DarkModeToggle from "@/shared/components/DarkModeToggle";
+import CollegeBadge from "@/shared/components/CollegeBadge";
 
 const ROLE_LABELS: Record<string, string> = {
   cs: "CS",
@@ -55,6 +56,7 @@ export default function InvigilatorHeader() {
           <Menu className="h-6 w-6" />
         </button>
         <span className="text-lg font-bold">Exam Duty</span>
+        <CollegeBadge />
       </div>
 
       <div className="flex items-center gap-4">

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 /**
  * Transactional outbox for notification emails.
@@ -66,5 +67,7 @@ const emailOutboxSchema = new mongoose.Schema(
 emailOutboxSchema.index({ status: 1, nextAttemptAt: 1 });
 // "What did we try to send this person?" — the delivery audit view.
 emailOutboxSchema.index({ recipient: 1, createdAt: -1 });
+
+emailOutboxSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("EmailOutbox", emailOutboxSchema);

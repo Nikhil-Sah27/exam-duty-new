@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import type { LoginResult, UserRole } from "@/lib/types";
 import { ensureNotificationPermission, registerForPush, unregisterPush } from "@/push";
 import { useAuthStore } from "@/store/auth";
+import { isTeacherRole } from "@/lib/roles";
 
 /** Store a login result; a multi-role user continues on the role picker. */
 export async function completeLogin(result: LoginResult): Promise<void> {
@@ -26,7 +27,7 @@ export async function chooseRole(role: UserRole): Promise<void> {
 /** Device registration + alarm sync once a role-bound teacher token exists (called by TeacherRuntime). */
 export async function afterSignedIn(): Promise<void> {
   const role = useAuthStore.getState().user?.activeRole;
-  if (!role || role === "cs") return;
+  if (!isTeacherRole(role)) return;
   await ensureNotificationPermission().catch(() => false); // alarms need it even without push
   await Promise.allSettled([registerForPush(), syncAlarms()]);
 }

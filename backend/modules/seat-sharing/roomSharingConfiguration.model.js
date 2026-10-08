@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 // One-per-ExamRoom configuration record that opts an existing room reservation
 // into the global seat-sharing pool. The ExamRoom itself remains the sole
@@ -55,6 +56,8 @@ const roomSharingConfigurationSchema = new mongoose.Schema(
 
 roomSharingConfigurationSchema.index({ sourceSchedule: 1, shareable: 1 });
 roomSharingConfigurationSchema.index({ sourceExamGroup: 1 });
+
+roomSharingConfigurationSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model(
   "RoomSharingConfiguration",

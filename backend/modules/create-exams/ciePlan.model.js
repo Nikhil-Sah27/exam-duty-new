@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const ciePlanEntrySchema = new mongoose.Schema(
   {
@@ -33,5 +34,7 @@ ciePlanEntrySchema.index(
   { examGroup: 1, schedule: 1, department: 1, course: 1 },
   { unique: true }
 );
+
+ciePlanEntrySchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("CIEPlanEntry", ciePlanEntrySchema);

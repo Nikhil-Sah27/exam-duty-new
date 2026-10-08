@@ -159,7 +159,17 @@ const distinctTeachersForSchedules = (scheduleIds) => {
   });
 };
 
+/** { collegeId: live duties from `since` on } — superadmin overview, platform scope. */
+const countUpcomingByCollege = async (since) => {
+  const rows = await Duty.aggregate([
+    { $match: { status: "assigned", date: { $gte: since } } },
+    { $group: { _id: "$college", n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+};
+
 module.exports = {
+  countUpcomingByCollege,
   findLiveForTeacherSince,
   findForResponsiveness,
   updateMany,

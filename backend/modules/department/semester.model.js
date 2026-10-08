@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const semesterSchema = new mongoose.Schema(
   {
@@ -22,5 +23,7 @@ const semesterSchema = new mongoose.Schema(
 );
 
 semesterSchema.index({ department: 1, name: 1 }, { unique: true });
+
+semesterSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("Semester", semesterSchema);

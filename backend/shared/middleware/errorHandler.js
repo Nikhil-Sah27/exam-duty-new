@@ -9,7 +9,8 @@ const errorHandler = (err, req, res, next) => {
 
   // Mongoose duplicate key → 409
   if (err.code === 11000) {
-    const fields = Object.keys(err.keyPattern);
+    // `college` scopes most unique indexes (MULTI_COLLEGE_PLAN.md) — not news to the user.
+    const fields = Object.keys(err.keyPattern).filter((f) => f !== "college");
     const values = err.keyValue || {};
     let message;
     if (fields.includes("examRoom") && fields.includes("role")) {
@@ -20,6 +21,10 @@ const errorHandler = (err, req, res, next) => {
       message = `Room number "${values.roomNumber}" already exists in this building`;
     } else if (fields.includes("name")) {
       message = `"${values.name}" already exists`;
+    } else if (fields.includes("code")) {
+      message = `Code "${values.code}" is already in use`;
+    } else if (fields.includes("email")) {
+      message = `"${values.email}" already has a Proctavo account`;
     } else {
       message = `${fields.join(", ")} already exists`;
     }

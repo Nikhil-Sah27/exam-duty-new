@@ -79,11 +79,6 @@ const activate = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: user });
 });
 
-const bootstrap = catchAsync(async (req, res) => {
-  const user = await userService.bootstrapAdmin();
-  res.status(201).json({ success: true, data: user });
-});
-
 /** CS bulk-adds teachers from a parsed CSV. `dryRun` validates without creating. */
 const importUsers = catchAsync(async (req, res) => {
   const { rows, defaultPassword, dryRun } = req.body || {};
@@ -101,4 +96,4 @@ const importUsers = catchAsync(async (req, res) => {
 });
 
 module.exports = {
-  importUsers, create, getAll, getById, update, remove, activate, bootstrap };
+  importUsers, create, getAll, getById, update, remove, activate };

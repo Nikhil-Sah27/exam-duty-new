@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/shared/store/auth.store";
-import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
+import { homePathForRole } from "@/modules/shared/role-config/roleConfig";
 import HomePage from "../pages/HomePage";
 
 /**
@@ -13,8 +13,7 @@ export default function HomeGate() {
   const user = useAuthStore((s) => s.user);
 
   if (token && user?.activeRole) {
-    const cfg = getRoleConfig(user.activeRole);
-    return <Navigate to={cfg ? cfg.defaultPath : "/dashboard"} replace />;
+    return <Navigate to={homePathForRole(user.activeRole)} replace />;
   }
 
   return <HomePage />;

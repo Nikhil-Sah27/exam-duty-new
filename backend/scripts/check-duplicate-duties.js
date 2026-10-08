@@ -31,6 +31,7 @@ const INDEX_NAME = "one_live_duty_per_slot";
 async function main() {
   const buildIndex = process.argv.includes("--build-index");
   await connectDB();
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
   console.log("\n=== One live duty per slot ===");
 
   const duplicates = await Duty.aggregate([

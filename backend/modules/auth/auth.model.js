@@ -66,6 +66,12 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Eligibility/pool/report queries all narrow by {isActive, roles, designation}
+// and sort by name or _id — without this they full-scan the collection on every
+// duty assignment and every target/responsiveness sweep. `roles` is multikey.
+userSchema.index({ isActive: 1, roles: 1, designation: 1 });
+userSchema.index({ isActive: 1, name: 1 });
+
 // Exclude soft-deleted users from all find queries by default
 userSchema.pre(/^find/, function () {
   if (this.getFilter().isActive === undefined) {

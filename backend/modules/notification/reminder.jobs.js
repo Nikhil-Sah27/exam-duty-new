@@ -38,6 +38,8 @@ const SELECT_STAGES = [
   { id: "7d", within: 7 * DAY },
   { id: "3d", within: 3 * DAY },
 ];
+// Tightest-first — scanned once per (teacher, exam) to pick the closest stage.
+const SELECT_STAGES_DESC = [...SELECT_STAGES].reverse();
 
 const ROLE_SHORT = { invigilator: "Invigilator", rs: "RS", dcs: "DCS" };
 
@@ -168,23 +170,69 @@ const examGroupsWithOpenSlots = async (now) => {
     startDate: { $gte: utcDayStart(0), $lt: new Date(now.getTime() + SELECT_STAGES[0].within) },
   });
   const out = new Map();
-  for (const group of groups) {
-    const schedules = await ExamSchedule.find({ examGroup: group._id, date: { $gte: utcDayStart(0) } }).select("_id");
-    const scheduleIds = schedules.map((s) => s._id);
-    if (scheduleIds.length === 0) continue;
-    const rooms = await ExamRoom.find({ schedule: { $in: scheduleIds } }).select("_id");
-    const taken = await Duty.find({
-      examSchedule: { $in: scheduleIds },
-      status: { $in: ["assigned", "completed"] },
-    }).select("examRoom role");
-    const filled = { invigilator: new Set(), rs: new Set() };
-    for (const d of taken) if (filled[d.role] && d.examRoom) filled[d.role].add(String(d.examRoom));
+  if (groups.length === 0) return out;
 
+  // Batch every group's schedules/rooms/duties/open-DCS in one query each
+  // (keyed back to their group) rather than four queries per group.
+  const dayStart = utcDayStart(0);
+  const groupIds = groups.map((g) => g._id);
+  const schedules = await ExamSchedule.find({
+    examGroup: { $in: groupIds },
+    date: { $gte: dayStart },
+  }).select("_id examGroup");
+  const scheduleToGroup = new Map(
+    schedules.map((s) => [String(s._id), String(s.examGroup)]),
+  );
+  const scheduleIds = schedules.map((s) => s._id);
+  // A group with no future schedules is skipped entirely (mirrors the original
+  // per-group `continue`), so its open DCS groups don't surface on their own.
+  const groupsWithSchedules = new Set(schedules.map((s) => String(s.examGroup)));
+
+  const [rooms, taken, openDcs] = await Promise.all([
+    scheduleIds.length
+      ? ExamRoom.find({ schedule: { $in: scheduleIds } }).select("_id schedule")
+      : [],
+    scheduleIds.length
+      ? Duty.find({
+          examSchedule: { $in: scheduleIds },
+          status: { $in: ["assigned", "completed"] },
+        }).select("examRoom role examSchedule")
+      : [],
+    DCSGroup.find({ examGroup: { $in: groupIds }, status: "open" }).select("examGroup"),
+  ]);
+
+  const roomsByGroup = new Map();
+  for (const r of rooms) {
+    const gid = scheduleToGroup.get(String(r.schedule));
+    if (!gid) continue;
+    if (!roomsByGroup.has(gid)) roomsByGroup.set(gid, []);
+    roomsByGroup.get(gid).push(String(r._id));
+  }
+  const filledByGroup = new Map();
+  for (const d of taken) {
+    const gid = scheduleToGroup.get(String(d.examSchedule));
+    if (!gid || !d.examRoom) continue;
+    if (!filledByGroup.has(gid)) {
+      filledByGroup.set(gid, { invigilator: new Set(), rs: new Set() });
+    }
+    const filled = filledByGroup.get(gid);
+    if (filled[d.role]) filled[d.role].add(String(d.examRoom));
+  }
+  const dcsOpenGroups = new Set(openDcs.map((d) => String(d.examGroup)));
+
+  for (const group of groups) {
+    const gid = String(group._id);
+    if (!groupsWithSchedules.has(gid)) continue;
+    const groupRooms = roomsByGroup.get(gid) || [];
+    const filled = filledByGroup.get(gid) || {
+      invigilator: new Set(),
+      rs: new Set(),
+    };
     const roles = new Set();
-    if (rooms.some((r) => !filled.invigilator.has(String(r._id)))) roles.add("invigilator");
-    if (rooms.some((r) => !filled.rs.has(String(r._id)))) roles.add("rs");
-    if (await DCSGroup.exists({ examGroup: group._id, status: "open" })) roles.add("dcs");
-    if (roles.size > 0) out.set(String(group._id), { group, roles });
+    if (groupRooms.some((rid) => !filled.invigilator.has(rid))) roles.add("invigilator");
+    if (groupRooms.some((rid) => !filled.rs.has(rid))) roles.add("rs");
+    if (dcsOpenGroups.has(gid)) roles.add("dcs");
+    if (roles.size > 0) out.set(gid, { group, roles });
   }
   return out;
 };
@@ -216,7 +264,7 @@ const runSelectionNudgeSweep = async () => {
       if (![...roles].some((r) => openRoles.has(r))) continue;
       const untilStart = new Date(group.startDate).getTime() - now.getTime();
       // Tightest stage that applies; each fires once per teacher per exam.
-      const stage = [...SELECT_STAGES].reverse().find((s) => untilStart <= s.within);
+      const stage = SELECT_STAGES_DESC.find((s) => untilStart <= s.within);
       if (!stage) continue;
       const r = await emitIfAbsent("duty_selection_nudge", {
         recipient: teacherId,

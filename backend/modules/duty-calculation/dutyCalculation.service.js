@@ -384,15 +384,13 @@ const countActiveDutiesForTeacher = (teacherId) =>
  * chunk each partition by 5. `dutyMatch` selects which duties count (completed
  * vs. all active).
  */
-const countRsGroupsForTeacher = async (teacherId, dutyMatch) => {
-  const duties = await Duty.find({
-    teacher: teacherId,
-    role: "rs",
-    ...dutyMatch,
-  })
-    .select("examSchedule roomRef date startTime endTime _id")
-    .populate({ path: "roomRef", select: "building" });
-
+/**
+ * Partition a flat list of one teacher's RS duties into groups exactly like the
+ * UI (schedule + date + slot + building, chunked by 5) and return the group
+ * count. Shared by the per-teacher counter and the batched cohort path so both
+ * always agree.
+ */
+const countRsGroupsFromDuties = (duties) => {
   const partitions = new Map();
   for (const d of duties) {
     const scheduleId = d.examSchedule?.toString();
@@ -412,6 +410,20 @@ const countRsGroupsForTeacher = async (teacherId, dutyMatch) => {
     groups += Math.ceil(roomCount / RS_ROOMS_PER_GROUP);
   }
   return groups;
+};
+
+const RS_GROUP_DUTY_FIELDS = "examSchedule roomRef date startTime endTime _id";
+
+const countRsGroupsForTeacher = async (teacherId, dutyMatch) => {
+  const duties = await Duty.find({
+    teacher: teacherId,
+    role: "rs",
+    ...dutyMatch,
+  })
+    .select(RS_GROUP_DUTY_FIELDS)
+    .populate({ path: "roomRef", select: "building" });
+
+  return countRsGroupsFromDuties(duties);
 };
 
 /** Completed RS groups — schedule already ended. Powers the progress circle. */
@@ -445,7 +457,9 @@ const resolveTeacherTarget = (teacher, perInvigilator) => {
 };
 
 const calculateTeacherProgress = async (teacherId, options = {}) => {
-  const teacher = await User.findById(teacherId);
+  // The cohort path pre-loads the teacher doc and batches the raw counts, so it
+  // passes them in to avoid a per-row findById + two per-row count queries.
+  const teacher = options.teacher || (await User.findById(teacherId));
   if (!teacher) throw new AppError("Teacher not found", 404);
 
   const perInvigilator =
@@ -456,10 +470,12 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
     teacherRoles.includes("invigilator") && isEligibleDesignation(teacher.designation);
 
   const target = eligible ? resolveTeacherTarget(teacher, perInvigilator) : 0;
-  const completed = await countCompletedDutiesForTeacher(teacherId);
+  const completed =
+    options.completed ?? (await countCompletedDutiesForTeacher(teacherId));
   // `assigned` counts everything that occupies a target slot (upcoming +
   // ongoing + completed); `reached` gates CS assignment once it hits target.
-  const assigned = await countActiveDutiesForTeacher(teacherId);
+  const assigned =
+    options.assigned ?? (await countActiveDutiesForTeacher(teacherId));
   const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
   const percentage =
@@ -553,7 +569,7 @@ const resolveRsTeacherTarget = (teacher, perRs) => {
 };
 
 const calculateRsTeacherProgress = async (teacherId, options = {}) => {
-  const teacher = await User.findById(teacherId);
+  const teacher = options.teacher || (await User.findById(teacherId));
   if (!teacher) throw new AppError("Teacher not found", 404);
 
   const perRs = options.perRs || (await calculateRsDutyPerTeacher());
@@ -565,9 +581,11 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
   const target = eligible ? resolveRsTeacherTarget(teacher, perRs) : 0;
   // RS is a group role — count completed groups, not individual rooms, so the
   // circle matches the group cards and the group-unit target.
-  const completed = await countCompletedRsGroupsForTeacher(teacherId);
+  const completed =
+    options.completed ?? (await countCompletedRsGroupsForTeacher(teacherId));
   // Active groups (upcoming + ongoing + completed) drive target-reached.
-  const assigned = await countActiveRsGroupsForTeacher(teacherId);
+  const assigned =
+    options.assigned ?? (await countActiveRsGroupsForTeacher(teacherId));
   const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
   const percentage =
@@ -701,7 +719,7 @@ const countActiveDcsGroupsForTeacher = (teacherId) =>
   DCSGroup.countDocuments({ assignedTeacher: teacherId, status: "claimed" });
 
 const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
-  const teacher = await User.findById(teacherId);
+  const teacher = options.teacher || (await User.findById(teacherId));
   if (!teacher) throw new AppError("Teacher not found", 404);
 
   const perDcs = options.perDcs || (await calculateDcsDutyPerTeacher());
@@ -711,9 +729,11 @@ const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
     teacherRoles.includes("dcs") && isDcsEligibleDesignation(teacher.designation);
 
   const target = eligible ? perDcs.target : 0;
-  const completed = await countCompletedDcsGroupsForTeacher(teacherId);
+  const completed =
+    options.completed ?? (await countCompletedDcsGroupsForTeacher(teacherId));
   // All claimed groups (upcoming + ongoing + completed) drive target-reached.
-  const assigned = await countActiveDcsGroupsForTeacher(teacherId);
+  const assigned =
+    options.assigned ?? (await countActiveDcsGroupsForTeacher(teacherId));
   const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
   const percentage =
@@ -822,12 +842,6 @@ const calculateAllTeachersProgress = async ({ role, department } = {}) => {
     calculateDcsDutyPerTeacher(),
   ]);
 
-  const progressForRole = (teacherId, r) => {
-    if (r === "rs") return calculateRsTeacherProgress(teacherId, { perRs });
-    if (r === "dcs") return calculateDcsTeacherProgress(teacherId, { perDcs });
-    return calculateTeacherProgress(teacherId, { perInvigilator });
-  };
-
   // Which role(s) each teacher is measured against. A specific filter pins the
   // whole cohort to that one role; otherwise a teacher gets one row per duty
   // role they actually hold — so an Associate Professor (invigilator + RS) shows
@@ -842,10 +856,104 @@ const calculateAllTeachersProgress = async ({ role, department } = {}) => {
     return roles.sort((a, b) => ROLE_ORDER[a] - ROLE_ORDER[b]);
   };
 
+  // Batch the raw duty counts for the whole cohort in a fixed number of queries
+  // instead of ~6 per teacher. Each per-teacher function still derives
+  // target/reached/remaining itself (single source of truth) — we only hand it
+  // the already-fetched teacher doc and its completed/assigned totals, computed
+  // here with the exact same match builders and RS chunking the per-teacher
+  // path uses, so the numbers are identical.
+  const ids = teachers.map((t) => t._id);
+  const neededRoles = new Set();
+  for (const t of teachers) for (const r of rolesForTeacher(t)) neededRoles.add(r);
+
+  const countByTeacher = async (match) => {
+    const rows = await Duty.aggregate([
+      { $match: match },
+      { $group: { _id: "$teacher", n: { $sum: 1 } } },
+    ]);
+    const m = new Map();
+    for (const r of rows) m.set(String(r._id), r.n);
+    return m;
+  };
+
+  const rsGroupCountsForIds = async (dutyMatch) => {
+    const duties = await Duty.find({ teacher: { $in: ids }, role: "rs", ...dutyMatch })
+      .select(`teacher ${RS_GROUP_DUTY_FIELDS}`)
+      .populate({ path: "roomRef", select: "building" });
+    const byTeacher = new Map();
+    for (const d of duties) {
+      const tid = String(d.teacher);
+      if (!byTeacher.has(tid)) byTeacher.set(tid, []);
+      byTeacher.get(tid).push(d);
+    }
+    const counts = new Map();
+    for (const [tid, list] of byTeacher) counts.set(tid, countRsGroupsFromDuties(list));
+    return counts;
+  };
+
+  const dcsCountsForIds = async () => {
+    const completed = new Map();
+    const active = new Map();
+    const groups = await DCSGroup.find({
+      assignedTeacher: { $in: ids },
+      status: "claimed",
+    }).populate({ path: "schedule", select: "date endTime" });
+    for (const g of groups) {
+      const tid = String(g.assignedTeacher);
+      active.set(tid, (active.get(tid) || 0) + 1);
+      if (scheduleHasEnded(g.schedule)) {
+        completed.set(tid, (completed.get(tid) || 0) + 1);
+      }
+    }
+    return { completed, active };
+  };
+
+  const EMPTY = new Map();
+  const [invCompleted, invActive, rsCompleted, rsActive, dcsCounts] =
+    await Promise.all([
+      neededRoles.has("invigilator")
+        ? countByTeacher({ role: "invigilator", teacher: { $in: ids }, ...completedDutyMatch() })
+        : EMPTY,
+      neededRoles.has("invigilator")
+        ? countByTeacher({ role: "invigilator", teacher: { $in: ids }, status: { $ne: "cancelled" } })
+        : EMPTY,
+      neededRoles.has("rs") ? rsGroupCountsForIds(completedDutyMatch()) : EMPTY,
+      neededRoles.has("rs") ? rsGroupCountsForIds({ status: { $ne: "cancelled" } }) : EMPTY,
+      neededRoles.has("dcs") ? dcsCountsForIds() : { completed: EMPTY, active: EMPTY },
+    ]);
+  const dcsCompleted = dcsCounts.completed;
+  const dcsActive = dcsCounts.active;
+
+  const progressForRole = (teacher, r) => {
+    const tid = String(teacher._id);
+    if (r === "rs") {
+      return calculateRsTeacherProgress(teacher._id, {
+        perRs,
+        teacher,
+        completed: rsCompleted.get(tid) || 0,
+        assigned: rsActive.get(tid) || 0,
+      });
+    }
+    if (r === "dcs") {
+      return calculateDcsTeacherProgress(teacher._id, {
+        perDcs,
+        teacher,
+        completed: dcsCompleted.get(tid) || 0,
+        assigned: dcsActive.get(tid) || 0,
+      });
+    }
+    return calculateTeacherProgress(teacher._id, {
+      perInvigilator,
+      teacher,
+      completed: invCompleted.get(tid) || 0,
+      assigned: invActive.get(tid) || 0,
+    });
+  };
+
   const rowGroups = await Promise.all(
     teachers.map((t) =>
       Promise.all(
-        rolesForTeacher(t).map((r) => progressForRole(t._id, r).catch(() => null))
+        rolesForTeacher(t).map((r) => progressForRole(t, r).catch(() => null))
       )
     )
   );

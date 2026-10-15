@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
+const { signalDutyChangesFrom } = require("../../shared/realtime");
 
 /**
  * A DCSGroup is the unit a DCS user claims at "Select Duty" time. It is
@@ -81,5 +83,10 @@ const dcsGroupSchema = new mongoose.Schema(
 dcsGroupSchema.index({ schedule: 1, groupIndex: 1 }, { unique: true });
 dcsGroupSchema.index({ assignedTeacher: 1, status: 1 });
 dcsGroupSchema.index({ examGroup: 1 });
+
+// Any change to who holds what pings open pages to refetch (shared/realtime).
+signalDutyChangesFrom(dcsGroupSchema);
+
+dcsGroupSchema.plugin(collegeScoped, { examTypeFrom: "examGroup" }); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("DCSGroup", dcsGroupSchema);

@@ -87,6 +87,12 @@ const getAll = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, count: duties.length, data: duties });
 });
 
+/** The caller's live upcoming duty units, all roles — the mobile app's alarm source. */
+const getMyUnits = catchAsync(async (req, res) => {
+  const units = await dutyService.getMyUpcomingUnits(req.user.id);
+  res.status(200).json({ success: true, count: units.length, data: units });
+});
+
 const getById = catchAsync(async (req, res) => {
   const duty = await dutyService.getDutyById(req.params.id);
   res.status(200).json({ success: true, data: duty });
@@ -193,6 +199,7 @@ module.exports = {
   adminAssign,
   adminAssignGroup,
   getAll,
+  getMyUnits,
   getById,
   cancel,
   confirm,

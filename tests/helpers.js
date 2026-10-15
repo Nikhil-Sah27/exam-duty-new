@@ -93,7 +93,23 @@ function futureDate(days) {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Retry `read` until `check(result)` holds, for effects the API writes after
+ * responding (fire-and-forget CS alerts). Returns the last result either way —
+ * assert on it as usual.
+ */
+async function eventually(read, check, { timeoutMs = 3000, intervalMs = 150 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let result = await read();
+  while (!check(result) && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+    result = await read();
+  }
+  return result;
+}
+
 module.exports = {
+  eventually,
   api,
   setToken,
   clearToken,

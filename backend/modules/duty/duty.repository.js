@@ -25,6 +25,26 @@ const create = (data, session) => {
   return Duty.create([data], { session }).then((docs) => docs[0]);
 };
 
+/**
+ * Create one duty per item, in order — the write half of every group claim.
+ * Inside a transaction a failure rolls everything back by itself. Without one
+ * (standalone Mongo, where `withOptionalTransaction` runs with a null session)
+ * the rooms written before the failure are deleted again, so losing a claim
+ * race on room 3 of 5 can't leave a teacher holding rooms 1–2.
+ */
+const createMany = async (items, session) => {
+  const created = [];
+  try {
+    for (const data of items) created.push(await create(data, session));
+    return created;
+  } catch (err) {
+    if (!session && created.length) {
+      await Duty.deleteMany({ _id: { $in: created.map((d) => d._id) } });
+    }
+    throw err;
+  }
+};
+
 const findAll = (filter = {}) => {
   return Duty.find(filter).populate(POPULATE_FIELDS).sort({ date: 1, startTime: 1 });
 };
@@ -32,6 +52,12 @@ const findAll = (filter = {}) => {
 const findById = (id) => {
   return Duty.findById(id).populate(POPULATE_FIELDS);
 };
+
+/** A teacher's live duties dated on/after `since`, populated for unit building. */
+const findLiveForTeacherSince = (teacherId, since) =>
+  Duty.find({ teacher: teacherId, status: "assigned", date: { $gte: since } })
+    .populate(POPULATE_FIELDS)
+    .sort({ date: 1, startTime: 1 });
 
 const updateById = (id, data) => {
   return Duty.findByIdAndUpdate(id, data, {
@@ -133,11 +159,23 @@ const distinctTeachersForSchedules = (scheduleIds) => {
   });
 };
 
+/** { collegeId: live duties from `since` on } — superadmin overview, platform scope. */
+const countUpcomingByCollege = async (since) => {
+  const rows = await Duty.aggregate([
+    { $match: { status: "assigned", date: { $gte: since } } },
+    { $group: { _id: "$college", n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+};
+
 module.exports = {
+  countUpcomingByCollege,
+  findLiveForTeacherSince,
   findForResponsiveness,
   updateMany,
   cancelMany,
   create,
+  createMany,
   distinctTeachersForSchedules,
   distinctTeachersWithDutiesSince,
   findAll,

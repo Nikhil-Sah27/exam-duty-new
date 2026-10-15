@@ -1,23 +1,26 @@
 // Public API for sending notifications from other modules.
 // Other modules import ONLY from this file — never from service or repository.
 //
-// This is also where email fan-out happens. Because every notification in the
-// app is created through one of the four functions below, hooking the mail
-// outbox in here gives EVERY type — including ones added later — an email
-// channel without touching a single call site. Per-type opt-out lives in
-// modules/mail/mail.policy.js.
+// This is also where email and phone-push fan-out happen. Because every
+// notification in the app is created through one of the four functions below,
+// hooking the mail and push outboxes in here gives EVERY type — including ones
+// added later — an email and a push channel without touching a single call
+// site. Per-type opt-out lives in modules/mail/mail.policy.js and
+// modules/push/push.policy.js.
 //
-// Two rules the mail hookup must never break:
-//   1. The outbox row is written with the caller's `session`, so a rolled-back
-//      transaction takes its emails with it (no email about a duty that was
-//      never created).
-//   2. Mail failures are swallowed. A notification that was successfully
-//      written must not turn into a failed request because SMTP is down.
+// Two rules the outbox hookups must never break:
+//   1. The outbox rows are written with the caller's `session`, so a
+//      rolled-back transaction takes its emails and pushes with it (nobody is
+//      told about a duty that was never created).
+//   2. Mail/push failures are swallowed. A notification that was successfully
+//      written must not turn into a failed request because SMTP or Expo is down.
 
 const notificationRepository = require("./notification.repository");
 const templates = require("./notification.templates");
 const mailService = require("../mail/mail.service");
 const mailDispatcher = require("../mail/mail.dispatcher");
+const pushService = require("../push/push.service");
+const pushDispatcher = require("../push/push.dispatcher");
 const calendarSync = require("../calendar/calendar.sync");
 
 // Notifications that mean the recipient's duties just changed — their calendar
@@ -61,6 +64,19 @@ const queueEmails = async (entries, session) => {
   if (!session) mailDispatcher.kick();
 };
 
+// Phone pushes ride the same rules as email: same session, swallowed failures,
+// kick after a non-transactional write. Entries need `notification` so the app
+// can open the right item when the push is tapped.
+const queuePush = async (entry, session) => {
+  await pushService.enqueueForNotification(entry, session);
+  if (!session) pushDispatcher.kick();
+};
+
+const queuePushes = async (entries, session) => {
+  await pushService.enqueueManyForNotifications(entries, session);
+  if (!session) pushDispatcher.kick();
+};
+
 const emit = async (
   type,
   { recipient, role, refModel, refId, data = {}, dedupeKey, session } = {},
@@ -81,10 +97,9 @@ const emit = async (
     session,
   );
 
-  await queueEmail(
-    { notification, type, recipient, title, message, data: withDutyRef(data, refModel, refId), dedupeKey },
-    session,
-  );
+  const entry = { notification, type, recipient, title, message, data: withDutyRef(data, refModel, refId), dedupeKey };
+  await queueEmail(entry, session);
+  await queuePush(entry, session);
   touchCalendar(type, recipient);
 
   return notification;
@@ -131,13 +146,20 @@ const emitToMany = async (
 
   const created = await notificationRepository.createMany(docs, session);
 
+  const outboxData = withDutyRef(data, refModel, refId);
   await queueEmails(
-    recipients.map((recipient) => ({
+    recipients.map((recipient) => ({ type, recipient, title, message, data: outboxData })),
+    session,
+  );
+  // insertMany preserves order, so created[i] is recipients[i]'s notification.
+  await queuePushes(
+    recipients.map((recipient, i) => ({
+      notification: created[i],
       type,
       recipient,
       title,
       message,
-      data: withDutyRef(data, refModel, refId),
+      data: outboxData,
     })),
     session,
   );
@@ -172,16 +194,16 @@ const bulkEmit = async (notifications, { session } = {}) => {
 
   const created = await notificationRepository.createMany(docs, session);
 
-  await queueEmails(
-    rendered.map(({ type, recipient, refModel, refId, title, message, data }) => ({
-      type,
-      recipient,
-      title,
-      message,
-      data: withDutyRef(data, refModel, refId),
-    })),
-    session,
-  );
+  const entries = rendered.map(({ type, recipient, refModel, refId, title, message, data }, i) => ({
+    notification: created[i],
+    type,
+    recipient,
+    title,
+    message,
+    data: withDutyRef(data, refModel, refId),
+  }));
+  await queueEmails(entries, session);
+  await queuePushes(entries, session);
   rendered.forEach(({ type, recipient }) => touchCalendar(type, recipient));
 
   return created;

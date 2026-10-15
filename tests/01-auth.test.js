@@ -9,62 +9,52 @@ async function run() {
   let token = null;
   let userId = null;
 
-  // --- Bootstrap ---
-  await test("POST /users/bootstrap - create initial admin", async () => {
+  // --- Bootstrap (removed) ---
+  // The unauthenticated "create the first CS" endpoint is gone: colleges get
+  // their first CS from the superadmin (MULTI_COLLEGE_PLAN.md).
+  await test("POST /users/bootstrap - no longer exists", async () => {
     try {
-      const res = await api.post("/users/bootstrap");
-      assertExists(res.data.data, "response data");
+      await api.post("/users/bootstrap");
+      throw new Error("expected the bootstrap endpoint to be gone");
     } catch (err) {
-      // 409 means already bootstrapped - that's fine
-      if (err.response && err.response.status === 409) {
-        console.log("     (admin already exists, continuing)");
-      } else {
-        throw err;
-      }
+      assert(err.response && [401, 404].includes(err.response.status), `got ${err.response ? err.response.status : err.message}`);
     }
   });
 
   // --- Register ---
   const testEmail = `testuser_${Date.now()}@test.com`;
 
-  await test("POST /auth/register - register new user", async () => {
-    const res = await api.post("/auth/register", {
-      name: "Test User",
-      email: testEmail,
-      password: "test123456",
-      phone: "9990000001",
-      designation: "Other",
-      roles: ["invigilator"],
-    });
-    assertStatus(res, 201);
-    assertExists(res.data.data.token, "token");
-    assertExists(res.data.data.user, "user");
-    assertEqual(res.data.data.user.email, testEmail, "email");
-  });
-
-  await test("POST /auth/register - duplicate email should fail", async () => {
+  // Self-registration is closed: accounts come from the exam cell (Teachers page
+  // or CSV import). It used to let anyone mint a CS account ("Other" + "cs").
+  await test("POST /auth/register - sign-up is closed (403)", async () => {
     try {
       await api.post("/auth/register", {
-        name: "Duplicate",
+        name: "Test User",
         email: testEmail,
         password: "test123456",
-        role: "invigilator",
+        phone: "9990000001",
+        designation: "Other",
+        roles: ["invigilator"],
       });
-      throw new Error("Should have thrown 409");
+      throw new Error("Should have thrown 403");
     } catch (err) {
-      assert(
-        err.response && (err.response.status === 409 || err.response.status === 400),
-        `Expected 409/400, got ${err.response?.status}`
-      );
+      assert(err.response && err.response.status === 403, `Expected 403, got ${err.response?.status}`);
     }
   });
 
-  await test("POST /auth/register - missing fields should fail", async () => {
+  await test("POST /auth/register - cannot mint a CS account (403)", async () => {
     try {
-      await api.post("/auth/register", { name: "No Email" });
-      throw new Error("Should have failed");
+      await api.post("/auth/register", {
+        name: "Would-be Admin",
+        email: `cs_${testEmail}`,
+        password: "test123456",
+        phone: "9990000002",
+        designation: "Other",
+        roles: ["cs"],
+      });
+      throw new Error("Should have thrown 403");
     } catch (err) {
-      assert(err.response && err.response.status >= 400, "Should return 4xx");
+      assert(err.response && err.response.status === 403, `Expected 403, got ${err.response?.status}`);
     }
   });
 

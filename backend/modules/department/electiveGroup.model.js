@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const electiveGroupSchema = new mongoose.Schema(
   {
@@ -17,5 +18,7 @@ const electiveGroupSchema = new mongoose.Schema(
 );
 
 electiveGroupSchema.index({ semester: 1, name: 1 }, { unique: true });
+
+electiveGroupSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("ElectiveGroup", electiveGroupSchema);

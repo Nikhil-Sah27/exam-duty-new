@@ -47,3 +47,61 @@ export function downloadCsv(
   a.click();
   URL.revokeObjectURL(url);
 }
+
+export interface CsvRecord {
+  /** Spreadsheet row number (the header is row 1); blank rows still count. */
+  line: number;
+  cells: string[];
+}
+
+/**
+ * Parse CSV text into records (RFC 4180: quoted fields, "" escapes, commas and
+ * newlines inside quotes, CRLF or LF). Strips a UTF-8 BOM, auto-detects `;`
+ * as the delimiter (Excel in some locales), unwraps Excel text formulas
+ * (`="0123"`, as `excelText()`/Excel emit them) and drops blank rows while
+ * keeping every record's spreadsheet row number for error messages.
+ */
+export function parseCsv(text: string): CsvRecord[] {
+  const src = text.replace(/^﻿/, "");
+  const firstLine = src.split(/\r?\n/, 1)[0] ?? "";
+  const delimiter = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ";" : ",";
+
+  const records: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (src[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === delimiter) {
+      row.push(field);
+      field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && src[i + 1] === "\n") i++;
+      row.push(field);
+      records.push(row);
+      row = [];
+      field = "";
+    } else field += c;
+  }
+  if (field !== "" || row.length) {
+    row.push(field);
+    records.push(row);
+  }
+
+  const unwrap = (v: string) => {
+    const t = v.trim();
+    const m = /^="(.*)"$/.exec(t);
+    return m ? m[1] : t;
+  };
+  return records
+    .map((cells, i) => ({ line: i + 1, cells: cells.map(unwrap) }))
+    .filter((r) => r.cells.some((v) => v !== ""));
+}

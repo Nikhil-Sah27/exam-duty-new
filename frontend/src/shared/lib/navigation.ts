@@ -32,7 +32,7 @@ export const navItems: NavItem[] = [
   { path: "/messages", label: "Messages", icon: MessageSquare, roles: CS_ONLY },
   { path: "/requests", label: "Change Requests", icon: ArrowLeftRight, roles: ADMIN_ROLES },
   { path: "/manage-duties", label: "Manage Duties", icon: ClipboardList, roles: ADMIN_ROLES },
-  { path: "/users", label: "Teachers", icon: Users, roles: ADMIN_ROLES },
+  { path: "/users", label: "Teachers", icon: Users, roles: CS_ONLY },
   { path: "/notify", label: "Notify", icon: Megaphone, roles: CS_ONLY },
   { path: "/departments", label: "Departments", icon: Building2, roles: ADMIN_ROLES },
   { path: "/infrastructure", label: "Rooms & Buildings", icon: DoorOpen, roles: ADMIN_ROLES },

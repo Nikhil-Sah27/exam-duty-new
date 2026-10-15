@@ -32,6 +32,10 @@ const AssignDutyExamsPage = lazy(() => import("@/modules/manage-duties/component
 const AssignDutyExamDetailsPage = lazy(() => import("@/modules/manage-duties/components/AssignDutyExamDetailsPage"));
 const AssignRSDutyPage = lazy(() => import("@/modules/manage-duties/components/AssignRSDutyPage"));
 const AssignDCSDutyPage = lazy(() => import("@/modules/manage-duties/components/AssignDCSDutyPage"));
+// Superadmin console — one user, so its shell is lazy too.
+const PlatformLayout = lazy(() => import("@/modules/platform/components/PlatformLayout"));
+const CollegesPage = lazy(() => import("@/modules/platform/components/CollegesPage"));
+const CollegeDetailPage = lazy(() => import("@/modules/platform/components/CollegeDetailPage"));
 
 export default function App() {
   return (
@@ -74,6 +78,10 @@ export default function App() {
           <Route path="/infrastructure/:id" element={<BuildingDetailsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/audit" element={<AuditPage />} />
+        </Route>
+        <Route element={<PlatformLayout />}>
+          <Route path="/platform" element={<CollegesPage />} />
+          <Route path="/platform/colleges/:id" element={<CollegeDetailPage />} />
         </Route>
         {invigilatorRoutes}
         {rsRoutes}

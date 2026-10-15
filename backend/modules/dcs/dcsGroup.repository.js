@@ -47,6 +47,15 @@ const updateById = (id, data, session) =>
     ...(session ? { session } : {}),
   }).populate(POPULATE);
 
+// Atomic open → claimed flip. Resolves true only for the one caller that won;
+// a concurrent claim matches nothing (or hits a write conflict and retries).
+const claimIfOpen = (id, teacherId, session) =>
+  DCSGroup.updateOne(
+    { _id: id, status: "open" },
+    { assignedTeacher: teacherId, status: "claimed" },
+    session ? { session } : {}
+  ).then((res) => res.matchedCount === 1);
+
 const deleteBySchedules = (scheduleIds, session) =>
   DCSGroup.deleteMany(
     { schedule: { $in: scheduleIds } },
@@ -70,6 +79,7 @@ module.exports = {
   findByExamGroup,
   findByExamGroups,
   updateById,
+  claimIfOpen,
   deleteBySchedules,
   deleteByExamGroups,
 };

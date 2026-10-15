@@ -45,3 +45,43 @@ export interface UserResponse {
   success: boolean;
   data: UserProfile;
 }
+
+// ── CSV import (POST /users/import, CS only) ──────────────────────────────
+
+/** One teacher parsed from the CSV. `line` is the spreadsheet row (header = 1). */
+export interface ImportUserRow {
+  line: number;
+  name: string;
+  email: string;
+  phone: string;
+  department: string;
+  designation: string;
+  role: string;
+  password: string;
+}
+
+export interface ImportUsersRequest {
+  rows: ImportUserRow[];
+  defaultPassword?: string;
+  dryRun?: boolean;
+}
+
+export type ImportRowStatus = "create" | "created" | "exists" | "error";
+
+export interface ImportRowResult {
+  line: number;
+  name: string;
+  email: string;
+  status: ImportRowStatus;
+  message?: string;
+  designation?: string;
+  department?: string | null;
+  roles?: UserRole[];
+}
+
+export interface ImportUsersResult {
+  dryRun: boolean;
+  summary: { total: number; ready: number; created: number; skipped: number; errors: number };
+  results: ImportRowResult[];
+}
+

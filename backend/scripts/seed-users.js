@@ -56,6 +56,7 @@ const seedUsers = [
 
 async function seed() {
   await mongoose.connect(MONGO_URI);
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
   console.log("Connected to MongoDB");
 
   const db = mongoose.connection.db;
@@ -83,6 +84,7 @@ async function seed() {
       department: user.department,
       designation: user.designation,
       isActive: true,
+      college: college._id,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

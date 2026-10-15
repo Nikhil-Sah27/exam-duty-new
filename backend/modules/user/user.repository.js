@@ -39,6 +39,27 @@ const findByIdIncludingInactive = (id) =>
 // active-only pre-find hook doesn't apply — soft-deleted users are removable.
 const hardDeleteById = (id) => User.deleteOne({ _id: id });
 
+/** Which of these emails already have an account (active or deactivated)? */
+const findExistingEmails = (emails) =>
+  User.find({ email: { $in: emails }, isActive: { $in: [true, false] } })
+    .select("email isActive")
+    .lean();
+
+/**
+ * Insert many users, continuing past individual failures (ordered: false).
+ * Returns the indexes (into `docs`) that failed — e.g. an email taken between
+ * the duplicate check and the insert.
+ */
+const createMany = async (docs) => {
+  try {
+    await User.insertMany(docs, { ordered: false });
+    return [];
+  } catch (err) {
+    if (Array.isArray(err.writeErrors)) return err.writeErrors.map((e) => e.index ?? e.err?.index);
+    throw err;
+  }
+};
+
 // Explicitly filters on isActive so the model's pre-find hook (which auto-scopes
 // queries to active users) does not hide the inactive record we want to update.
 const activateById = (id) => {
@@ -71,7 +92,32 @@ const findActiveIds = async (roles) => {
   return docs.map((d) => d._id);
 };
 
+/** Just the user's college (any active state). */
+const findCollegeOf = (id) =>
+  User.findOne({ _id: id, isActive: { $in: [true, false] } }).select("college").lean();
+
+const setPasswordById = (id, hashedPassword) =>
+  User.findOneAndUpdate(
+    { _id: id, isActive: { $in: [true, false] } },
+    { password: hashedPassword, resetOtpHash: null, resetOtpExpires: null, resetOtpAttempts: 0 },
+    { new: true }
+  ).select(ALLOWED_FIELDS);
+
+/** { collegeId: count } of active, non-superadmin users. */
+const countActiveByCollege = async () => {
+  const rows = await User.aggregate([
+    { $match: { isActive: true, college: { $ne: null } } },
+    { $group: { _id: "$college", n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+};
+
 module.exports = {
+  findCollegeOf,
+  setPasswordById,
+  countActiveByCollege,
+  findExistingEmails,
+  createMany,
   create,
   findAll,
   findById,

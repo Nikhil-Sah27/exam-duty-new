@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const auditLogSchema = new mongoose.Schema(
   {
@@ -36,5 +37,7 @@ const auditLogSchema = new mongoose.Schema(
 auditLogSchema.index({ entity: 1, entityId: 1 });
 auditLogSchema.index({ performedBy: 1 });
 auditLogSchema.index({ createdAt: -1 });
+
+auditLogSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("AuditLog", auditLogSchema);

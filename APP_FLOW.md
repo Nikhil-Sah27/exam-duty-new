@@ -12,8 +12,8 @@ Test logins: see [CREDENTIALS.md](CREDENTIALS.md).
 
 CS has full system access. On login, the admin shell (`ProtectedLayout`) mounts the left sidebar with every management page.
 
-### 1.1 First-time bootstrap
-1. Run `POST /api/users/bootstrap` (no auth required) to create the initial CS user.
+### 1.1 First-time setup
+1. The platform superadmin (created on the server with `node backend/scripts/create-superadmin.js <email>`) signs in, lands on `/platform`, and creates the college together with its first CS. Feature switches (CIE / SEE exams) are set per college there too.
 2. Log in.
 3. Add other faculty via **Users** → assign roles (`cs` / `dcs` / `rs` / `invigilator`) and departments.
 

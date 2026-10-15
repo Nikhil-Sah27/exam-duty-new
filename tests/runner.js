@@ -24,6 +24,10 @@ const suites = [
   { name: "Notification Events", file: "./11-notification-events.test.js" },
   { name: "Unassign", file: "./12-unassign.test.js" },
   { name: "Confirmation", file: "./13-confirmation.test.js" },
+  { name: "Concurrency", file: "./14-concurrency.test.js" },
+  { name: "Push + My Units", file: "./15-push.test.js" },
+  { name: "User Import", file: "./16-user-import.test.js" },
+  { name: "Multi-college", file: "./17-colleges.test.js" },
 ];
 
 async function main() {

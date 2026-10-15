@@ -1,4 +1,4 @@
-import type { UserRole } from "@/shared/lib/types";
+import type { UserRole, DutyRole } from "@/shared/lib/types";
 
 /**
  * Role → assign-duty route for the CS "Assign Duty" flow.
@@ -13,7 +13,7 @@ import type { UserRole } from "@/shared/lib/types";
  * `Record<AssignableDutyRole, …>` maps (picker labels/icons) from demanding a
  * `cs` entry.
  */
-export type AssignableDutyRole = Exclude<UserRole, "cs">;
+export type AssignableDutyRole = DutyRole;
 
 export const ASSIGN_DUTY_ROUTE_BY_ROLE: Record<
   AssignableDutyRole,

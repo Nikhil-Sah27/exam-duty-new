@@ -4,7 +4,7 @@ import type { UserRole } from "@/shared/lib/types";
 export type Theme = "light" | "dark";
 
 /** Every role whose theme we track independently. */
-const ALL_ROLES: UserRole[] = ["cs", "dcs", "rs", "invigilator"];
+const ALL_ROLES: UserRole[] = ["superadmin", "cs", "dcs", "rs", "invigilator"];
 /**
  * The pre-split global preference. Read once to migrate existing installs into
  * per-role keys, then deleted. Never written afterwards, so it can't leak one

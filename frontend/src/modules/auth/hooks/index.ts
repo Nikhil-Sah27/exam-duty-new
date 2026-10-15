@@ -11,14 +11,11 @@ import {
 import { useAuthStore } from "@/shared/store/auth.store";
 import { LoginRequest, RegisterRequest } from "../types";
 import type { UserRole } from "@/shared/lib/types";
-import { getRoleConfig } from "@/modules/shared/role-config/roleConfig";
+import { homePathForRole } from "@/modules/shared/role-config/roleConfig";
 
-// Land the user on the right dashboard for an active role. CS goes to the
-// admin root; DCS/RS/Invigilator go to their role-config's defaultPath.
-const dashboardPathForRole = (role: UserRole): string => {
-  const cfg = getRoleConfig(role);
-  return cfg ? cfg.defaultPath : "/dashboard";
-};
+// Land the user on the right home for an active role: superadmin → its console,
+// CS → the admin root, DCS/RS/Invigilator → their role-config's defaultPath.
+const dashboardPathForRole = (role: UserRole): string => homePathForRole(role);
 
 export const useLogin = () => {
   const setAuth = useAuthStore((s) => s.setAuth);

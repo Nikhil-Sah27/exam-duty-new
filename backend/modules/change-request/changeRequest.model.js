@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const changeRequestSchema = new mongoose.Schema(
   {
@@ -164,5 +165,7 @@ changeRequestSchema.index(
     partialFilterExpression: { status: "pending", scope: "rs_group" },
   }
 );
+
+changeRequestSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("ChangeRequest", changeRequestSchema);

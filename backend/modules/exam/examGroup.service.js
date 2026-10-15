@@ -383,7 +383,10 @@ const getDutyStatus = async (id) => {
   return statusMap;
 };
 
+const countByCollege = () => examGroupRepo.countByCollege();
+
 module.exports = {
+  countByCollege,
   createGroup,
   getAllGroups,
   getGroupById,

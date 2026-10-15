@@ -21,6 +21,7 @@ const REASON = "Manual bulk release via release-all-dcs.js";
 
 async function main() {
   await connectDB();
+  const college = await require("../shared/tenancy/script").useCollegeForScript();
   console.log("\n=== DCS release sweep ===");
 
   // 1. Find every DCS user (active + inactive both — defensive).

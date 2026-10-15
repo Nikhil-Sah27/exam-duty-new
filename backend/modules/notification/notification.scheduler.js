@@ -5,6 +5,12 @@
 const { runDailySweep } = require("./notification.jobs");
 const calendarSync = require("../calendar/calendar.sync");
 const { runReminderTick, runSelectionNudgeSweep } = require("./reminder.jobs");
+const { runAsPlatform } = require("../../shared/tenancy/context");
+
+// Every sweep runs once per active college, inside that college's scope — a
+// sweep must never mix colleges (e.g. "tell CS" would reach every college's CS).
+const collegeService = () => require("../college/college.service");
+const perCollege = (label, fn) => collegeService().forEachActiveCollege(label, fn);
 
 // Minute-level work: the 30-minute reminder and the day-before CS escalation
 // can't wait for a 6-hour sweep. Each pass is a cheap indexed query.
@@ -14,7 +20,12 @@ const runTick = async () => {
   if (ticking) return;
   ticking = true;
   try {
-    const t = await runReminderTick();
+    const t = { reminders: 0, nudges: 0, csAlerts: 0 };
+    for (const r of await perCollege("reminders", () => runReminderTick())) {
+      t.reminders += r.reminders;
+      t.nudges += r.nudges;
+      t.csAlerts += r.csAlerts;
+    }
     if (t.reminders + t.nudges + t.csAlerts > 0) {
       console.log(`[reminders] ${t.reminders} reminders, ${t.nudges} confirm nudges, ${t.csAlerts} CS alerts`);
     }
@@ -32,21 +43,25 @@ const runSweeps = async () => {
   if (!backfilled) {
     backfilled = true;
     try {
-      const n = await require("../duty/duty.service").backfillSelfClaimConfirmations();
+      const n = await runAsPlatform(() => require("../duty/duty.service").backfillSelfClaimConfirmations());
       if (n > 0) console.log(`[reminders] marked ${n} earlier self-claimed duties as confirmed`);
     } catch (err) {
       console.error("[reminders] confirmation backfill failed:", err.message);
     }
   }
-  await runDailySweep();
   try {
-    const n = await runSelectionNudgeSweep();
+    await perCollege("notifications", () => runDailySweep());
+  } catch (err) {
+    console.error("[notifications] sweep failed:", err.message);
+  }
+  try {
+    const n = (await perCollege("reminders", () => runSelectionNudgeSweep())).reduce((a, b) => a + b, 0);
     if (n > 0) console.log(`[reminders] ${n} select-your-duty nudges`);
   } catch (err) {
     console.error("[reminders] selection sweep failed:", err.message);
   }
   try {
-    await calendarSync.runSweep();
+    await perCollege("calendar", () => calendarSync.runSweep());
   } catch (err) {
     console.error("[calendar] sweep failed:", err.message);
   }

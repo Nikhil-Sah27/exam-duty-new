@@ -5,9 +5,13 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** Width: "md" (default, forms) · "lg" · "xl" (tables, e.g. a CSV preview). */
+  size?: "md" | "lg" | "xl";
 }
 
-export default function Modal({ open, onClose, title, children }: ModalProps) {
+const WIDTH = { md: "max-w-md", lg: "max-w-2xl", xl: "max-w-4xl" } as const;
+
+export default function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
   if (!open) return null;
 
   // Rendered into document.body so the modal escapes any interactive ancestor
@@ -20,7 +24,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
       onClick={(e) => e.stopPropagation()}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className={`max-h-[90vh] w-full ${WIDTH[size]} overflow-y-auto rounded-lg bg-white p-6 shadow-xl`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-800">{title}</h2>
           <button

@@ -8,11 +8,11 @@ const examRoomRepo = require("../exam/examRoom.repository");
 const examGroupRepo = require("../exam/examGroup.repository");
 const { emit, emitToMany } = require("../notification/notification.emitter");
 const userService = require("../user/user.service");
-const { buildRoomLabel } = require("../exam-cleanup/utils/examCleanupUtils");
+const { buildRoomLabel, buildExamLabel } = require("../exam-cleanup/utils/examCleanupUtils");
 const {
   assertTargetNotReached,
 } = require("../duty-calculation/dutyCalculation.service");
-const { unitFilter } = require("./duty.unit");
+const { unitFilter, unitKey, groupIntoUnits, locationFor, idOf } = require("./duty.unit");
 const confirmToken = require("./duty.confirmToken");
 const { localToUtc } = require("../../shared/utils/datetime");
 
@@ -224,6 +224,8 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
   // CS can't assign past a teacher's computed target for this role. Self-claim
   // is intentionally exempt — the requirement is about CS-driven assignment.
   if (!isSelfAssigned) await assertTargetNotReached(teacherId, dutyRole);
+  // Names the conflict for the common case. Two clicks landing together can
+  // both pass it — the Duty one-live-duty-per-slot index settles those (409).
   await validateConflicts(teacherId, room, date, startTime, endTime, undefined, roomRef, dutyRole);
 
   const duty = await withOptionalTransaction((session) =>
@@ -295,9 +297,9 @@ const selfAssignDuty = async (data, userId, activeRole) => {
  * the RS's duty, or none do.
  *
  * Conflict semantics: the entire group rejects on the first conflict (any
- * teacher- or room-overlap), and the partial state is rolled back when the
- * deployment supports transactions. On standalone Mongo, partial state is
- * possible — same trade-off as elsewhere in the service.
+ * teacher- or room-overlap). Concurrent claims on the same rooms are settled
+ * by the Duty one-live-duty-per-slot index: exactly one RS gets the group,
+ * the rest get a 409, and nobody is left holding part of it.
  */
 const selfAssignDutyGroup = async (data, userId, activeRole) => {
   const { examSchedule, examRooms } = data;
@@ -309,9 +311,9 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
   if (!Array.isArray(examRooms) || examRooms.length === 0) {
     throw new AppError("examRooms must be a non-empty array", 400);
   }
-  // De-dupe defensively; the same examRoom id twice would be a UI bug, but
-  // still better to surface it cleanly than to slip past Mongo's room-unique
-  // duty index with a confusing 500.
+  // De-dupe defensively; the same examRoom id twice would be a UI bug, and
+  // would otherwise trip the one-live-duty-per-slot index as a confusing
+  // "already taken" against the caller's own claim.
   const uniqueRoomIds = [...new Set(examRooms.map((id) => String(id)))];
   if (uniqueRoomIds.length !== examRooms.length) {
     throw new AppError("examRooms contains duplicate entries", 400);
@@ -342,31 +344,28 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
     await validateConflicts(userId, roomNumber, date, startTime, endTime, undefined, roomRef, activeRole);
   }
 
+  // The pre-flight above can be raced by a concurrent claim; the duty's
+  // one-live-duty-per-slot index can't. A lost race fails here with a 409 and
+  // the whole group is undone — never a partial group.
   const createdIds = await withOptionalTransaction(async (session) => {
-    const ids = [];
-    for (const { schedule: s, examRoom } of resolved) {
-      const roomNumber = examRoom?.room?.roomNumber || "";
-      const roomRef = examRoom?.room?._id || null;
-      const duty = await dutyRepository.create(
-        {
-          exam: null,
-          examSchedule: s._id,
-          examRoom: examRoom._id,
-          teacher: userId,
-          role: activeRole,
-          room: roomNumber,
-          roomRef,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          assignedBy: userId,
-          isSelfAssigned: true,
-        },
-        session,
-      );
-      ids.push(duty._id);
-    }
-    return ids;
+    const duties = await dutyRepository.createMany(
+      resolved.map(({ schedule: s, examRoom }) => ({
+        exam: null,
+        examSchedule: s._id,
+        examRoom: examRoom._id,
+        teacher: userId,
+        role: activeRole,
+        room: examRoom?.room?.roomNumber || "",
+        roomRef: examRoom?.room?._id || null,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        assignedBy: userId,
+        isSelfAssigned: true,
+      })),
+      session,
+    );
+    return duties.map((d) => d._id);
   });
 
   const populated = await Promise.all(
@@ -455,30 +454,24 @@ const adminAssignDutyGroup = async (data, adminId) => {
   }
 
   const createdIds = await withOptionalTransaction(async (session) => {
-    const ids = [];
-    for (const { schedule: s, examRoom } of resolved) {
-      const roomNumber = examRoom?.room?.roomNumber || "";
-      const roomRef = examRoom?.room?._id || null;
-      const duty = await dutyRepository.create(
-        {
-          exam: null,
-          examSchedule: s._id,
-          examRoom: examRoom._id,
-          teacher: teacherId,
-          role: dutyRole,
-          room: roomNumber,
-          roomRef,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          assignedBy: adminId,
-          isSelfAssigned: false,
-        },
-        session,
-      );
-      ids.push(duty._id);
-    }
-    return ids;
+    const duties = await dutyRepository.createMany(
+      resolved.map(({ schedule: s, examRoom }) => ({
+        exam: null,
+        examSchedule: s._id,
+        examRoom: examRoom._id,
+        teacher: teacherId,
+        role: dutyRole,
+        room: examRoom?.room?.roomNumber || "",
+        roomRef: examRoom?.room?._id || null,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        assignedBy: adminId,
+        isSelfAssigned: false,
+      })),
+      session,
+    );
+    return duties.map((d) => d._id);
   });
 
   const populated = await Promise.all(
@@ -746,6 +739,63 @@ const confirmDutyUnit = async (dutyId, { teacherId, via }) => {
 };
 
 /**
+ * The caller's live upcoming duty UNITS across all their roles — what the
+ * phone app schedules alarms from. One entry per unit (a 5-room RS group is one
+ * alarm, not five), each with exact UTC `startsAt`/`endsAt` computed from the
+ * local wall-clock times (APP_TIMEZONE), so the phone needs no timezone logic.
+ * Units already over (endsAt <= now) are dropped; sorted by start.
+ */
+const getMyUpcomingUnits = async (teacherId, now = new Date()) => {
+  const since = new Date(now);
+  since.setUTCHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - 1); // local "today" can still be UTC yesterday
+  const duties = await dutyRepository.findLiveForTeacherSince(teacherId, since);
+
+  const units = [];
+  for (const list of groupIntoUnits(duties).values()) {
+    const first = list[0];
+    const schedule = first.examSchedule;
+    const date = schedule?.date || first.date;
+    const startTime = schedule?.startTime || first.startTime;
+    const endTime = schedule?.endTime || first.endTime;
+    const startsAt = localToUtc(date, startTime);
+    const endsAt = localToUtc(date, endTime);
+    if (endsAt <= now) continue;
+
+    const examGroup = schedule?.examGroup;
+    const rooms = list
+      .map((d) => d.examRoom?.room?.roomNumber || d.room)
+      .filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+    const confirmedAt = list.every((d) => d.confirmedAt)
+      ? new Date(Math.max(...list.map((d) => d.confirmedAt.getTime())))
+      : null;
+
+    units.push({
+      key: unitKey(first),
+      role: first.role,
+      dutyIds: list.map((d) => idOf(d._id)),
+      primaryDutyId: idOf(first._id),
+      examScheduleId: idOf(schedule),
+      examLabel: buildExamLabel({ examGroup, exam: first.exam }),
+      examType: examGroup?.examType || first.exam?.type || null,
+      semester: examGroup?.semester ?? first.exam?.semester ?? null,
+      date: new Date(date).toISOString().slice(0, 10),
+      startTime,
+      endTime,
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      building: first.examRoom?.room?.building?.name || null,
+      rooms,
+      location: list.length === 1 ? buildRoomLabel(first) : locationFor(list),
+      confirmed: Boolean(confirmedAt),
+      confirmedAt: confirmedAt ? confirmedAt.toISOString() : null,
+    });
+  }
+  return units.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+};
+
+/**
  * One-off, idempotent: duties self-claimed before confirmation existed are
  * confirmed as of when they were claimed. CS-assigned ones stay unconfirmed —
  * the teacher is asked, which is the point of the feature.
@@ -762,7 +812,12 @@ const backfillSelfClaimConfirmations = async () => {
 const confirmDutyByToken = async (token) => {
   const claim = confirmToken.verify(token);
   if (!claim) throw new AppError("This confirmation link is invalid or has expired", 400);
-  return confirmDutyUnit(claim.dutyId, { teacherId: claim.teacherId, via: "email" });
+  // Signed-out link: the signed teacher's own college is the scope.
+  const confirmed = await require("../college/college.service").runAsUsersCollege(claim.teacherId, () =>
+    confirmDutyUnit(claim.dutyId, { teacherId: claim.teacherId, via: "email" })
+  );
+  if (confirmed === undefined) throw new AppError("This confirmation link is invalid or has expired", 400);
+  return confirmed;
 };
 
 /**
@@ -802,7 +857,15 @@ const getTeacherIdsForSchedules = async (scheduleIds) => {
   return dutyRepository.distinctTeachersForSchedules(scheduleIds);
 };
 
+/** { collegeId: duty slots from today on } for the superadmin overview. */
+const countUpcomingByCollege = () => {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return dutyRepository.countUpcomingByCollege(today);
+};
+
 module.exports = {
+  countUpcomingByCollege,
   confirmDutyUnit,
   confirmDutyByToken,
   backfillSelfClaimConfirmations,
@@ -816,6 +879,7 @@ module.exports = {
   adminAssignDuty,
   adminAssignDutyGroup,
   getAllDuties,
+  getMyUpcomingUnits,
   getDutyById,
   getInvigilatorsForRooms,
   cancelDuty,

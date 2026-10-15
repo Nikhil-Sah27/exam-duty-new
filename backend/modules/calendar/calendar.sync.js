@@ -57,6 +57,8 @@ const uidDomain = () => {
 
 // One calendar event per duty unit — see duty/duty.unit.js.
 const { unitKey, locationFor } = require("../duty/duty.unit");
+const { runAsCollege, currentScope } = require("../../shared/tenancy/context");
+const collegeService = () => require("../college/college.service");
 
 /** Everything an invite and its email need about one unit. */
 const describeUnit = (teacherId, duties) => {
@@ -247,16 +249,20 @@ const syncTeacher = (teacher) => {
 // Debounced so the sync reads committed data — notifications are often emitted
 // inside a transaction, and a rolled-back one leaves nothing to invite for.
 
-const dirty = new Set();
+// teacherId → the college it was marked from. One timer batches teachers from
+// many requests (and colleges), so each sync re-enters its own college's scope
+// rather than whichever scope the timer happened to inherit.
+const dirty = new Map();
 let flushTimer = null;
 
 const flush = async () => {
   flushTimer = null;
-  const ids = [...dirty];
+  const batch = [...dirty];
   dirty.clear();
-  for (const id of ids) {
+  for (const [id, collegeId] of batch) {
     try {
-      await syncTeacher(id);
+      const sync = () => syncTeacher(id);
+      await (collegeId ? runAsCollege(await collegeService().getCollege(collegeId), sync) : collegeService().runAsUsersCollege(id, sync));
     } catch (err) {
       console.error(`[calendar] sync failed for ${id}:`, err.message);
     }
@@ -266,7 +272,7 @@ const flush = async () => {
 const markDirty = (teacher) => {
   const teacherId = toId(teacher);
   if (!teacherId || !isAutoEnabled()) return;
-  dirty.add(teacherId);
+  dirty.set(teacherId, currentScope()?.collegeId || null);
   if (!flushTimer) flushTimer = setTimeout(flush, DEBOUNCE_MS);
 };
 

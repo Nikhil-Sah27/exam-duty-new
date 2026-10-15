@@ -57,7 +57,8 @@ Assistant Professors are **Invigilator-only** — RS duty is carried by Professo
 - **Exams** — list, filter, edit; timetable per exam with per-room duty status. The timetable groups rooms by date and time slot, with highlighted date and time-slot headers and a highlighted **Department** filter for quickly narrowing multi-department schedules.
 - **Departments** — CRUD for departments, semesters, courses (core or elective), and elective groups (a named group of subjects — no professional/open sub-type, no per-elective student count).
 - **Infrastructure** — buildings and rooms with capacity, floor, and bulk-import support.
-- **Users** — teacher profiles with designation-driven roles and department; reactivate soft-deleted teachers; one-time admin bootstrap endpoint.
+- **Users** — teacher profiles with designation-driven roles and department; reactivate soft-deleted teachers; CSV bulk import (CS).
+- **Colleges (multi-college)** — a platform superadmin creates isolated colleges, their CS accounts, and per-college feature switches (CIE / SEE exams). See `MULTI_COLLEGE_PLAN.md`.
 
 ### Duty Assignment
 - **Self-assign** — Invigilators claim single rooms; RS and DCS claim groups (one API call creates a duty per room in the group, transactionally).
@@ -202,6 +203,20 @@ Verify with `MAIL_TRANSPORT=console node scripts/verify-calendar.js` against a t
 
 Time-critical checks run on a 5-minute tick. Verify with `MAIL_TRANSPORT=console node scripts/verify-reminders.js` against a throwaway database.
 
+### Mobile App, Push Alerts & Duty Alarms
+A phone app for **Invigilators, RS and DCS** lives in `mobile/` (Expo / React Native — see `mobile/README.md` and `MOBILE_PLAN.md`). CS keeps using the web dashboard.
+
+- **Push alerts.** Every notification is also queued as a phone push, hooked in at the same emitter choke point as email: `emit` writes a `PushOutbox` row in the *same transaction* as the notification, and `push.dispatcher.js` (`backend/modules/push/`) sends it through Expo's push service to every phone the recipient has registered. Same guarantees as email — a rolled-back assignment buzzes nobody, Expo outages never fail a request, every attempt is recorded. Per-type policy is `modules/push/push.policy.js`: every teacher-facing type pushes (including `exam_created` — no quota to protect); CS-facing alerts (`request_submitted`, `duty_claimed_by_teacher`, …) don't, since CS has no app.
+- **Alarms.** The app pulls `GET /api/duties/my-units` (one entry per duty unit, with exact UTC `startsAt`/`endsAt`) and schedules **ringing alarms on the phone** — 1 h and 20 min before each duty by default, adjustable per teacher. They ring with no network at duty time; every push received re-syncs them, so a cancelled duty loses its alarm.
+
+```env
+PUSH_TRANSPORT=console          # console (default — logs, sends nothing) | expo
+PUSH_ENABLED=true               # false stops queueing pushes entirely
+EXPO_ACCESS_TOKEN=              # only if "enhanced push security" is on at expo.dev
+```
+
+Keep `console` locally and in CI (test devices carry fake tokens). Production sets `PUSH_TRANSPORT=expo`; FCM/APNs credentials live in the Expo project, not the backend.
+
 ### Notify (Broadcast Announcements)
 The **Notify** module (`backend/modules/notify/`, frontend `frontend/src/modules/notify/`) is a **CS-only** broadcast tool distinct from the automatic `notification` module. From the **Notify** page, CS composes a title + message and picks an audience:
 
@@ -245,7 +260,7 @@ Backend uses Mongoose models under `backend/modules/*/[name].model.js`.
 ## Workflows by Role
 
 ### CS — Administrator
-1. **Bootstrap** the first admin via `POST /api/users/bootstrap`, log in.
+1. **Set up** the college: the superadmin (`node backend/scripts/create-superadmin.js you@example.com`) creates it at `/platform` along with its first CS, who logs in. (On an existing single-college database, everything lands in "Main college" on first boot.)
 2. Set up **Departments** (with semesters, courses, elective groups) and **Infrastructure** (buildings + rooms).
 3. Create **Users** for faculty — pick a designation and the roles resolve automatically (or pick one role for `Other`).
 4. Open **Create Exams**:
@@ -293,7 +308,8 @@ exam-duty/
 │   ├── app.js                       # Express setup, CORS, route mounting
 │   ├── modules/
 │   │   ├── auth/                    # Register, login, /me, select-role, JWT
-│   │   ├── user/                    # User CRUD, roles-by-designation, bootstrap, activate
+│   │   ├── user/                    # User CRUD, roles-by-designation, activate, CSV import
+│   │   ├── college/                 # Colleges (tenants), superadmin console API, boot migration
 │   │   ├── department/              # Dept + Semester + Course + ElectiveGroup
 │   │   ├── infrastructure/          # Building + Room
 │   │   ├── exam/                    # Legacy Exam + ExamGroup/Schedule/Room
@@ -305,11 +321,14 @@ exam-duty/
 │   │   ├── duty-calculation/        # Duty-target engine + per-teacher progress
 │   │   ├── notification/            # Emitter + typed notifications
 │   │   ├── notify/                  # CS broadcast announcements
+│   │   ├── push/                    # Phone push: device tokens, outbox + Expo dispatcher
 │   │   ├── exam-cleanup/            # Cascade delete + release
 │   │   ├── audit/                   # CS who-did-what trail (fire-and-forget writes)
 │   │   └── report/                  # Stub (reporting UI lives on the frontend)
 │   ├── scripts/                     # Seed + backfill + dump/restore + check-architecture
 │   └── shared/                      # DB config, auth middleware, roleResolver, utils
+│
+├── mobile/                          # Expo (React Native) app for Invigilator / RS / DCS — push + alarms
 │
 ├── frontend/
 │   ├── src/
@@ -457,12 +476,12 @@ See `NGROK_SETUP_GUIDE.md` for troubleshooting.
 
 ## API Reference
 
-All endpoints are prefixed with `/api`. All routes except `POST /auth/register`, `POST /auth/login`, and `POST /users/bootstrap` require a `Bearer <token>` header. `POST /auth/select-role` accepts the `tempToken` issued at login.
+All endpoints are prefixed with `/api`. All routes except `POST /auth/register` (always 403), `POST /auth/login`, the password-reset pair and the signed `GET /duties/confirm/:token` require a `Bearer <token>` header. Every request runs inside the caller's college. `POST /auth/select-role` accepts the `tempToken` issued at login.
 
 ### Auth (`/auth`)
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/register` | Create a user account; returns `{ user, token }` or `{ user, tempToken, requiresRoleSelection }`. |
+| POST | `/register` | **Closed (403)** — accounts are created inside a college by its exam cell (Teachers page / CSV import). |
 | POST | `/login` | Same shape as register — full token for single-role, tempToken for multi-role. |
 | POST | `/select-role` | Multi-role user picks an active role (`{ role }`); returns the full token. |
 | GET | `/me` | Current user profile with the active role. |
@@ -470,13 +489,13 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 ### Users (`/users`)
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/bootstrap` | Create the first admin — no auth. |
-| POST | `/` | Create user. Requires `designation`; roles are resolved from it (or one role when `Other`). |
+| POST | `/import` | **CS only.** Bulk-add teachers from a parsed CSV: `{ rows: [{ line, name, email, phone, department?, designation, role?, password? }], defaultPassword?, dryRun? }`. Every row gets a result — `create`/`created`, `exists` (email already has an account → skipped, so re-uploads are safe) or `error` with the reason; valid rows are created even when others fail. Designations accept common spellings ("Asst. Prof"), departments match by name or code, roles follow designation. Max 1000 rows. |
+| POST | `/` | **CS only.** Create user. Requires `designation`; roles are resolved from it (or one role when `Other`). |
 | GET | `/` | List users. `?role=<role>` filters by roles-array membership; `?department=<code>`; `?includeInactive=true` includes deactivated users. |
 | GET | `/:id` | Get by id. |
-| PUT | `/:id` | Update. Changing `designation` re-resolves roles; roles can't be written directly otherwise. |
-| DELETE | `/:id` | Two-step delete: an **active** user is soft-deleted (`isActive=false`); an **already-deactivated** user is **permanently** removed. |
-| PATCH | `/:id/activate` | Reactivate a soft-deleted user (bypasses the auto-active-only pre-find hook). |
+| PUT | `/:id` | **CS only.** Update. Only profile fields are accepted (name, email, phone, department, designation, role); changing `designation` re-resolves roles. |
+| DELETE | `/:id` | **CS only.** Two-step delete: an **active** user is soft-deleted (`isActive=false`); an **already-deactivated** user is **permanently** removed. |
+| PATCH | `/:id/activate` | **CS only.** Reactivate a soft-deleted user (bypasses the auto-active-only pre-find hook). |
 
 ### Exams (legacy, `/exams`)
 | Method | Path | Description |
@@ -512,6 +531,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register`,
 | POST | `/admin-assign-group` | CS assigns a whole group (RS) to a teacher; notifies per room. |
 | POST | `/invigilators-for-rooms` | Look up assigned invigilators for a set of rooms. |
 | GET | `/` · `/:id` | List / get. |
+| GET | `/my-units` | The caller's live upcoming duty **units** across all their roles (an RS/DCS group is one), each with UTC `startsAt`/`endsAt`, rooms, location and `confirmed` — the mobile app's alarm source. |
 | PATCH | `/:id/cancel` | Cancel with notification. |
 
 ### DCS Groups (`/dcs`)
@@ -569,6 +589,26 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 | PATCH | `/read-all` · `/:id/read` | Mark read. |
 | DELETE | `/` · `/:id` | Delete all / one. |
 
+### Push (`/push`)
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/devices` | Register / refresh this phone: `{ token: "ExponentPushToken[…]", platform: "android"\|"ios", appVersion? }`. A token seen under another user moves to the caller. |
+| DELETE | `/devices` | Unregister on logout: `{ token }` (only the caller's own devices). |
+| GET | `/deliveries` | The caller's 30 most recent push deliveries (status, skip reason, devices reached). |
+
+### Platform (`/platform`) — superadmin only
+The superadmin belongs to no college and can reach only these endpoints (and `/auth`); every other route answers 403. Create the account on the server: `SUPERADMIN_PASSWORD='…' node scripts/create-superadmin.js you@example.com "Your Name"`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/colleges` | Every college with status, feature switches and counts (`teachers`, `exams`, `upcomingDuties`) — never people or exams. |
+| POST | `/colleges` | `{ name, code, features?: { cie, see }, cs: { name, email, phone, password } }` — the college and its first CS in one step. |
+| GET | `/colleges/:id` | One college plus its CS accounts. |
+| PATCH | `/colleges/:id` | `{ name?, code?, status?: "active"\|"suspended", features?: { cie?, see? } }`. Suspending signs everyone in the college out and blocks sign-in; a switched-off exam type is hidden (not deleted) across the college. |
+| POST | `/colleges/:id/cs` | Add a CS account. |
+| PATCH | `/colleges/:id/cs/:userId` | `{ active }` — deactivate / reactivate a CS. |
+| POST | `/colleges/:id/cs/:userId/reset-password` | `{ password }`. |
+
 ### Notify (`/notify`)
 | Method | Path | Description |
 | --- | --- | --- |
@@ -588,6 +628,8 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 - **Per-role slot independence** — one physical room can host all three roles at once (DCS supervisor, RS, invigilator). Conflict scans filter by the caller's role so filling one role's slot never blocks another.
 - **Group parity for group roles** — RS and DCS see groups everywhere (Select Duty, Upcoming Duties, Change Requests, Dashboard, and the CS room-detail assignment panel). The same partition key format (`scheduleId:buildingId:chunkIndex` for RS, persistent `DCSGroup._id` for DCS) is used across all surfaces so a group looks identical wherever it appears.
 - **Transactional group operations** — RS/DCS claim, admin-assign-group, and group-swap approvals use `withOptionalTransaction` so a partial write is impossible on replica-set deployments (and cleanly re-runnable on standalone Mongo).
+- **One winner per duty, enforced by Mongo** — a partial unique index (`one_live_duty_per_slot`: one assigned `Duty` per `examRoom` + `role`) settles simultaneous claims: exactly one teacher gets the slot, the rest get a 409 "just taken", and a group claim is all-or-nothing. `node backend/scripts/check-duplicate-duties.js` confirms the index is live on a database.
+- **Live pages** — socket.io at `/api/socket.io` (JWT-authenticated like the API) pushes a content-free `duties:changed` signal whenever a duty or DCS group changes; open pages refetch their duty data through the normal API, so a claimed slot flips to "Occupied" on everyone's screen within a fraction of a second. Falls back to long-polling when WebSockets aren't proxied (nginx needs `Upgrade`/`Connection` headers on `/api` for true WebSockets), and to plain fetch-on-focus without socket.io. See `REALTIME_PLAN.md`.
 - **On-demand duty targets** — duty-calculation never caches; every read recomputes from live data so analytics can't drift, with a stable distribution order so extras land on the same teachers across refreshes.
 - **Soft deletes with pre-hooks** — `Exam` and `User` are soft-deleted; Mongoose pre-hooks exclude them from find queries automatically (with explicit bypasses for the reactivate/`includeInactive` paths).
 - **Notification decoupling** — a central emitter (`notification.emitter.js`) with typed templates lets any service emit without knowing about the notification schema; `emitToMany` powers CS broadcasts.

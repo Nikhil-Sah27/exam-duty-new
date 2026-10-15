@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 const examSchema = new mongoose.Schema(
   {
@@ -55,5 +56,7 @@ examSchema.pre(/^find/, function () {
     this.where({ isCancelled: false });
   }
 });
+
+examSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("Exam", examSchema);

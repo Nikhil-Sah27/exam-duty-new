@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 /**
  * A 1:1 support conversation between one teacher (Invigilator / RS / DCS) and
@@ -29,5 +30,7 @@ const conversationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+conversationSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model("Conversation", conversationSchema);

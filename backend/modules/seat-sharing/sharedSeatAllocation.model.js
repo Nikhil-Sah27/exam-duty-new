@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { collegeScoped } = require("../../shared/tenancy/plugin");
 
 // Records a consumer exam group's borrow of N seats from a shareable room owned
 // by another exam group. The consumer does NOT get its own ExamRoom for this
@@ -51,6 +52,8 @@ sharedSeatAllocationSchema.index({ consumerExamGroup: 1 });
 sharedSeatAllocationSchema.index({ consumerSchedule: 1 });
 sharedSeatAllocationSchema.index({ sourceExamGroup: 1 });
 sharedSeatAllocationSchema.index({ sourceExamRoom: 1 });
+
+sharedSeatAllocationSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 
 module.exports = mongoose.model(
   "SharedSeatAllocation",

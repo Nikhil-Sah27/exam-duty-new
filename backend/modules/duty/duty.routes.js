@@ -18,6 +18,8 @@ router.post("/admin-assign-group", requireRole("cs"), dutyController.adminAssign
 router.post("/admin-unassign-group", requireRole("cs"), dutyController.adminUnassignGroup);
 router.post("/invigilators-for-rooms", dutyController.invigilatorsForRooms);
 router.get("/", dutyController.getAll);
+// Before "/:id" so "my-units" isn't read as a duty id.
+router.get("/my-units", dutyController.getMyUnits);
 router.get("/:id", dutyController.getById);
 router.patch("/:id/cancel", dutyController.cancel);
 router.post("/:id/confirm", dutyController.confirm);

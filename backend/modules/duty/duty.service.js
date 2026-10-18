@@ -261,24 +261,15 @@ const assignDuty = async (data, assignedById, isSelfAssigned, callerActiveRole) 
       data: { room: roomLabel, date, startTime, endTime },
     });
   } else {
-    // Self-claim used to notify nobody. The teacher now gets a confirmation
-    // (and an email) recording what they committed to, and CS learns the room
-    // was taken without having to re-open Manage Duties.
+    // Self-claim notifies only the teacher — a confirmation (and an email)
+    // recording what they committed to. CS is intentionally NOT alerted on
+    // every self-claim; they can see who holds a room in Manage Duties.
     emit("duty_self_claimed", {
       recipient: teacherId,
       role: dutyRole,
       refModel: "Duty",
       refId: duty._id,
       data: { room: roomLabel, date, startTime, endTime },
-    });
-    notifyCsOfTeacherAction("duty_claimed_by_teacher", {
-      refId: duty._id,
-      data: {
-        teacherName: populated?.teacher?.name || "A teacher",
-        roleLabel: ROLE_LABELS[dutyRole] || dutyRole,
-        room: roomLabel,
-        date,
-      },
     });
   }
 
@@ -391,15 +382,7 @@ const selfAssignDutyGroup = async (data, userId, activeRole) => {
       semester: examGroup?.semester,
     },
   });
-  notifyCsOfTeacherAction("duty_claimed_by_teacher", {
-    refId: createdIds[0] || null,
-    data: {
-      teacherName: populated[0]?.teacher?.name || "A teacher",
-      roleLabel,
-      roomCount: populated.length,
-      date,
-    },
-  });
+  // CS is intentionally NOT alerted on every self-claim.
 
   return populated;
 };

@@ -359,23 +359,14 @@ const _performClaim = async (
       data: groupData,
     });
   } else {
-    // Self-claim. Previously silent (notify: false meant nothing at all) — the
-    // DCS now gets a confirmation to hold onto, and CS learns the group is taken.
+    // Self-claim. The DCS gets a confirmation to hold onto; CS is intentionally
+    // NOT alerted on every self-claim (they can see the group in Manage Duties).
     emit("duty_self_claimed", {
       recipient: assigneeId,
       role: "dcs",
       refModel: "Duty",
       refId: createdIds[0] || null,
       data: groupData,
-    });
-    notifyCsOfTeacherAction("duty_claimed_by_teacher", {
-      refId: createdIds[0] || null,
-      data: {
-        teacherName: assignee?.name || "A teacher",
-        roleLabel: "DCS",
-        roomCount: createdIds.length,
-        date: group.schedule.date,
-      },
     });
   }
 

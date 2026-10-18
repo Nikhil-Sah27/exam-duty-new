@@ -4,7 +4,6 @@ const Department = require("../department/department.model");
 const Semester = require("../department/semester.model");
 const Course = require("../department/course.model");
 const Room = require("../infrastructure/infrastructure.model");
-const ExamGroup = require("../exam/examGroup.model");
 const Duty = require("../duty/duty.model");
 const DCSGroup = require("../dcs/dcsGroup.model");
 const examGroupRepo = require("../exam/examGroup.repository");
@@ -22,7 +21,8 @@ const examGroupRepo = require("../exam/examGroup.repository");
  * (few dozen semesters × few departments) that's cheap.
  *
  * Formula (from spec):
- *   Semester duties      = ceil((courses × students × examTypes) / avgRoomCap)
+ *   Semester duties      = courses × examTypes × ceil(students / avgRoomCap)
+ *                          (ceil PER sitting — rooms are integer per exam)
  *   Department duties    = Σ semester duties
  *   Institution duties   = Σ department duties
  *   Duty per invigilator = round(institution duties / eligible teachers)
@@ -53,10 +53,11 @@ const RS_ROOMS_PER_GROUP = 5;
 
 // ---------- DCS (Deputy Chief Superintendent) duty constants ----------
 //
-// DCS is a group role handled only by HOD/Dean. Per the spec, each semester's
-// DCS duties = (courses × students × examTypes) / 300 (one DCS ≈ 300 students),
-// summed across semesters and departments, then split evenly across the
-// HOD/Dean pool (no 70/30 weighting — a single designation).
+// DCS is a group role handled only by HOD/Dean. Each semester's DCS duties =
+// courses × examTypes × ceil(students / 300) — one DCS per exam sitting (≤300
+// students), ceiled per sitting — summed across semesters and departments, then
+// split evenly across the HOD/Dean pool (no 70/30 weighting — a single
+// designation).
 const DCS_ELIGIBLE_DESIGNATIONS = ["HOD/Dean"];
 const DCS_STUDENTS_PER_DUTY = 300;
 
@@ -76,17 +77,23 @@ const getAverageClassroomCapacity = async () => {
 };
 
 /**
- * Number of distinct examTypes planned for a given semester number
- * (1–8).  ExamGroup carries a numeric semester field, so we can query it
- * institution-wide — the same semester number in different departments
- * shares an ExamGroup by design in this codebase.
+ * Invigilation-duty exam-type multiplier for a semester.
+ *
+ * Duties are planned for SEE (final / external) exams ONLY — one SEE round per
+ * semester — so the multiplier is a constant 1. CIE internal assessments
+ * (IA1/IA2/IA3) are never invigilated through this system and must never
+ * inflate the workload.
+ *
+ * We intentionally do NOT gate on whether that semester's SEE exam group has
+ * been created yet: the duty figure is a planning *estimate* that must cover
+ * every active semester which has courses + students (the caller's own guard
+ * in calculateSemesterDuties), so planning isn't blocked on scheduling each
+ * SEE first. Semesters with no courses or no students contribute 0 via that
+ * guard.
  */
-const getExamTypeCountForSemester = async (semesterNumber) => {
+const getExamTypeCountForSemester = (semesterNumber) => {
   if (!Number.isFinite(semesterNumber)) return 0;
-  const examTypes = await ExamGroup.distinct("examType", {
-    semester: semesterNumber,
-  });
-  return examTypes.length;
+  return 1; // one SEE round per semester
 };
 
 const countEligibleTeachers = () =>
@@ -97,10 +104,10 @@ const countEligibleTeachers = () =>
   });
 
 /**
- * Return the eligible teacher pool split by designation. Sorted by _id so
- * the "extra duty" tie-break for assistants (see distribution below) is
- * deterministic across refreshes — a given teacher's target doesn't flip
- * on every render.
+ * Return the eligible teacher pool split by designation. Sorted by _id for a
+ * stable base ordering; which assistants absorb the rounding remainder is then
+ * chosen by a monthly-rotating hash in `distributeDuties` (so it's fair over
+ * time, not always the same people) rather than by raw _id position.
  */
 const getEligibleTeacherPool = async () => {
   const teachers = await User.find({
@@ -163,7 +170,13 @@ const calculateSemesterDuties = async (semesterId, options = {}) => {
 
   let duties = 0;
   if (avgCapacity > 0 && courseCount > 0 && students > 0 && examTypeCount > 0) {
-    duties = Math.ceil((courseCount * students * examTypeCount) / avgCapacity);
+    // Rooms are integer PER exam sitting. Each (course × examType) sitting
+    // seats all `students` and needs ceil(students / avgCap) rooms — one
+    // invigilator per room. Ceiling per sitting, then multiplying by the number
+    // of sittings, so we never drop the part-room every exam actually occupies
+    // (ceiling once on the aggregate under-counts and under-staffs).
+    const roomsPerSitting = Math.ceil(students / avgCapacity);
+    duties = courseCount * examTypeCount * roomsPerSitting;
   }
 
   return {
@@ -237,16 +250,49 @@ const calculateInstitutionDuty = async () => {
 // ---------- Step 4: per-invigilator target ----------
 
 /**
+ * Deterministic 32-bit FNV-1a hash. Stable for a given string and well spread
+ * across inputs — used to order teachers for the remainder rotation below.
+ */
+const hash32 = (str) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+};
+
+/**
+ * Rotation seed for spreading the rounding remainder. It changes every month,
+ * so the leftover +1 duties move to a different set of teachers over time
+ * instead of perpetually landing on the same people — yet it is constant within
+ * a month, and therefore across the many on-demand recomputes inside one exam
+ * cycle, so a teacher's target never flips between two page loads. We cannot use
+ * real randomness here: it would reshuffle targets on every refresh and break
+ * the "target reached" gate.
+ */
+const currentRotationSeed = () => {
+  const now = new Date();
+  return now.getFullYear() * 12 + now.getMonth();
+};
+
+/**
  * Distribute institution-wide duties across the eligible teacher pool with a
  * 70/30 weighting: Associate Professors carry 70% of what an Assistant
  * Professor does (Assistant = x, Associate = 0.7x). We solve for the largest
  * integer x that keeps `A*x + B*round(0.7x) <= total`, then hand any remaining
- * duties (leftover from integer rounding) to Assistant Professors one at a
- * time — the "extras go to assistants randomly" rule. Determinism: we sort
- * assistants by _id, so the same set of teachers picks up the +1 each time
- * the calc runs, keeping the dashboard number stable across refreshes.
+ * duties (leftover from integer rounding) to Assistant Professors.
+ *
+ * Fairness of the leftover: every assistant absorbs the same whole `baseExtra`;
+ * only the final `overflow` (< A) +1s are selective, and those rotate monthly
+ * (see `currentRotationSeed`) so the same assistants don't carry extra forever.
+ * `rotationSeed` is injectable purely so tests can pin it.
  */
-const distributeDuties = (totalDuties, pool) => {
+const distributeDuties = (
+  totalDuties,
+  pool,
+  rotationSeed = currentRotationSeed(),
+) => {
   const A = pool.assistants.length;
   const B = pool.associates.length;
 
@@ -265,19 +311,27 @@ const distributeDuties = (totalDuties, pool) => {
   const distributedBase = A * assistantBase + B * associateBase;
   const remainder = Math.max(0, totalDuties - distributedBase);
 
-  // Every assistant absorbs floor(remainder/A) extras; the first
-  // (remainder mod A) assistants take one more so the total lands
-  // exactly on the institution figure. Sort came from
-  // getEligibleTeacherPool (_id ascending) so the same teachers pick up
-  // the extra between renders — the "random" is stable-per-teacher.
+  // Every assistant absorbs floor(remainder/A) extras equally. The leftover
+  // (remainder mod A) +1s must go to *some* subset — and must not always be the
+  // same people. We order assistants by hash(id, rotationSeed) and give the +1
+  // to the first `overflow` of that order. The seed rotates monthly, so the
+  // extra load moves around over time; within a month it's fixed, keeping
+  // targets stable across recomputes. Total still lands exactly on `totalDuties`.
   const assistantExtras = new Map();
   if (A > 0 && remainder > 0) {
     const baseExtra = Math.floor(remainder / A);
     const overflow = remainder % A;
-    pool.assistants.forEach((id, idx) => {
-      const extra = baseExtra + (idx < overflow ? 1 : 0);
+    // Seed goes FIRST: FNV-1a has weak avalanche on trailing bytes, so a
+    // trailing seed would barely change the ordering month to month. Prefixing
+    // it makes the whole hash — and thus the pick order — rotate properly.
+    const rotated = [...pool.assistants].sort(
+      (a, b) => hash32(`${rotationSeed}:${a}`) - hash32(`${rotationSeed}:${b}`),
+    );
+    const overflowSet = new Set(rotated.slice(0, overflow));
+    for (const id of pool.assistants) {
+      const extra = baseExtra + (overflowSet.has(id) ? 1 : 0);
       if (extra > 0) assistantExtras.set(id, extra);
-    });
+    }
   }
 
   let extrasDistributed = 0;
@@ -625,9 +679,15 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
  * Institution-wide DCS duty total. Reuses the invigilator institution walk —
  * every semester breakdown already carries (courses, students, examTypes) — and
  * re-divides by 300 (the DCS-per-student divisor) instead of the average room
- * capacity. Ceil per semester, same as the invigilator engine.
+ * capacity.
  *
- *   Semester DCS duties = ceil((courses × students × examTypes) / 300)
+ * One DCS supervises one exam sitting (≤300 students). Each course exam is a
+ * separate sitting on its own day, so we ceil PER sitting and multiply by the
+ * number of sittings — matching how `DCSGroup` docs are actually created
+ * (ceil(students/300) per exam schedule). Rounding once on the lumped total
+ * would drop the whole supervisor every sitting still needs and under-count.
+ *
+ *   Semester DCS duties = courses × examTypes × ceil(students / 300)
  *   Total               = Σ over every semester of every active department
  */
 const calculateDcsInstitutionDuty = async (options = {}) => {
@@ -638,9 +698,8 @@ const calculateDcsInstitutionDuty = async (options = {}) => {
     for (const sem of dept.semesters) {
       const b = sem.breakdown || {};
       if (b.courses > 0 && b.students > 0 && b.examTypes > 0) {
-        total += Math.ceil(
-          (b.courses * b.students * b.examTypes) / DCS_STUDENTS_PER_DUTY
-        );
+        const dcsPerSitting = Math.ceil(b.students / DCS_STUDENTS_PER_DUTY);
+        total += b.courses * b.examTypes * dcsPerSitting;
       }
     }
   }

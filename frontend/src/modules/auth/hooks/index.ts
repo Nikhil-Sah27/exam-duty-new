@@ -21,11 +21,19 @@ export const useLogin = () => {
   const setAuth = useAuthStore((s) => s.setAuth);
   const setTempAuth = useAuthStore((s) => s.setTempAuth);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: LoginRequest) => loginUser(data),
     onSuccess: (res) => {
       const { user, token, tempToken, requiresRoleSelection } = res.data;
+
+      // Start the new session from a clean cache. Without this, a profile/duty
+      // query cached by a previous account (which stays "fresh" for staleTime)
+      // is served to the new login before any refetch — so the dashboard would
+      // render the prior user's identity and data. This is the fix for logging
+      // in as one account and landing on another's dashboard.
+      queryClient.clear();
 
       if (!requiresRoleSelection && token) {
         // Single-role user — full token issued, straight to dashboard.
@@ -65,12 +73,14 @@ export const useSelectRole = () => {
 export const useRegister = () => {
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: RegisterRequest) => registerUser(data),
     onSuccess: (res) => {
       const { user, token } = res.data;
       if (token) {
+        queryClient.clear(); // clean cache for the new session (see useLogin)
         setAuth(user, token);
         navigate(dashboardPathForRole(user.activeRole || user.roles[0]));
       }
@@ -93,7 +103,10 @@ export const useMe = () => {
   const token = useAuthStore((s) => s.token);
 
   return useQuery({
-    queryKey: ["auth", "me"],
+    // Keyed by the token so a profile is never read from another session's
+    // cache: a new login means a new token means a fresh fetch, independent of
+    // staleTime. Second line of defence behind the cache-clear on login/logout.
+    queryKey: ["auth", "me", token],
     queryFn: getMe,
     enabled: !!token,
     retry: false,

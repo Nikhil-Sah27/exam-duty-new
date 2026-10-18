@@ -1,25 +1,21 @@
 import { useMemo, useState, type MouseEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { ExamGroup } from "@/modules/shared/exams/types/exam.types";
-import {
-  buildExamDayMap,
-  buildMonthCells,
-  dateKey,
-  getExamAccent,
-} from "../../utils/examPopupUtils";
+import type { ExamGroupType } from "@/modules/shared/exams/types/exam.types";
+import { buildMonthCells, dateKey, getExamAccent } from "../../utils/examPopupUtils";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface ExamCalendarProps {
-  exams: ExamGroup[];
+  /** Actual exam days → exam types held that day (only real exam dates). */
+  examDays: Map<string, ExamGroupType[]>;
 }
 
 /**
- * Month calendar with prev/next navigation. Exam days (from the real group
- * start/end spans) are marked with type-colored dots; today is highlighted.
- * This calendar is local to the popup and does not touch any global calendar.
+ * Month calendar with prev/next navigation. Only days that actually hold an
+ * exam get type-colored dots; today is highlighted. This calendar is local to
+ * the popup and does not touch any global calendar.
  */
-export default function ExamCalendar({ exams }: ExamCalendarProps) {
+export default function ExamCalendar({ examDays }: ExamCalendarProps) {
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -29,7 +25,6 @@ export default function ExamCalendar({ exams }: ExamCalendarProps) {
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
 
-  const examDays = useMemo(() => buildExamDayMap(exams), [exams]);
   const year = view.getFullYear();
   const month = view.getMonth();
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);

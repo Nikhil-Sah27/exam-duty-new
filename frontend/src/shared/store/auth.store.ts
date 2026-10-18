@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { User, UserRole } from "@/shared/lib/types";
+import { queryClient } from "@/shared/lib/queryClient";
 
 interface AuthState {
   user: User | null;
@@ -51,6 +52,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("tempToken");
+    // Drop every cached query so the previous account's profile/duties/messages
+    // can't be served to whoever logs in next. Covers all logout paths — the
+    // role shells and the axios 401 interceptor all route through here.
+    queryClient.clear();
     set({ user: null, token: null, tempToken: null });
   },
 

@@ -24,7 +24,7 @@ let dismissedForToken: string | null = null;
 export default function UpcomingExamPopup() {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
-  const { exams, hasExams } = useUpcomingExamPopup();
+  const { exams, examDays, hasExams } = useUpcomingExamPopup();
   const [open, setOpen] = useState(
     () => token === null || dismissedForToken !== token,
   );
@@ -121,7 +121,7 @@ export default function UpcomingExamPopup() {
         </button>
 
         <div className="relative z-10" onClickCapture={suppressClickAfterDrag}>
-          <UpcomingExamFlipCard exams={exams} />
+          <UpcomingExamFlipCard exams={exams} examDays={examDays} />
         </div>
       </div>
     </div>,

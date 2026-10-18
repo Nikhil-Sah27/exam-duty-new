@@ -1,10 +1,14 @@
 import { useState, type KeyboardEvent } from "react";
-import type { ExamGroup } from "@/modules/shared/exams/types/exam.types";
+import type {
+  ExamGroup,
+  ExamGroupType,
+} from "@/modules/shared/exams/types/exam.types";
 import UpcomingExamTimeline from "./UpcomingExamTimeline";
 import UpcomingExamCalendar from "./UpcomingExamCalendar";
 
 interface UpcomingExamFlipCardProps {
   exams: ExamGroup[];
+  examDays: Map<string, ExamGroupType[]>;
 }
 
 /**
@@ -13,7 +17,10 @@ interface UpcomingExamFlipCardProps {
  * preserve-3d, backface-visibility) so behaviour doesn't depend on a specific
  * Tailwind 3D-utility version.
  */
-export default function UpcomingExamFlipCard({ exams }: UpcomingExamFlipCardProps) {
+export default function UpcomingExamFlipCard({
+  exams,
+  examDays,
+}: UpcomingExamFlipCardProps) {
   const [flipped, setFlipped] = useState(false);
   const toggle = () => setFlipped((f) => !f);
 
@@ -66,7 +73,7 @@ export default function UpcomingExamFlipCard({ exams }: UpcomingExamFlipCardProp
             transform: "rotateY(180deg)",
           }}
         >
-          <UpcomingExamCalendar exams={exams} />
+          <UpcomingExamCalendar examDays={examDays} />
         </div>
       </div>
     </div>

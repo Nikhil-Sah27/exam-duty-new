@@ -17,15 +17,6 @@ export default function ExamTypeSelector({
 }: ExamTypeSelectorProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {available.includes("CIE") && (
-        <ExamTypeCard
-          title="CIE — Internal Exams"
-          description="IA1, IA2, IA3 exams"
-          icon={ClipboardList}
-          selected={selected === "CIE"}
-          onClick={() => onSelect("CIE")}
-        />
-      )}
       {available.includes("SEE") && (
         <ExamTypeCard
           title="SEE — External Exams"
@@ -33,6 +24,15 @@ export default function ExamTypeSelector({
           icon={GraduationCap}
           selected={selected === "SEE"}
           onClick={() => onSelect("SEE")}
+        />
+      )}
+      {available.includes("CIE") && (
+        <ExamTypeCard
+          title="CIE — Internal Exams"
+          description="IA1, IA2, IA3 exams"
+          icon={ClipboardList}
+          selected={selected === "CIE"}
+          onClick={() => onSelect("CIE")}
         />
       )}
     </div>

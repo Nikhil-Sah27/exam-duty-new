@@ -15,9 +15,17 @@ import {
   type ClassAssignmentRow,
 } from "../selectors/dashboardSelectors";
 
+/**
+ * Query key for a single group's details. Exported so other modules (e.g. the
+ * dashboard's upcoming-exam popup) can fetch details through the *same* cache
+ * entry instead of spinning up a parallel request.
+ */
+export const examDetailsQueryKey = (id: string) =>
+  ["shared", "exam-details", id] as const;
+
 const KEYS = {
   groups: ["shared", "exam-groups"] as const,
-  details: (id: string) => ["shared", "exam-details", id] as const,
+  details: examDetailsQueryKey,
   dutyStatus: (id: string) => ["shared", "duty-status", id] as const,
   duties: (teacherId: string | undefined, role?: string) =>
     ["shared", "duties-by-teacher", teacherId, role ?? null] as const,

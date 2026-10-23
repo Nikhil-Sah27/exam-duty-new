@@ -17,17 +17,20 @@ export function getDisabledRoomsBySlot(
 export function getRoomWarnings(slotAllocations: SlotAllocation[]): string[] {
   const warnings: string[] = [];
 
-  let insufficientDepts = 0;
+  // Count DISTINCT departments short on rooms — a department spans many slots
+  // (one per subject in SEE), so counting per-slot occurrences would wildly
+  // overstate the number (e.g. "13 departments" for 2 departments × 13 exams).
+  const insufficientDepts = new Set<string>();
   for (const slot of slotAllocations) {
     for (const dept of slot.departments) {
       if (!dept.courseId) continue;
       const effectiveCap = getEffectiveCapacity(dept);
-      if (effectiveCap < dept.students) insufficientDepts++;
+      if (effectiveCap < dept.students) insufficientDepts.add(dept.departmentId);
     }
   }
 
-  if (insufficientDepts > 0) {
-    warnings.push(`${insufficientDepts} department(s) need more rooms`);
+  if (insufficientDepts.size > 0) {
+    warnings.push(`${insufficientDepts.size} department(s) need more rooms`);
   }
   return warnings;
 }

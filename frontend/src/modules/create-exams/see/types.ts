@@ -3,11 +3,15 @@ import type { DepartmentData } from "../types";
 /**
  * One scheduled course in the SEE routine being built. The course reference
  * is stored as the full Course shape so the preview list can show code/title
- * without re-querying.
+ * without re-querying. Each entry is tagged with the owning department so the
+ * multi-department flow can keep CSE's courses/rooms entirely separate from
+ * ME's — one exam card is created per department.
  */
 export interface SEERoutineEntry {
-  /** Stable client-side id so list reorders/edits don't desync. */
+  /** Stable client-side id so list reorders/edits don't desync. Globally unique. */
   localId: string;
+  departmentId: string;
+  departmentCode: string;
   courseId: string;
   courseCode: string;
   courseTitle: string;
@@ -39,14 +43,14 @@ export interface SEEPlanResponse {
 }
 
 /**
- * Single-call transactional payload — used by the deferred-write SEE UI.
- * Each schedule's `slotKey` is the routine entry's `localId`; room
- * assignments reference that same key so the backend can resolve
- * (slotKey → ExamSchedule._id) atomically inside the finalize transaction.
+ * One department's slice of the single-call transactional payload. Each
+ * schedule's `slotKey` is the routine entry's `localId` (globally unique across
+ * departments); room assignments reference that same key so the backend can
+ * resolve (slotKey → ExamSchedule._id) atomically inside the finalize
+ * transaction.
  */
-export interface FinalizeSEEPayload {
+export interface SEEDepartmentPlan {
   departmentId: string;
-  semester: string;
   schedules: {
     slotKey: string;
     // Backend accepts either a bare courseId (legacy) or a tagged courseToken
@@ -79,6 +83,16 @@ export interface FinalizeSEEPayload {
     departmentCode: string;
     studentsAllocated: number;
   }[];
+}
+
+/**
+ * Single-call transactional payload — used by the deferred-write SEE UI.
+ * Creates one ExamGroup (and one exam card) per department. Nothing is
+ * persisted until this reaches `/see/finalize`.
+ */
+export interface FinalizeSEEPayload {
+  semester: string;
+  departments: SEEDepartmentPlan[];
 }
 
 /** Re-export so consumers in /see can import everything from this module. */

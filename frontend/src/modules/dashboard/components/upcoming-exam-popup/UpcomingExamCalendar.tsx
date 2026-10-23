@@ -1,13 +1,15 @@
 import { CalendarDays } from "lucide-react";
-import type { ExamGroup } from "@/modules/shared/exams/types/exam.types";
+import type { ExamGroupType } from "@/modules/shared/exams/types/exam.types";
 import ExamCalendar from "./ExamCalendar";
 
 interface UpcomingExamCalendarProps {
-  exams: ExamGroup[];
+  examDays: Map<string, ExamGroupType[]>;
 }
 
 /** Back side of the flip card — the Upcoming Exam Dates calendar. */
-export default function UpcomingExamCalendar({ exams }: UpcomingExamCalendarProps) {
+export default function UpcomingExamCalendar({
+  examDays,
+}: UpcomingExamCalendarProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="mb-3 flex items-center gap-2 pr-10">
@@ -19,7 +21,7 @@ export default function UpcomingExamCalendar({ exams }: UpcomingExamCalendarProp
         </h3>
       </header>
       <div className="flex-1">
-        <ExamCalendar exams={exams} />
+        <ExamCalendar examDays={examDays} />
       </div>
     </div>
   );

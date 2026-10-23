@@ -4,7 +4,7 @@
  * unit-testable. All exam data is passed in from the centralized exam hooks.
  */
 import type {
-  ExamGroup,
+  ExamGroupDetails,
   ExamGroupType,
 } from "@/modules/shared/exams/types/exam.types";
 
@@ -129,23 +129,23 @@ export const NEAREST_ACCENT: ExamAccent = {
 };
 
 /**
- * Expand each upcoming exam group across its [start, end] span (inclusive) and
- * index the resulting days by local date key → exam types present that day.
- * Uses only the centralized group start/end dates — no extra fetching.
+ * Index the *actual* exam days by local date key → exam types held that day.
+ *
+ * A calendar dot must appear only on a day that genuinely has an exam, so we
+ * mark each group's individual schedule dates (`schedules[].date`) — never the
+ * whole [start, end] span, which would light up the empty gaps between exam
+ * days. Groups whose details haven't loaded yet contribute nothing.
  */
-export function buildExamDayMap(
-  exams: ExamGroup[],
+export function buildExamDayMapFromSchedules(
+  groups: ExamGroupDetails[],
 ): Map<string, ExamGroupType[]> {
   const map = new Map<string, ExamGroupType[]>();
-  for (const g of exams) {
-    const end = toLocalMidnight(g.endDate);
-    const cur = toLocalMidnight(g.startDate);
-    while (cur <= end) {
-      const key = dateKey(cur);
+  for (const g of groups) {
+    for (const schedule of g.schedules ?? []) {
+      const key = dateKey(toLocalMidnight(schedule.date));
       const arr = map.get(key) ?? [];
       if (!arr.includes(g.examType)) arr.push(g.examType);
       map.set(key, arr);
-      cur.setDate(cur.getDate() + 1);
     }
   }
   return map;

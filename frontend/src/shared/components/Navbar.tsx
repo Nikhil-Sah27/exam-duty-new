@@ -8,7 +8,6 @@ import NotificationList from "@/modules/notifications/components/NotificationLis
 import RoleSelectionModal from "@/modules/auth/components/RoleSelectionModal";
 import DarkModeToggle from "@/shared/components/DarkModeToggle";
 import Logo from "@/shared/components/Logo";
-import CollegeBadge from "@/shared/components/CollegeBadge";
 import { ROLE_LABELS } from "@/shared/constants/roles";
 
 export default function Navbar() {
@@ -74,7 +73,6 @@ export default function Navbar() {
           className="text-white"
           wordmarkClassName="text-lg font-bold tracking-tight text-white"
         />
-        <CollegeBadge />
       </div>
 
       <div className="flex items-center gap-4">

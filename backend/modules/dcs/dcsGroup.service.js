@@ -83,14 +83,20 @@ const resolveStudentCount = async (examRooms, semesterNumber) => {
   const depts = await Department.find({ code: { $in: [...codes] } });
   const semName = String(semesterNumber);
 
+  // One query for every department's semester instead of a findOne per dept.
+  const semesters = await Semester.find({
+    department: { $in: depts.map((d) => d._id) },
+    name: semName,
+  });
+  const countByDept = new Map();
+  for (const sem of semesters) {
+    countByDept.set(String(sem.department), sem.studentCount || 0);
+  }
+
   const perDepartment = {};
   let total = 0;
   for (const dept of depts) {
-    const sem = await Semester.findOne({
-      department: dept._id,
-      name: semName,
-    });
-    const count = sem?.studentCount || 0;
+    const count = countByDept.get(String(dept._id)) || 0;
     perDepartment[dept.code] = count;
     total += count;
   }
@@ -353,23 +359,14 @@ const _performClaim = async (
       data: groupData,
     });
   } else {
-    // Self-claim. Previously silent (notify: false meant nothing at all) — the
-    // DCS now gets a confirmation to hold onto, and CS learns the group is taken.
+    // Self-claim. The DCS gets a confirmation to hold onto; CS is intentionally
+    // NOT alerted on every self-claim (they can see the group in Manage Duties).
     emit("duty_self_claimed", {
       recipient: assigneeId,
       role: "dcs",
       refModel: "Duty",
       refId: createdIds[0] || null,
       data: groupData,
-    });
-    notifyCsOfTeacherAction("duty_claimed_by_teacher", {
-      refId: createdIds[0] || null,
-      data: {
-        teacherName: assignee?.name || "A teacher",
-        roleLabel: "DCS",
-        roomCount: createdIds.length,
-        date: group.schedule.date,
-      },
     });
   }
 
@@ -510,36 +507,37 @@ const getRoomInvigilators = async (groupId) => {
   const group = await dcsGroupRepository.findById(groupId);
   if (!group) throw new AppError("DCS group not found", 404);
 
-  const result = [];
-  for (const examRoom of group.assignedRooms) {
-    const duties = await Duty.find({
-      examRoom: examRoom._id,
-      status: "assigned",
-    })
-      .populate("teacher", "name email phone roles department designation");
+  // One query for every room's invigilators instead of a find per room. The
+  // same examRoom can have RS + Invigilator + DCS duties — scope to invigilators
+  // (the people physically watching the room; RS/DCS are surfaced elsewhere).
+  const roomIds = group.assignedRooms.map((er) => er._id);
+  const duties = await Duty.find({
+    examRoom: { $in: roomIds },
+    role: "invigilator",
+    status: "assigned",
+  }).populate("teacher", "name email phone roles department designation");
 
-    // The same examRoom can have RS + Invigilator + DCS duties — surface only
-    // invigilators (the people physically watching this room). RS coverage is
-    // visible elsewhere; DCS is the current user.
-    const invigilators = duties
-      .filter((d) => d.role === "invigilator")
-      .map((d) => d.teacher)
-      .filter(Boolean);
-
-    result.push({
-      examRoomId: examRoom._id,
-      room: examRoom.room,
-      departments: examRoom.departments,
-      invigilators: invigilators.map((u) => ({
-        _id: u._id,
-        name: u.name,
-        email: u.email,
-        phone: u.phone || null,
-        department: u.department || null,
-        designation: u.designation || null,
-      })),
-    });
+  const invigilatorsByRoom = new Map();
+  for (const d of duties) {
+    if (!d.teacher) continue;
+    const key = String(d.examRoom);
+    if (!invigilatorsByRoom.has(key)) invigilatorsByRoom.set(key, []);
+    invigilatorsByRoom.get(key).push(d.teacher);
   }
+
+  const result = group.assignedRooms.map((examRoom) => ({
+    examRoomId: examRoom._id,
+    room: examRoom.room,
+    departments: examRoom.departments,
+    invigilators: (invigilatorsByRoom.get(String(examRoom._id)) || []).map((u) => ({
+      _id: u._id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone || null,
+      department: u.department || null,
+      designation: u.designation || null,
+    })),
+  }));
 
   return {
     groupId: group._id,

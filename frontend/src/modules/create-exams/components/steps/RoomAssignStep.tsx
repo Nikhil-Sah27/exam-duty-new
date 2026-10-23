@@ -41,6 +41,19 @@ interface RoomAssignStepProps {
   error?: string | null;
   /** Passed to the seat-sharing hook when editing an existing group. */
   excludeExamGroupId?: string | null;
+  /**
+   * Extra rooms to disable per local slotKey, unioned with the usual
+   * used/reserved sets. Used by the multi-department SEE flow to block a room
+   * already assigned to another exam in the same unsaved batch whose window
+   * overlaps this slot. Keyed by `getSlotKey(date, shiftIndex)`.
+   */
+  extraDisabledBySlot?: Map<string, Set<string>>;
+  /**
+   * When true, slots are rendered with a department header before each run of
+   * slots belonging to a new department (SEE lists one department's exams fully
+   * before the next). Assumes each slot has a single department.
+   */
+  groupByDepartment?: boolean;
   onAddRoom: (slotKey: string, deptId: string, room: RoomInfo) => void;
   onRemoveRoom: (slotKey: string, deptId: string, roomId: string) => void;
   onApplySharing: (slotKey: string, deptId: string, plan: SeatSharingPlanItem[]) => void;
@@ -61,6 +74,8 @@ export default function RoomAssignStep({
   isAssigning,
   error,
   excludeExamGroupId,
+  extraDisabledBySlot,
+  groupByDepartment,
   onAddRoom,
   onRemoveRoom,
   onApplySharing,
@@ -122,8 +137,18 @@ export default function RoomAssignStep({
       if (shareable) for (const opt of shareable) merged.add(opt.roomId);
       map.set(localKey, merged);
     }
+    // Union in caller-supplied extra disabled rooms (e.g. SEE cross-slot
+    // overlaps across departments in the same unsaved batch).
+    if (extraDisabledBySlot) {
+      for (const [localKey, extra] of extraDisabledBySlot) {
+        if (extra.size === 0) continue;
+        const merged = new Set(map.get(localKey) || []);
+        for (const roomId of extra) merged.add(roomId);
+        map.set(localKey, merged);
+      }
+    }
     return map;
-  }, [slotAllocations, usedRoomsMap, shifts, reservedBySlot, shareableBySlot]);
+  }, [slotAllocations, usedRoomsMap, shifts, reservedBySlot, shareableBySlot, extraDisabledBySlot]);
 
   // ReservationInfo lookup keyed by the *local* slotKey so SlotCard doesn't
   // need to know about the server's slotKey format.
@@ -312,15 +337,31 @@ export default function RoomAssignStep({
       {/* === Slot List === */}
       {slotAllocations.map((slot, index) => {
         const slotKey = getSlotKey(slot.date, slot.shiftIndex);
+        // Department header: shown before the first slot of each department
+        // when grouping is on (SEE lists one department's exams fully first).
+        const deptCode = slot.departments[0]?.departmentCode;
+        const prevDeptCode =
+          index > 0 ? slotAllocations[index - 1].departments[0]?.departmentCode : null;
+        const showDeptHeader =
+          groupByDepartment && deptCode && deptCode !== prevDeptCode;
         return (
-          <SlotCard
-            key={slotKey}
+          <div key={slotKey} className="space-y-3">
+            {showDeptHeader && (
+              <div className="flex items-center gap-2 pt-2">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-br from-pink-500 to-purple-600 px-3 py-1.5 text-sm font-bold text-white shadow-sm">
+                  {deptCode}
+                </span>
+                <span className="h-px flex-1 bg-gray-200" />
+              </div>
+            )}
+            <SlotCard
             slot={slot}
             buildings={buildings}
             avgStudentsPerClass={avgStudentsPerClass}
             disabledRoomIds={disabledBySlot.get(slotKey) || new Set()}
             reservedRoomInfo={reservedInfoBySlot.get(slotKey)}
             shareableOptions={shareableOptionsBySlot.get(slotKey) || []}
+            flattenSingleDepartment={groupByDepartment}
             defaultExpanded={index === 0}
             onAddRoom={(deptId, room) => onAddRoom(slotKey, deptId, room)}
             onRemoveRoom={(deptId, roomId) => onRemoveRoom(slotKey, deptId, roomId)}
@@ -333,7 +374,8 @@ export default function RoomAssignStep({
             onRemoveGlobalShared={(deptId, examRoomId) =>
               onRemoveGlobalShared(slotKey, deptId, examRoomId)
             }
-          />
+            />
+          </div>
         );
       })}
 

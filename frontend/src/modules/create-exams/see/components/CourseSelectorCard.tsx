@@ -67,10 +67,10 @@ export default function CourseSelectorCard({
   const handleSubmit = () => {
     const ok = onSubmit({ courseId, date, startTime, endTime });
     if (ok && !editingEntry) {
+      // Clear only what differs per subject. Start/end time are kept so CS
+      // can schedule the next course in the same slot without re-entering it.
       setCourseId("");
       setDate("");
-      setStartTime("");
-      setEndTime("");
     }
   };
 

@@ -131,6 +131,11 @@ dutySchema.index({ teacher: 1, date: 1, startTime: 1, status: 1 });
 dutySchema.index({ room: 1, date: 1, startTime: 1, status: 1 });
 dutySchema.index({ roomRef: 1, date: 1, startTime: 1, status: 1 });
 dutySchema.index({ roomRef: 1, role: 1, date: 1, startTime: 1, status: 1 });
+// Per-teacher-per-role progress counts {teacher, role, status} — served only up
+// to `teacher` by the first index, so role/status were filtered in memory.
+dutySchema.index({ teacher: 1, role: 1, status: 1 });
+// Date-window sweeps (reminders, responsiveness) scan {status, date}.
+dutySchema.index({ status: 1, date: 1 });
 
 // Any change to who holds what pings open pages to refetch (shared/realtime).
 signalDutyChangesFrom(dutySchema);

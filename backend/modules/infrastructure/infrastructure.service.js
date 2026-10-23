@@ -92,6 +92,14 @@ const deleteRoom = async (id) => {
   await repo.deleteRoom(id);
 };
 
+// ---------- Raw reads (used by create-exams room picker) ----------
+// getAllBuildings enriches each building with room/floor counts; these return
+// the plain records other domains need without that overhead.
+
+const listActiveBuildings = () => repo.findAllBuildings();
+
+const listAllActiveRoomsPopulated = () => repo.findAllActiveRoomsPopulated();
+
 module.exports = {
   createBuilding,
   getAllBuildings,
@@ -101,4 +109,6 @@ module.exports = {
   createRoomsBulk,
   updateRoom,
   deleteRoom,
+  listActiveBuildings,
+  listAllActiveRoomsPopulated,
 };

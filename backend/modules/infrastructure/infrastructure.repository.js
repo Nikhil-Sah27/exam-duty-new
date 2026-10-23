@@ -37,6 +37,13 @@ const findExistingRoomNumbers = (buildingId, roomNumbers) =>
 const findRoomsByBuilding = (buildingId) =>
   Room.find({ building: buildingId, isActive: true }).sort({ floor: 1, roomNumber: 1 });
 
+// All active rooms across every building, building name populated — used by
+// the Create-Exams room picker to group rooms by building → floor.
+const findAllActiveRoomsPopulated = () =>
+  Room.find({ isActive: true })
+    .populate("building", "name")
+    .sort({ floor: 1, roomNumber: 1 });
+
 const findRoomById = (id) => Room.findById(id);
 
 const updateRoom = (id, data) => Room.findByIdAndUpdate(id, data, { new: true, runValidators: true });
@@ -55,6 +62,7 @@ module.exports = {
   createRoomsBulk,
   findExistingRoomNumbers,
   findRoomsByBuilding,
+  findAllActiveRoomsPopulated,
   findRoomById,
   updateRoom,
   deleteRoom,

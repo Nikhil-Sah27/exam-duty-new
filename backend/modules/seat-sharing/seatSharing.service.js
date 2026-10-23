@@ -458,9 +458,43 @@ const getSharingStateForExamRoom = async (examRoomId, session = null) => {
 
 const getSharingStateForSchedule = async (scheduleId, session = null) => {
   const examRooms = await ExamRoom.find({ schedule: scheduleId });
+  const roomIds = examRooms.map((r) => r._id);
+
+  // Two batched queries for the whole schedule instead of two per room.
+  const [configs, allocations] = await Promise.all([
+    repo.findConfigsByExamRooms(roomIds, session),
+    repo.listAllocationsBySourceExamRooms(roomIds, session),
+  ]);
+  const configByRoom = new Map(configs.map((c) => [String(c.examRoom), c]));
+  const allocsByRoom = new Map();
+  for (const a of allocations) {
+    const key = String(a.sourceExamRoom);
+    if (!allocsByRoom.has(key)) allocsByRoom.set(key, []);
+    allocsByRoom.get(key).push(a);
+  }
+
   const results = {};
   for (const room of examRooms) {
-    results[String(room._id)] = await getSharingStateForExamRoom(room._id, session);
+    const key = String(room._id);
+    const config = configByRoom.get(key) || null;
+    if (!config) {
+      results[key] = {
+        config: null,
+        allocations: [],
+        occupiedByConsumers: 0,
+        status: "not-shared",
+      };
+      continue;
+    }
+    const roomAllocs = allocsByRoom.get(key) || [];
+    const occupiedByConsumers = roomAllocs.reduce(
+      (sum, a) => sum + a.studentsAllocated,
+      0,
+    );
+    let status = "shareable";
+    if (config.remainingSeats === 0) status = "full";
+    else if (occupiedByConsumers > 0) status = "partially-shared";
+    results[key] = { config, allocations: roomAllocs, occupiedByConsumers, status };
   }
   return results;
 };

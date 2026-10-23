@@ -93,9 +93,19 @@ export function getTotalExamsInRoutine(routine: RoutineEntry[]): number {
 // ──────────────────────────────────────────────
 // Same-course-code slot alignment
 // ──────────────────────────────────────────────
-// Rule: courses sharing (semester.name, course.code) across departments must
-// be scheduled in the same (date, shiftIndex) slot. Only applies to *course*
+// Rule: courses sharing the same course.code across departments must be
+// scheduled in the same (date, shiftIndex) slot. Only applies to *course*
 // tokens — elective group tokens don't have a shared code across depts.
+//
+// The whole Create-Exams wizard is scoped to a single semester number, so we
+// key purely on the normalised course code: a shared subject keeps one code
+// regardless of how each department happens to name its semester. Keying on
+// the semester *name* string would silently miss a conflict whenever two
+// departments spell the same semester differently ("3" vs "Semester 3").
+
+function normalizeCode(code: string): string {
+  return code.trim().toUpperCase();
+}
 
 export interface SameCodeSlot {
   date: string;
@@ -129,7 +139,10 @@ export function getSameCodeSlotConflicts(
     }
   }
 
-  const groups = new Map<string, SameCodeSlot[]>();
+  const groups = new Map<
+    string,
+    { courseCode: string; semesterName: string; placements: SameCodeSlot[] }
+  >();
   for (const entry of routine) {
     for (const [deptId, token] of Object.entries(entry.assignments)) {
       if (!token) continue;
@@ -137,9 +150,11 @@ export function getSameCodeSlotConflicts(
       if (!parsed || parsed.kind !== "course") continue;
       const meta = courseIndex.get(parsed.id);
       if (!meta) continue;
-      const key = `${meta.semesterName}::${meta.courseCode}`;
-      const bucket = groups.get(key) || [];
-      bucket.push({
+      const key = normalizeCode(meta.courseCode);
+      const bucket =
+        groups.get(key) ||
+        { courseCode: meta.courseCode, semesterName: meta.semesterName, placements: [] };
+      bucket.placements.push({
         date: entry.date,
         shiftIndex: entry.shiftIndex,
         deptCode: meta.deptCode,
@@ -151,14 +166,13 @@ export function getSameCodeSlotConflicts(
   }
 
   const conflicts: SameCodeConflict[] = [];
-  for (const [key, placements] of groups) {
+  for (const { courseCode, semesterName, placements } of groups.values()) {
     if (placements.length < 2) continue;
     const first = placements[0];
     const misaligned = placements.some(
       (p) => p.date !== first.date || p.shiftIndex !== first.shiftIndex
     );
     if (!misaligned) continue;
-    const [semesterName, courseCode] = key.split("::");
     conflicts.push({ semesterName, courseCode, placements });
   }
 
@@ -177,14 +191,11 @@ export function getConflictingAssignmentKeys(
   if (conflicts.length === 0) return new Set();
 
   const flagged = new Set<string>();
-  const conflictedCodes = new Set(
-    conflicts.map((c) => `${c.semesterName}::${c.courseCode}`)
-  );
+  const conflictedCodes = new Set(conflicts.map((c) => normalizeCode(c.courseCode)));
 
   for (const dept of departments) {
     for (const course of dept.courses) {
-      const key = `${dept.semester.name}::${course.code}`;
-      if (conflictedCodes.has(key)) {
+      if (conflictedCodes.has(normalizeCode(course.code))) {
         // Flag under the tagged token form that the selector actually stores.
         flagged.add(`${dept._id}::course:${course._id}`);
       }

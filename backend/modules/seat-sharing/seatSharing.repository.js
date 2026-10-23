@@ -8,6 +8,13 @@ const sessionOpt = (session) => (session ? { session } : {});
 const findConfigByExamRoom = (examRoomId, session = null) =>
   RoomSharingConfiguration.findOne({ examRoom: examRoomId }, null, sessionOpt(session));
 
+const findConfigsByExamRooms = (examRoomIds, session = null) =>
+  RoomSharingConfiguration.find(
+    { examRoom: { $in: examRoomIds } },
+    null,
+    sessionOpt(session),
+  );
+
 const findConfigById = (id, session = null) =>
   RoomSharingConfiguration.findById(id, null, sessionOpt(session));
 
@@ -68,6 +75,13 @@ const listAllocationsByConfig = (configId, session = null) =>
 const listAllocationsBySourceExamRoom = (examRoomId, session = null) =>
   SharedSeatAllocation.find({ sourceExamRoom: examRoomId }, null, sessionOpt(session));
 
+const listAllocationsBySourceExamRooms = (examRoomIds, session = null) =>
+  SharedSeatAllocation.find(
+    { sourceExamRoom: { $in: examRoomIds } },
+    null,
+    sessionOpt(session),
+  );
+
 const listAllocationsByConsumerSchedule = (scheduleId, session = null) =>
   SharedSeatAllocation.find({ consumerSchedule: scheduleId }, null, sessionOpt(session));
 
@@ -94,6 +108,7 @@ const deleteAllocationsBySourceGroup = (sourceExamGroupId, session = null) =>
 
 module.exports = {
   findConfigByExamRoom,
+  findConfigsByExamRooms,
   findConfigById,
   listActiveConfigsForSchedules,
   upsertConfig,
@@ -105,6 +120,7 @@ module.exports = {
   findAllocationById,
   listAllocationsByConfig,
   listAllocationsBySourceExamRoom,
+  listAllocationsBySourceExamRooms,
   listAllocationsByConsumerSchedule,
   listAllocationsByConsumerGroup,
   listAllocationsBySourceGroup,

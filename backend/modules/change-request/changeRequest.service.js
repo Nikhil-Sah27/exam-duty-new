@@ -1042,6 +1042,36 @@ const getAvailableReplacements = async (dutyId, userId) => {
     _id: { $ne: dutyId },
   });
 
+  // Occupancy was previously one `Duty.find` per candidate room (an N+1 across
+  // every upcoming room). Load every upcoming assigned invigilator duty once and
+  // index it into a Set, then test membership in O(1). Keyed to mirror
+  // `isInvigilatorAlreadyAssigned`: by roomRef when the slot has one, else by the
+  // legacy room-number/id string.
+  const dayMs = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x.getTime();
+  };
+  const occupiedDuties = await Duty.find({
+    role: "invigilator",
+    status: "assigned",
+    date: { $gte: today },
+  }).select("date startTime endTime roomRef room");
+  const occupied = new Set();
+  for (const d of occupiedDuties) {
+    const base = `${dayMs(d.date)}|${d.startTime}|${d.endTime}`;
+    if (d.roomRef) occupied.add(`ref|${base}|${d.roomRef}`);
+    occupied.add(`str|${base}|${d.room}`);
+  }
+  const isSlotOccupied = (date, startTime, endTime, roomNumber, roomId, roomRef) => {
+    const base = `${dayMs(date)}|${startTime}|${endTime}`;
+    if (roomRef) return occupied.has(`ref|${base}|${roomRef}`);
+    return (
+      occupied.has(`str|${base}|${roomNumber}`) ||
+      occupied.has(`str|${base}|${roomId}`)
+    );
+  };
+
   const results = [];
 
   for (const group of upcomingGroups) {
@@ -1080,15 +1110,17 @@ const getAvailableReplacements = async (dutyId, userId) => {
           (duty.room === er.room?.roomNumber || duty.room === er.room?._id?.toString());
         if (isSameSlot) continue;
 
-        const occupied = await isInvigilatorAlreadyAssigned(
-          schedule.date,
-          schedule.startTime,
-          schedule.endTime,
-          er.room?.roomNumber || "",
-          er.room?._id?.toString() || "",
-          er.room?._id || null
-        );
-        if (occupied) continue;
+        if (
+          isSlotOccupied(
+            schedule.date,
+            schedule.startTime,
+            schedule.endTime,
+            er.room?.roomNumber || "",
+            er.room?._id?.toString() || "",
+            er.room?._id || null
+          )
+        )
+          continue;
 
         results.push({
           scheduleId: schedule._id,

@@ -76,6 +76,9 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="select/[examGroupId]" options={{ headerShown: false }} />
             <Stack.Screen name="duty/[key]" options={{ headerShown: true, title: "Duty", headerBackTitle: "Back" }} />
+            <Stack.Screen name="change-requests" options={{ headerShown: true, title: "Change requests", headerBackTitle: "Back" }} />
+            <Stack.Screen name="request-change/[key]" options={{ headerShown: true, title: "Request a change", headerBackTitle: "Back" }} />
+            <Stack.Screen name="messages" options={{ headerShown: true, title: "Messages", headerBackTitle: "Back" }} />
             <Stack.Screen name="alarm" options={{ presentation: "fullScreenModal", gestureEnabled: false, animation: "fade" }} />
           </Stack.Protected>
         </Stack>

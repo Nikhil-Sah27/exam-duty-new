@@ -26,6 +26,23 @@ export const fetchSEEDepartmentData = async (
   return res.data.data[0] ?? null;
 };
 
+/**
+ * Multi-department variant — the CIE departments-data endpoint already accepts
+ * a comma-separated id list and returns one DepartmentData per department for
+ * the given semester. Used by the multi-department SEE flow.
+ */
+export const fetchSEEDepartmentsData = async (
+  departmentIds: string[],
+  semester: string,
+): Promise<DepartmentData[]> => {
+  if (departmentIds.length === 0 || !semester) return [];
+  const res = await api.get<ApiResponse<DepartmentData[]>>(
+    "/create-exams/cie/departments-data",
+    { params: { departmentIds: departmentIds.join(","), semester } },
+  );
+  return res.data.data ?? [];
+};
+
 export const createSEEPlan = async (
   payload: SEEPlanPayload,
 ): Promise<SEEPlanResponse> => {

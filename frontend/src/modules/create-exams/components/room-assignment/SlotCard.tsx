@@ -24,6 +24,12 @@ interface SlotCardProps {
   /** Globally-shareable rooms whose owner schedule overlaps this slot. */
   shareableOptions: ShareableRoomOption[];
   defaultExpanded?: boolean;
+  /**
+   * When the slot has a single department (SEE), render it flat — the course is
+   * named in this slot's header and the per-department sub-card is dropped, so
+   * the room picker isn't nested under a redundant second category.
+   */
+  flattenSingleDepartment?: boolean;
   onAddRoom: (deptId: string, room: RoomInfo) => void;
   onRemoveRoom: (deptId: string, roomId: string) => void;
   onApplySharing: (deptId: string, plan: SeatSharingPlanItem[]) => void;
@@ -41,6 +47,7 @@ export default function SlotCard({
   reservedRoomInfo,
   shareableOptions,
   defaultExpanded = false,
+  flattenSingleDepartment = false,
   onAddRoom,
   onRemoveRoom,
   onApplySharing,
@@ -59,6 +66,11 @@ export default function SlotCard({
     effectiveRemaining, effectiveDeptsCovered,
     departmentsTotal, firstUncoveredIdx, progressPct,
   } = slotSummary;
+
+  // Single-department (SEE) layout: this slot's one department is rendered flat
+  // and its course is surfaced in the header below.
+  const singleDept =
+    flattenSingleDepartment && activeDepts.length === 1 ? activeDepts[0] : null;
 
   // No departments have exams
   if (activeDepts.length === 0) {
@@ -110,7 +122,13 @@ export default function SlotCard({
               )}
             </div>
             <p className="mt-1 text-xs text-gray-400">
-              {activeDepts.length} dept{activeDepts.length !== 1 ? "s" : ""} &middot;{" "}
+              {singleDept ? (
+                <span className="font-medium text-gray-500">{singleDept.courseName} &middot;{" "}</span>
+              ) : (
+                <>
+                  {activeDepts.length} dept{activeDepts.length !== 1 ? "s" : ""} &middot;{" "}
+                </>
+              )}
               {totalStudents} students &middot;{" "}
               capacity {effectiveTotalCapacity}
               {totalSharedSeats > 0 && (
@@ -143,13 +161,15 @@ export default function SlotCard({
             </span>
           )}
 
-          {/* Dept coverage */}
-          <span className="text-xs text-gray-400">
-            <span className={effectiveAllCovered ? "font-semibold text-green-600" : "font-semibold text-gray-600"}>
-              {effectiveDeptsCovered}
+          {/* Dept coverage — redundant when the slot has a single department. */}
+          {!singleDept && (
+            <span className="text-xs text-gray-400">
+              <span className={effectiveAllCovered ? "font-semibold text-green-600" : "font-semibold text-gray-600"}>
+                {effectiveDeptsCovered}
+              </span>
+              /{departmentsTotal} depts
             </span>
-            /{departmentsTotal} depts
-          </span>
+          )}
         </div>
       </button>
 
@@ -166,6 +186,7 @@ export default function SlotCard({
               disabledRoomIds={disabledRoomIds}
               reservedRoomInfo={reservedRoomInfo}
               shareableOptions={shareableOptions}
+              flat={Boolean(singleDept)}
               defaultExpanded={activeDepts[firstUncoveredIdx]?.departmentId === dept.departmentId}
               onAddRoom={(room) => onAddRoom(dept.departmentId, room)}
               onRemoveRoom={(roomId) => onRemoveRoom(dept.departmentId, roomId)}

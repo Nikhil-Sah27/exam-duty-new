@@ -14,6 +14,15 @@ const examGroupSchema = new mongoose.Schema(
       min: 1,
       max: 8,
     },
+    // SEE exams created via the multi-department flow are scoped to a single
+    // department so each (department, semester) renders as its own exam card.
+    // Optional + null for CIE and legacy multi-dept SEE groups, which continue
+    // to aggregate departments from their ExamRooms.
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+    },
     startDate: {
       type: Date,
       required: [true, "Start date is required"],
@@ -36,6 +45,7 @@ const examGroupSchema = new mongoose.Schema(
 );
 
 examGroupSchema.index({ examType: 1, semester: 1 });
+examGroupSchema.index({ examType: 1, semester: 1, department: 1 });
 
 // Exclude inactive from find queries by default
 examGroupSchema.pre(/^find/, function () {

@@ -7,21 +7,19 @@ import { useSEERoutine } from "../hooks/useSEERoutine";
 import { useSEERoomAssignment } from "../hooks/useSEERoomAssignment";
 import DepartmentSelector from "../components/DepartmentSelector";
 import SemesterSelector from "../components/SemesterSelector";
-import CourseSelectorCard from "../components/CourseSelectorCard";
-import ScheduledRoutineList from "../components/ScheduledRoutineList";
+import DepartmentRoutineSection from "../components/DepartmentRoutineSection";
 
 type Phase = "routine" | "rooms" | "done";
 
 /**
- * Full SEE setup workflow. Three phases:
- *   "routine"  — build the per-course schedule (NO database write)
- *   "rooms"    — assign rooms using the reused CIE RoomAssignStep (NO DB write)
+ * Multi-department SEE setup workflow. Three phases:
+ *   "routine"  — pick departments + semester, build a per-department schedule
+ *   "rooms"    — assign rooms department-by-department (reused RoomAssignStep)
  *   "done"     — success screen
  *
- * The exam is created in the database ONLY when the user clicks
- * "Finish & Create Exam" in the rooms phase. Everything before that lives
- * entirely in component state — refreshing or backing out leaves no orphaned
- * records behind.
+ * One exam card is created per department. The exam is written to the database
+ * ONLY when the user clicks "Finish & Create Exam"; everything before that lives
+ * in component state, so refreshing or backing out leaves nothing behind.
  */
 export default function SEEExamSetupPage() {
   const navigate = useNavigate();
@@ -30,25 +28,13 @@ export default function SEEExamSetupPage() {
   const routineHook = useSEERoutine();
 
   const roomAssignment = useSEERoomAssignment({
-    departmentId: routineHook.departmentId,
+    departmentIds: routineHook.departmentIds,
     semester: routineHook.semester,
-    routine: routineHook.routine,
-    department: routineHook.department ?? null,
+    routineByDept: routineHook.routineByDept,
+    departmentById: routineHook.departmentById,
     avgStudentsPerClass: 40,
   });
 
-  const editingEntry =
-    routineHook.editingId !== null
-      ? routineHook.routine.find((r) => r.localId === routineHook.editingId) ?? null
-      : null;
-
-  // Routine → rooms transition. No API call. The room-assignment hook seeds
-  // its slot list from the routine + department (slotKey = routine.localId).
-  const handleAdvanceToRooms = () => {
-    setPhase("rooms");
-  };
-
-  // Rooms → finalize. Single transactional create on the backend.
   const handleFinalizeExam = () => {
     roomAssignment.finalize(undefined, {
       onSuccess: () => setPhase("done"),
@@ -57,15 +43,20 @@ export default function SEEExamSetupPage() {
 
   // ───────────── Success screen ─────────────
   if (phase === "done") {
+    const deptCount = routineHook.departmentIds.length;
     return (
       <div className="mx-auto max-w-lg space-y-6 py-8 text-center">
         <div className="mx-auto inline-flex rounded-full bg-green-100 p-5">
           <CheckCircle2 className="h-10 w-10 text-green-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-800">SEE Plan Created</h2>
+        <h2 className="text-xl font-bold text-gray-800">
+          {deptCount > 1 ? `${deptCount} SEE Exams Created` : "SEE Plan Created"}
+        </h2>
         <p className="text-sm text-gray-500">
-          Semester {routineHook.semester} · {routineHook.routine.length} course
+          Semester {routineHook.semester} · {deptCount} department
+          {deptCount !== 1 ? "s" : ""} · {routineHook.routine.length} course
           {routineHook.routine.length !== 1 ? "s" : ""} scheduled · rooms assigned.
+          {deptCount > 1 ? " Each department has its own exam card." : ""}
         </p>
         <div className="flex items-center justify-center gap-3">
           <Button variant="secondary" onClick={() => navigate("/exams")}>
@@ -86,24 +77,17 @@ export default function SEEExamSetupPage() {
       roomAssignment.finalizeError instanceof Error
         ? roomAssignment.finalizeError.message
         : null;
-    // SEE has no shared shift concept — every routine entry carries its own
-    // window. Fabricate a shifts array indexed by slot ordinality so the
-    // shared `RoomAssignStep` (which looks up `shifts[shiftIndex]`) resolves
-    // to the correct time window per slot.
-    const seeShifts = routineHook.routine.map((entry) => ({
-      name: `${entry.startTime} – ${entry.endTime}`,
-      startTime: entry.startTime,
-      endTime: entry.endTime,
-    }));
     return (
       <RoomAssignStep
         slotAllocations={roomAssignment.slotAllocations}
-        shifts={seeShifts}
+        shifts={roomAssignment.shifts}
         usedRoomsMap={roomAssignment.usedRoomsMap}
         avgStudentsPerClass={40}
         warnings={roomAssignment.roomWarnings}
         isAssigning={roomAssignment.isFinalizing}
         error={finalizeError}
+        extraDisabledBySlot={roomAssignment.extraDisabledBySlot}
+        groupByDepartment
         onAddRoom={roomAssignment.handleAddRoom}
         onRemoveRoom={roomAssignment.handleRemoveRoom}
         onApplySharing={roomAssignment.handleApplySharing}
@@ -119,79 +103,81 @@ export default function SEEExamSetupPage() {
 
   // ───────────── Routine-builder phase ─────────────
   const configLocked = routineHook.routine.length > 0;
+  const { departmentIds, semester } = routineHook;
+  const ready = departmentIds.length > 0 && Boolean(semester);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">SEE — Schedule Setup</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Schedule External Examination subjects one by one, then move to room assignment.
+          Select one or more departments, schedule each department's subjects,
+          then assign rooms. Each department becomes its own exam.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <DepartmentSelector
-          value={routineHook.departmentId}
-          onChange={(id) =>
-            routineHook.setConfig(id, routineHook.semester)
-          }
+          value={departmentIds}
+          onChange={routineHook.setDepartments}
+          disabled={configLocked}
         />
         <SemesterSelector
-          value={routineHook.semester}
-          onChange={(sem) =>
-            routineHook.setConfig(routineHook.departmentId, sem)
-          }
-          disabled={!routineHook.departmentId}
+          value={semester}
+          onChange={routineHook.setSemester}
+          disabled={departmentIds.length === 0 || configLocked}
         />
       </div>
 
       {configLocked && (
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          Department and semester are locked once you've added courses. Use the Edit/Delete
-          buttons below to manage individual schedules.
+          Departments and semester are locked once you've added courses. Use the
+          Edit/Delete buttons below to manage individual schedules.
         </div>
       )}
 
-      {routineHook.departmentId && routineHook.semester && (
+      {ready && (
         <>
           {routineHook.isLoadingCourses ? (
             <p className="text-sm text-gray-500">Loading courses...</p>
-          ) : routineHook.courses.length === 0 ? (
-            <div className="rounded-xl border-2 border-dashed border-gray-200 py-8 text-center">
-              <p className="text-sm text-gray-500">
-                No courses found for this department and semester.
-              </p>
-            </div>
           ) : (
-            <CourseSelectorCard
-              courses={routineHook.courses}
-              scheduledCourseIds={routineHook.scheduledCourseIds}
-              editingEntry={editingEntry}
-              feedback={routineHook.feedback}
-              onSubmit={routineHook.tryAddEntry}
-              onCancelEdit={routineHook.cancelEdit}
-            />
+            <div className="space-y-5">
+              {departmentIds.map((deptId) => {
+                const department = routineHook.departmentById.get(deptId);
+                if (!department) return null;
+                const editingEntry =
+                  routineHook.editingEntry?.departmentId === deptId
+                    ? routineHook.editingEntry
+                    : null;
+                return (
+                  <DepartmentRoutineSection
+                    key={deptId}
+                    department={department}
+                    routine={routineHook.routineByDept.get(deptId) ?? []}
+                    scheduledCourseIds={
+                      routineHook.scheduledCourseIdsByDept.get(deptId) ?? new Set()
+                    }
+                    editingEntry={editingEntry}
+                    editingId={routineHook.editingId}
+                    feedback={routineHook.feedbackByDept[deptId] ?? null}
+                    onSubmit={(input) => routineHook.tryAddEntry(deptId, input)}
+                    onCancelEdit={routineHook.cancelEdit}
+                    onEdit={routineHook.startEdit}
+                    onDelete={routineHook.removeEntry}
+                  />
+                );
+              })}
+            </div>
           )}
 
-          <ScheduledRoutineList
-            routine={routineHook.routine}
-            editingId={routineHook.editingId}
-            onEdit={routineHook.startEdit}
-            onDelete={routineHook.removeEntry}
-          />
-
           <div className="sticky bottom-0 flex justify-end border-t border-gray-100 bg-gray-50/80 px-1 py-4 backdrop-blur">
-            <Button
-              onClick={handleAdvanceToRooms}
-              disabled={!routineHook.canFinish}
-            >
+            <Button onClick={() => setPhase("rooms")} disabled={!routineHook.canFinish}>
               Next: Assign Rooms
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </>
       )}
-
     </div>
   );
 }

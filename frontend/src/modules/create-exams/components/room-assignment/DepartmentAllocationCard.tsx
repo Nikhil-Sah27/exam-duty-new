@@ -33,6 +33,13 @@ interface DepartmentAllocationCardProps {
   reservedRoomInfo?: Map<string, ReservationInfo>;
   shareableOptions: ShareableRoomOption[];
   defaultExpanded?: boolean;
+  /**
+   * Flat mode: render the room-assignment body directly, without this card's
+   * own collapsible header/border. Used when the slot has a single department
+   * (SEE) and the department is already identified by the slot header, so the
+   * extra nested card would be redundant double-categorization.
+   */
+  flat?: boolean;
   onAddRoom: (room: RoomInfo) => void;
   onRemoveRoom: (roomId: string) => void;
   onApplySharing: (plan: SeatSharingPlanItem[]) => void;
@@ -51,6 +58,7 @@ export default function DepartmentAllocationCard({
   reservedRoomInfo,
   shareableOptions,
   defaultExpanded = false,
+  flat = false,
   onAddRoom,
   onRemoveRoom,
   onApplySharing,
@@ -108,84 +116,9 @@ export default function DepartmentAllocationCard({
       ? "border-amber-200"
       : "border-gray-200";
 
-  return (
+  const bodyInner = (
     <>
-      <div className={`rounded-lg border-2 bg-white transition-colors ${borderColor}`}>
-        {/* Header */}
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left"
-        >
-          <div className="flex items-center gap-3">
-            {isExpanded ? (
-              <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-            )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-700">
-                  {departmentCode}
-                </span>
-                <span className="truncate text-sm text-gray-500">{courseName}</span>
-                {totalSharedReceived > 0 && (
-                  <span className="rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600">
-                    +{totalSharedReceived} shared
-                  </span>
-                )}
-              </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
-                <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {students} students
-                </span>
-                <span>{assignedRooms.length} room{assignedRooms.length !== 1 ? "s" : ""}</span>
-                <span>cap: {effectiveCapacity}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Capacity progress mini-bar */}
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-100">
-                {/* Own capacity segment */}
-                <div className="flex h-full">
-                  <div
-                    className={`h-full transition-all duration-300 ${progressColor}`}
-                    style={{ width: `${ownPct}%` }}
-                  />
-                  {/* Shared seats segment (intra-batch + cross-group) */}
-                  {totalSharedReceived > 0 && (
-                    <div
-                      className="h-full bg-orange-400 transition-all duration-300"
-                      style={{ width: `${progressPct - ownPct}%` }}
-                    />
-                  )}
-                </div>
-              </div>
-              <span className="text-[10px] font-semibold text-gray-400">{progressPct}%</span>
-            </div>
-
-            {/* Status badge */}
-            {capacityMet ? (
-              <span className="flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600">
-                <CheckCircle2 className="h-3 w-3" />
-                {extra > 0 ? `+${extra} extra` : "Covered"}
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
-                <AlertTriangle className="h-3 w-3" />
-                {effectiveRemaining} left
-              </span>
-            )}
-          </div>
-        </button>
-
-        {/* Expanded body */}
-        {isExpanded && (
-          <div className="border-t border-gray-100 px-4 py-4 space-y-4">
-            {/* === Selected Rooms Bar === */}
+      {/* === Selected Rooms Bar === */}
             {assignedRooms.length > 0 && (
               <div className="rounded-lg bg-indigo-50/50 px-3 py-2.5">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-indigo-400">
@@ -350,10 +283,11 @@ export default function DepartmentAllocationCard({
                 }}
               />
             </div>
-          </div>
-        )}
-      </div>
+    </>
+  );
 
+  const modals = (
+    <>
       {/* Intra-batch Seat Sharing Modal */}
       <SeatSharingModal
         open={sharingModalOpen}
@@ -384,6 +318,100 @@ export default function DepartmentAllocationCard({
         remainingStudents={Math.max(0, effectiveRemaining)}
         onConfirm={onAddGlobalShared}
       />
+    </>
+  );
+
+  // Flat mode: no own header/border — the slot header already names this single
+  // department, so the extra nested card would be redundant categorization.
+  if (flat) {
+    return (
+      <>
+        {bodyInner}
+        {modals}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className={`rounded-lg border-2 bg-white transition-colors ${borderColor}`}>
+        {/* Header */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <div className="flex items-center gap-3">
+            {isExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-700">
+                  {departmentCode}
+                </span>
+                <span className="truncate text-sm text-gray-500">{courseName}</span>
+                {totalSharedReceived > 0 && (
+                  <span className="rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600">
+                    +{totalSharedReceived} shared
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {students} students
+                </span>
+                <span>{assignedRooms.length} room{assignedRooms.length !== 1 ? "s" : ""}</span>
+                <span>cap: {effectiveCapacity}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Capacity progress mini-bar */}
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-100">
+                <div className="flex h-full">
+                  <div
+                    className={`h-full transition-all duration-300 ${progressColor}`}
+                    style={{ width: `${ownPct}%` }}
+                  />
+                  {totalSharedReceived > 0 && (
+                    <div
+                      className="h-full bg-orange-400 transition-all duration-300"
+                      style={{ width: `${progressPct - ownPct}%` }}
+                    />
+                  )}
+                </div>
+              </div>
+              <span className="text-[10px] font-semibold text-gray-400">{progressPct}%</span>
+            </div>
+
+            {/* Status badge */}
+            {capacityMet ? (
+              <span className="flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600">
+                <CheckCircle2 className="h-3 w-3" />
+                {extra > 0 ? `+${extra} extra` : "Covered"}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                <AlertTriangle className="h-3 w-3" />
+                {effectiveRemaining} left
+              </span>
+            )}
+          </div>
+        </button>
+
+        {/* Expanded body */}
+        {isExpanded && (
+          <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+            {bodyInner}
+          </div>
+        )}
+      </div>
+      {modals}
     </>
   );
 }

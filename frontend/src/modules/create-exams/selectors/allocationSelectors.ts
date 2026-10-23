@@ -192,8 +192,12 @@ export function getGlobalAllocationStats(
   let totalSharedSeats = 0;
   let slotsCovered = 0;
   let slotsTotal = 0;
-  let deptsCovered = 0;
-  let deptsTotal = 0;
+
+  // Count DISTINCT departments: a department spans many slots (one per subject
+  // in SEE), so a department is "covered" only when EVERY slot it appears in is
+  // covered. Counting per-slot would overstate the department total.
+  const deptActive = new Set<string>();
+  const deptUncovered = new Set<string>();
 
   for (const slot of slotAllocations) {
     const activeDepts = slot.departments.filter((d) => d.courseId);
@@ -216,17 +220,21 @@ export function getGlobalAllocationStats(
       const effCap = getEffectiveCapacity(dept);
       slotEffectiveCap += effCap;
 
-      if (dept.students > 0 && effCap >= dept.students) {
-        deptsCovered++;
-      } else if (dept.students > 0) {
-        slotAllCovered = false;
+      if (dept.students > 0) {
+        deptActive.add(dept.departmentId);
+        if (effCap < dept.students) {
+          deptUncovered.add(dept.departmentId);
+          slotAllCovered = false;
+        }
       }
-      deptsTotal += dept.students > 0 ? 1 : 0;
     }
 
     totalCapacity += slotEffectiveCap;
     if (slotAllCovered) slotsCovered++;
   }
+
+  const deptsTotal = deptActive.size;
+  const deptsCovered = deptsTotal - deptUncovered.size;
 
   const progressPct =
     totalStudents > 0

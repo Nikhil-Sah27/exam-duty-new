@@ -2,12 +2,9 @@ const ExamGroup = require("../exam/examGroup.model");
 const ExamSchedule = require("../exam/examSchedule.model");
 const ExamRoom = require("../exam/examRoom.model");
 const CIEPlanEntry = require("./ciePlan.model");
-const Course = require("../department/course.model");
-const Department = require("../department/department.model");
-const Semester = require("../department/semester.model");
 const AppError = require("../../shared/utils/AppError");
 const { withOptionalTransaction } = require("../../shared/utils/withOptionalTransaction");
-const ElectiveGroup = require("../department/electiveGroup.model");
+const departmentService = require("../department/department.service");
 const { resolveAssignment } = require("./assignmentResolver");
 const dcsGroupService = require("../dcs/dcsGroup.service");
 const roomReservationService = require("../exam/roomReservation.service");
@@ -93,22 +90,6 @@ const validateSchedules = (schedules) => {
 };
 
 /**
- * Resolve the Semester record for a (department, semester-number) pair. The
- * stored `name` varies ("7", "Sem 7", "Semester 07"), so match leniently.
- */
-const findSemesterRecord = async (departmentId, semester) => {
-  const semNumber = String(semester);
-  const pattern = "^(Sem(ester)?\\s*)?0?" + semNumber + "$";
-  return Semester.findOne({
-    department: departmentId,
-    $or: [
-      { name: semNumber },
-      { name: { $regex: new RegExp(pattern, "i") } },
-    ],
-  });
-};
-
-/**
  * Create a complete SEE plan: ExamGroup (examType=SEE) + one ExamSchedule
  * per course + a CIEPlanEntry linking each schedule to (department, course).
  * Returns a courseId → scheduleId mapping the frontend uses to bridge into
@@ -122,20 +103,15 @@ const createSEEPlan = async (data, userId) => {
 
   validateSchedules(schedules);
 
-  const department = await Department.findById(departmentId);
+  const department = await departmentService.findDepartmentById(departmentId);
   if (!department) throw new AppError("Department not found", 404);
 
   // Resolve the semester record — the schedule-creation step needs nothing
   // from it, but validating it exists for this department catches typos.
-  const semNumber = String(semester);
-  const pattern = "^(Sem(ester)?\\s*)?0?" + semNumber + "$";
-  const semesterRecord = await Semester.findOne({
-    department: departmentId,
-    $or: [
-      { name: semNumber },
-      { name: { $regex: new RegExp(pattern, "i") } },
-    ],
-  });
+  const semesterRecord = await departmentService.findSemesterByNumber(
+    departmentId,
+    semester,
+  );
   if (!semesterRecord) {
     throw new AppError(`Semester ${semester} not found for this department`, 404);
   }
@@ -151,10 +127,10 @@ const createSEEPlan = async (data, userId) => {
     for (const cid of resolved.courseIds) allCourseIds.add(String(cid));
   }
   const uniqueCourseIds = [...allCourseIds];
-  const courses = await Course.find({
-    _id: { $in: uniqueCourseIds },
-    semester: semesterRecord._id,
-  });
+  const courses = await departmentService.findCoursesInSemester(
+    uniqueCourseIds,
+    semesterRecord._id,
+  );
   if (courses.length !== uniqueCourseIds.length) {
     throw new AppError(
       "One or more courses do not belong to the selected department/semester",
@@ -275,10 +251,13 @@ const prepareDepartmentPlan = async (dep, semester) => {
     }
   }
 
-  const department = await Department.findById(departmentId);
+  const department = await departmentService.findDepartmentById(departmentId);
   if (!department) throw new AppError("Department not found", 404);
 
-  const semesterRecord = await findSemesterRecord(departmentId, semester);
+  const semesterRecord = await departmentService.findSemesterByNumber(
+    departmentId,
+    semester,
+  );
   if (!semesterRecord) {
     throw new AppError(`Semester ${semester} not found for ${department.code}`, 404);
   }
@@ -294,10 +273,10 @@ const prepareDepartmentPlan = async (dep, semester) => {
     for (const cid of resolved.courseIds) allCourseIds.add(String(cid));
   }
   const uniqueCourseIds = [...allCourseIds];
-  const courses = await Course.find({
-    _id: { $in: uniqueCourseIds },
-    semester: semesterRecord._id,
-  });
+  const courses = await departmentService.findCoursesInSemester(
+    uniqueCourseIds,
+    semesterRecord._id,
+  );
   if (courses.length !== uniqueCourseIds.length) {
     throw new AppError(
       `One or more courses do not belong to ${department.code} / semester ${semester}`,

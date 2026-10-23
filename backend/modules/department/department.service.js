@@ -111,6 +111,30 @@ const deleteCourse = async (id) => {
   await repo.deleteCourse(id);
 };
 
+// ---------- Cross-domain lookups (used by create-exams) ----------
+// Thin read helpers so other domains validate departments/semesters/courses
+// through this service instead of importing department-owned models directly.
+
+const findDepartmentById = (id) => repo.findDeptById(id);
+
+const findActiveDepartmentsByIds = (ids) =>
+  repo.findActiveDepartmentsByIds(ids);
+
+const findSemesterByNumber = (departmentId, semester) =>
+  repo.findSemesterByDeptAndNumber(departmentId, semester);
+
+const findCoursesInSemester = (courseIds, semesterId) =>
+  repo.findCoursesByIdsInSemester(courseIds, semesterId);
+
+// Planning-wizard course list (populated group, ordered by code only).
+const findCoursesForPlanning = (semesterId) =>
+  repo.findCoursesBySemesterSortedByCode(semesterId);
+
+// Raw elective groups for a semester (no attached courses) — getElectiveGroups
+// enriches with courses, which the wizard doesn't need here.
+const findElectiveGroupsBySemester = (semesterId) =>
+  repo.findElectiveGroupsBySemester(semesterId);
+
 // ---------- Elective Group ----------
 
 const getElectiveGroups = async (semesterId) => {
@@ -174,6 +198,12 @@ module.exports = {
   createCourse,
   updateCourse,
   deleteCourse,
+  findDepartmentById,
+  findActiveDepartmentsByIds,
+  findSemesterByNumber,
+  findCoursesInSemester,
+  findCoursesForPlanning,
+  findElectiveGroupsBySemester,
   getElectiveGroups,
   createElectiveGroup,
   updateElectiveGroup,

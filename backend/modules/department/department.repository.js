@@ -64,6 +64,34 @@ const deleteElectiveGroup = (id) => ElectiveGroup.findByIdAndDelete(id);
 const findCoursesByElectiveGroup = (groupId) =>
   Course.find({ electiveGroup: groupId }).sort({ code: 1 });
 
+// Lenient (department, semester-number) match — the stored `name` varies
+// ("7", "Sem 7", "Semester 07"), so match the bare number or common prefixes.
+const findSemesterByDeptAndNumber = (departmentId, semester) => {
+  const semNumber = String(semester);
+  const pattern = "^(Sem(ester)?\\s*)?0?" + semNumber + "$";
+  return Semester.findOne({
+    department: departmentId,
+    $or: [
+      { name: semNumber },
+      { name: { $regex: new RegExp(pattern, "i") } },
+    ],
+  });
+};
+
+const findCoursesByIdsInSemester = (courseIds, semesterId) =>
+  Course.find({ _id: { $in: courseIds }, semester: semesterId });
+
+const findActiveDepartmentsByIds = (ids) =>
+  Department.find({ _id: { $in: ids }, isActive: true });
+
+// Planning-wizard course list: populated group name, ordered by code only.
+// Distinct from findCoursesBySemester (which also sorts by courseType) so the
+// Create-Exams wizard keeps its existing ordering.
+const findCoursesBySemesterSortedByCode = (semesterId) =>
+  Course.find({ semester: semesterId })
+    .populate("electiveGroup", "name")
+    .sort({ code: 1 });
+
 // ---------- Stats ----------
 
 const countSemestersByDept = (departmentId) =>
@@ -105,6 +133,10 @@ module.exports = {
   updateElectiveGroup,
   deleteElectiveGroup,
   findCoursesByElectiveGroup,
+  findSemesterByDeptAndNumber,
+  findCoursesByIdsInSemester,
+  findActiveDepartmentsByIds,
+  findCoursesBySemesterSortedByCode,
   countSemestersByDept,
   countCoursesByDept,
   sumStudentsByDept,

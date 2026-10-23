@@ -1,10 +1,6 @@
-const Department = require("../department/department.model");
-const Semester = require("../department/semester.model");
-const Course = require("../department/course.model");
-const ElectiveGroup = require("../department/electiveGroup.model");
 const { resolveAssignment } = require("./assignmentResolver");
-const Building = require("../infrastructure/building.model");
-const Room = require("../infrastructure/infrastructure.model");
+const departmentService = require("../department/department.service");
+const infrastructureService = require("../infrastructure/infrastructure.service");
 const ExamGroup = require("../exam/examGroup.model");
 const ExamSchedule = require("../exam/examSchedule.model");
 const ExamRoom = require("../exam/examRoom.model");
@@ -21,41 +17,27 @@ const { notifyExamPublished } = require("./examNotification.service");
  * Fetch departments with their semester + courses for a given semester name.
  */
 const getDepartmentsData = async (departmentIds, semesterName) => {
-  const departments = await Department.find({
-    _id: { $in: departmentIds },
-    isActive: true,
-  });
+  const departments = await departmentService.findActiveDepartmentsByIds(departmentIds);
 
   const result = [];
 
   for (const dept of departments) {
-    // Try flexible semester name matching:
-    // Frontend sends "1","2",... but DB may store "Semester 1", "Sem 1", etc.
-    let semester = await Semester.findOne({
-      department: dept._id,
-      name: semesterName,
-    });
-
-    if (!semester) {
-      // Match patterns: "sem 3", "Sem 3", "Semester 3", "3", "03"
-      const pattern = "^(Sem(ester)?\\s*)?0?" + semesterName + "$";
-      semester = await Semester.findOne({
-        department: dept._id,
-        name: { $regex: new RegExp(pattern, "i") },
-      });
-    }
+    // Flexible semester name matching: frontend sends "1","2",... but the DB
+    // may store "Semester 1", "Sem 1", "01", etc. — resolved in one lookup.
+    const semester = await departmentService.findSemesterByNumber(
+      dept._id,
+      semesterName,
+    );
 
     if (!semester) continue;
 
-    const courses = await Course.find({ semester: semester._id })
-      .populate("electiveGroup", "name")
-      .sort({ code: 1 });
+    const courses = await departmentService.findCoursesForPlanning(semester._id);
 
     // Fetch ElectiveGroups for this semester too — the wizard renders them
     // as single-select entries alongside core courses.
-    const electiveGroups = await ElectiveGroup.find({
-      semester: semester._id,
-    }).sort({ name: 1 });
+    const electiveGroups = await departmentService.findElectiveGroupsBySemester(
+      semester._id,
+    );
 
     result.push({
       ...dept.toObject(),
@@ -322,10 +304,8 @@ const assignRooms = async (data) => {
  * Fetch all active rooms grouped by building → floor.
  */
 const getRoomsGrouped = async () => {
-  const buildings = await Building.find({ isActive: true }).sort({ name: 1 });
-  const rooms = await Room.find({ isActive: true })
-    .populate("building", "name")
-    .sort({ floor: 1, roomNumber: 1 });
+  const buildings = await infrastructureService.listActiveBuildings();
+  const rooms = await infrastructureService.listAllActiveRoomsPopulated();
 
   const grouped = [];
 

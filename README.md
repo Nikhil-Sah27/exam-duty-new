@@ -53,7 +53,7 @@ Assistant Professors are **Invigilator-only** — RS duty is carried by Professo
 ## Feature Overview
 
 ### Exam Planning (CS)
-- **Create Exams** wizard for both CIE (IA1/IA2/IA3) and SEE (Semester End). Handles department selection, date auto-calculation from shifts, room allocation, seat-sharing configuration, and DCS group formation in a single transactional finalize call.
+- **Create Exams** wizard for both CIE (IA1/IA2/IA3) and SEE (Semester End). Handles department selection, date auto-calculation from shifts, room allocation, seat-sharing configuration, and DCS group formation in a single transactional finalize call. SEE is multi-department: one finalize call ships a plan per selected department (under a shared semester) and persists a **separate `ExamGroup` per department** in one transaction, so each (department, semester) renders as its own independent exam card.
 - **Exams** — list, filter, edit; timetable per exam with per-room duty status. The timetable groups rooms by date and time slot, with highlighted date and time-slot headers and a highlighted **Department** filter for quickly narrowing multi-department schedules.
 - **Departments** — CRUD for departments, semesters, courses (core or elective), and elective groups (a named group of subjects — no professional/open sub-type, no per-elective student count).
 - **Infrastructure** — buildings and rooms with capacity, floor, and bulk-import support.
@@ -248,7 +248,7 @@ Backend uses Mongoose models under `backend/modules/*/[name].model.js`.
 | `Department` / `Semester` / `Course` / `ElectiveGroup` | Academic taxonomy. `Course.courseType ∈ {core, elective}` (electives belong to an `ElectiveGroup`, which is just a name). `Semester.studentCount` feeds DCS sizing and duty calculation. |
 | `Building` / `Room` | Physical infrastructure. `Room` is unique per `(building, roomNumber)`. |
 | `Exam` | Legacy single-exam entity. Retained for old flows; new work uses `ExamGroup`. |
-| `ExamGroup` | Structured top-level: `examType ∈ {IA1, IA2, IA3, SEE}`, `semester`, date range. |
+| `ExamGroup` | Structured top-level: `examType ∈ {IA1, IA2, IA3, SEE}`, `semester`, date range. SEE groups also carry a `department` (one group per department/semester); CIE groups aggregate departments from their `ExamRoom`s. |
 | `ExamSchedule` | One schedule per exam date; belongs to an `ExamGroup`. |
 | `ExamRoom` | Allocates a physical `Room` to a `Schedule`, with per-department seat metadata. |
 | `Duty` | Assignment of a teacher to a slot. Carries both `room` (string label, legacy) and `roomRef` (ObjectId → `Room`, building-aware), plus `role`, `assignedBy`, `isSelfAssigned`. Indexed on `(teacher, date, startTime, status)`, `(room, …)`, `(roomRef, …)`, and `(roomRef, role, …)`. |
@@ -520,7 +520,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register` 
 | POST | `/cie/calculate-dates` | Auto-calculate dates from shifts. |
 | GET | `/cie/rooms` | Available rooms by building. |
 | POST | `/cie/finalize` | One-call: create group + schedules + rooms + DCS groups + sharing config. |
-| POST | `/see/finalize` | SEE equivalent. |
+| POST | `/see/finalize` | SEE equivalent. Multi-department: `{ semester, departments: [{ departmentId, schedules, roomAssignments, … }] }` creates one `ExamGroup` per department in a single transaction and returns the array of created groups (one card each). |
 
 ### Duties (`/duties`)
 | Method | Path | Description |

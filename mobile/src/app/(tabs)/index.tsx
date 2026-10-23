@@ -6,11 +6,12 @@ import { View } from "react-native";
 import { useAlarmSettings, useAlarmState } from "@/alarms";
 import { Banner, Button, Card, EmptyState, Icon, ListRow, Divider, Screen, Text } from "@/components/ui";
 import { SoundCheckBanner } from "@/features/alarms/SoundCheckBanner";
+import { DutyProgressSummary } from "@/features/duties/DutyProgressSummary";
 import { DutyUnitCard } from "@/features/duties/DutyUnitCard";
 import { useConfirmUnit, useMyUnits } from "@/features/duties/hooks";
 import { WEB_URL } from "@/lib/config";
 import { formatInstant } from "@/lib/format";
-import { ROLE_LABELS } from "@/lib/roles";
+import { ROLE_LABELS, isTeacherRole } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
 
@@ -71,6 +72,8 @@ export default function HomeScreen() {
           </Text>
         </Banner>
       ) : null}
+
+      {role && isTeacherRole(role) ? <DutyProgressSummary role={role} /> : null}
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Text variant="heading">Upcoming duties</Text>

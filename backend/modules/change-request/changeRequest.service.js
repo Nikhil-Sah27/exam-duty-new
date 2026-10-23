@@ -572,9 +572,18 @@ const getAllRequests = async (query) => {
   return changeRequestRepository.findAll(filter);
 };
 
-const getRequestById = async (id) => {
+/**
+ * CS sees any request; a teacher only one they raised or are the swap partner
+ * on. Anyone else gets the same 404 as a missing id, so ids can't be probed.
+ */
+const getRequestById = async (id, viewer) => {
   const request = await changeRequestRepository.findById(id);
   if (!request) throw new AppError("Change request not found", 404);
+  if (viewer.activeRole === "cs") return request;
+  const involved = [request.requestedBy, request.swapWith]
+    .filter(Boolean)
+    .map((u) => String(u._id ?? u));
+  if (!involved.includes(String(viewer.id))) throw new AppError("Change request not found", 404);
   return request;
 };
 

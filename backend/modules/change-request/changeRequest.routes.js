@@ -8,7 +8,10 @@ const router = express.Router();
 router.use(protect);
 
 router.post("/", controller.submit);
-router.get("/", controller.getAll);
+// The full list (every teacher's requests and reasons) is the CS review queue;
+// teachers read their own through /mine. A single request is visible to CS and
+// to the teachers it involves (checked in the service).
+router.get("/", requireRole("cs"), controller.getAll);
 router.get("/mine", controller.getMine);
 router.get("/replacements/:dutyId", controller.getReplacements);
 router.get("/:id", controller.getById);

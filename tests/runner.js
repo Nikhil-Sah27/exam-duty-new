@@ -28,6 +28,7 @@ const suites = [
   { name: "Push + My Units", file: "./15-push.test.js" },
   { name: "User Import", file: "./16-user-import.test.js" },
   { name: "Multi-college", file: "./17-colleges.test.js" },
+  { name: "Authorization", file: "./18-authorization.test.js" },
 ];
 
 async function main() {

@@ -8,11 +8,12 @@ const router = express.Router();
 // Every user route is protected. (The old unauthenticated `POST /bootstrap`
 // is gone: colleges get their first CS from the superadmin — MULTI_COLLEGE_PLAN.md.)
 router.use(protect);
+// The staff directory (names, phones, roles) is CS-only, like every user write.
 
 // Reads stay open (assignment pickers, messaging); every account write is the
 // exam cell's job — CS only.
-router.get("/", userController.getAll);
-router.get("/:id", userController.getById);
+router.get("/", requireRole("cs"), userController.getAll);
+router.get("/:id", requireRole("cs"), userController.getById);
 router.post("/import", requireRole("cs"), userController.importUsers);
 router.post("/", requireRole("cs"), userController.create);
 router.put("/:id", requireRole("cs"), userController.update);

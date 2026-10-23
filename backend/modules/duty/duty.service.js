@@ -500,11 +500,16 @@ const adminAssignDutyGroup = async (data, adminId) => {
   return populated;
 };
 
-const getAllDuties = async (query) => {
+/**
+ * CS lists any duties; a teacher only ever gets their own, whatever `teacher`
+ * they ask for (every teacher-side caller already passes its own id).
+ */
+const getAllDuties = async (query, viewer) => {
   const filter = {};
 
   if (query.exam) filter.exam = query.exam;
   if (query.teacher) filter.teacher = query.teacher;
+  if (viewer.activeRole !== "cs") filter.teacher = viewer.id;
   // Scope a teacher's duties to one role so a multi-role user's invigilator and
   // RS/DCS duties never leak into each other's dashboards. Omitted by CS views,
   // which want every role.
@@ -576,9 +581,14 @@ const getInvigilatorsForRooms = async (examRoomIds) => {
     }));
 };
 
-const getDutyById = async (id) => {
+/** CS sees any duty; a teacher only their own (others read as not found). */
+const getDutyById = async (id, viewer) => {
   const duty = await dutyRepository.findById(id);
   if (!duty) throw new AppError("Duty not found", 404);
+  const teacherId = duty.teacher?._id || duty.teacher;
+  if (viewer.activeRole !== "cs" && String(teacherId) !== String(viewer.id)) {
+    throw new AppError("Duty not found", 404);
+  }
   return duty;
 };
 
@@ -598,10 +608,13 @@ const cancelDuty = async (id, cancelReason, actor = {}) => {
     throw new AppError("You can only cancel your own duty", 403);
   }
   // A DCS group is persisted: cancelling one of its rooms alone would leave the
-  // group "claimed" with a stale duty list. CS unassigns the whole group.
-  if (byCs && duty.role !== "invigilator") {
+  // group "claimed" with a stale duty list, and an RS group would be split. CS
+  // unassigns the whole group; a teacher releases or swaps it as a whole.
+  if (duty.role !== "invigilator") {
     throw new AppError(
-      "RS and DCS duties are unassigned as a whole group — use admin-unassign-group",
+      byCs
+        ? "RS and DCS duties are unassigned as a whole group — use admin-unassign-group"
+        : "RS and DCS duties can't be cancelled room by room — release or swap the whole group",
       400
     );
   }

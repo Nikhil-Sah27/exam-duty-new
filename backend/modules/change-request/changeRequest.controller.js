@@ -21,7 +21,7 @@ const getAll = catchAsync(async (req, res) => {
 });
 
 const getById = catchAsync(async (req, res) => {
-  const request = await changeRequestService.getRequestById(req.params.id);
+  const request = await changeRequestService.getRequestById(req.params.id, req.user);
   res.status(200).json({ success: true, data: request });
 });
 

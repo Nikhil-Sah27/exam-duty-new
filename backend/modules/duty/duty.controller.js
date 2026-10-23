@@ -83,7 +83,7 @@ const adminAssignGroup = catchAsync(async (req, res) => {
 });
 
 const getAll = catchAsync(async (req, res) => {
-  const duties = await dutyService.getAllDuties(req.query);
+  const duties = await dutyService.getAllDuties(req.query, req.user);
   res.status(200).json({ success: true, count: duties.length, data: duties });
 });
 
@@ -94,7 +94,7 @@ const getMyUnits = catchAsync(async (req, res) => {
 });
 
 const getById = catchAsync(async (req, res) => {
-  const duty = await dutyService.getDutyById(req.params.id);
+  const duty = await dutyService.getDutyById(req.params.id, req.user);
   res.status(200).json({ success: true, data: duty });
 });
 

@@ -34,6 +34,19 @@ async function run(token) {
     return res.data.data.token;
   };
 
+  const expectStatus = async (status, fn) => {
+    try {
+      await fn();
+    } catch (err) {
+      assert(
+        err.response && err.response.status === status,
+        `expected ${status}, got ${err.response ? err.response.status : err.message}`
+      );
+      return;
+    }
+    throw new Error(`expected ${status}, request succeeded`);
+  };
+
   // Setup: Create exam, two single-role teachers, and a duty for teacher A.
   await test("Setup: create exam + teachers + duties", async () => {
     const examRes = await api.post("/exams", {
@@ -115,6 +128,37 @@ async function run(token) {
     if (!requestId) throw new Error("No request");
     const res = await api.get(`/change-requests/${requestId}`);
     assertStatus(res, 200);
+  });
+
+  // --- Teachers only see requests they're part of ---
+  await test("Teacher can't list every change request (CS review queue)", async () => {
+    setToken(await loginAs(teacherBEmail));
+    try {
+      await expectStatus(403, () => api.get("/change-requests"));
+    } finally {
+      setToken(adminToken);
+    }
+  });
+
+  await test("Teacher can't open another teacher's change request", async () => {
+    if (!requestId) throw new Error("No request");
+    setToken(await loginAs(teacherBEmail));
+    try {
+      await expectStatus(404, () => api.get(`/change-requests/${requestId}`));
+    } finally {
+      setToken(adminToken);
+    }
+  });
+
+  await test("Requester can open their own change request", async () => {
+    if (!requestId) throw new Error("No request");
+    setToken(await loginAs(teacherAEmail));
+    try {
+      const res = await api.get(`/change-requests/${requestId}`);
+      assertStatus(res, 200);
+    } finally {
+      setToken(adminToken);
+    }
   });
 
   // --- Reject Request ---

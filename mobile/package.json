@@ -57,5 +57,10 @@
     "doctor": "expo-doctor",
     "update:preview": "EXPO_PUBLIC_API_URL=https://proctavo.com/api npx eas-cli@latest update --channel preview --environment preview --non-interactive"
   },
+  "overrides": {
+    "react-native-notify-kit": {
+      "@expo/require-utils": "~57.0.6"
+    }
+  },
   "private": true
 }

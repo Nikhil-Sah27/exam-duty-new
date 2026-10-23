@@ -123,6 +123,11 @@ Push registration just logs a warning and skips.
 - **Never edit `android/` or `ios/`.** They're generated and git-ignored. Native behaviour lives in
   `app.json`, `react-native.config.js` and `plugins/`. Re-run `npx expo prebuild --clean` after
   changing any of them.
+- **Keep the `overrides` entry in `package.json`.** `react-native-notify-kit` pulls an old
+  `@expo/require-utils` (55.x) that wants TypeScript 5 as an optional peer. npm 11 (this Mac) ignores
+  that, but npm 10 (EAS builders) fails `npm ci` with "Missing: typescript@5.9.3 from lock file". The
+  override lifts it to the 57.x line, which exports the same functions. To check a lock the way EAS will:
+  `npx npm@10 ci --include=dev --dry-run --ignore-scripts` in a scratch copy of `package.json` + lock.
 - **Android channels are immutable once created.** If you change `duty-alarm`'s sound or importance
   in `src/alarms/native.ts`, rename the channel id, or already-installed phones keep the old settings.
 - **Google Play restricts full-screen intents.** Only alarm and calling apps get them, so declare

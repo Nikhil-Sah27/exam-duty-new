@@ -101,6 +101,11 @@ config plugin or `app.json`'s native settings, the change needs a **new build**:
 publishes fine but won't reach the older installs. `npx expo-updates fingerprint:generate --platform android`
 shows the current hash, which you can compare with the build's runtime version on expo.dev.
 
+A local `./gradlew` build can edit files inside `node_modules` (the masked-view manifest, for example).
+That makes this Mac's fingerprint differ from EAS's clean install, and EAS fails the build with
+"Runtime version mismatch" and a file diff. Add the path it names to `.fingerprintignore`. Don't turn
+the check off.
+
 Local Android release without EAS:
 `cd android && ./gradlew assembleRelease`. Run `npx expo prebuild -p android` first and set up a
 signing key.

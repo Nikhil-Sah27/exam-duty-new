@@ -1,0 +1,5 @@
+# Paths left out of the runtime-version fingerprint (see README → EAS Update). A local Gradle build
+# rewrites this manifest in place (it strips the legacy package= attribute), so after any
+# `./gradlew` run this Mac would compute a different fingerprint from EAS's clean install, and
+# EAS refuses the build. The library's version is still fingerprinted via its package.json.
+node_modules/@react-native-masked-view/masked-view/android/src/main/AndroidManifest.xml

@@ -48,6 +48,26 @@ let timer = null;
 let kickTimer = null;
 let draining = false;
 
+/**
+ * Links are rendered at send time from THIS process's APP_URL (mail.templates.js),
+ * so a dev backend with APP_URL=localhost and a real transport would email links
+ * nobody can open — and, pointed at a shared database, would claim another
+ * server's rows to do it. Such a process must not dispatch at all; falling back
+ * to `console` would be worse (rows marked sent, never delivered). Returns the
+ * offending APP_URL, or null when sending is fine.
+ */
+const localAppUrlBlockingSend = () => {
+  const appUrl = process.env.APP_URL;
+  if (!appUrl || transport.transportKind() === "console") return null;
+  try {
+    const { hostname } = new URL(appUrl);
+    const local = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].includes(hostname) || hostname.endsWith(".localhost");
+    return local ? appUrl : null;
+  } catch {
+    return null;
+  }
+};
+
 const backoffFor = (attempts) => {
   const minutes = BACKOFF_MINUTES[Math.min(attempts, BACKOFF_MINUTES.length) - 1] || 60;
   return new Date(Date.now() + minutes * 60 * 1000);
@@ -191,7 +211,7 @@ const drainOnce = () => runAsPlatform(drainPass);
  * emits produces one pass.
  */
 const kick = (delayMs = 1000) => {
-  if (kickTimer || draining) return;
+  if (kickTimer || draining || localAppUrlBlockingSend()) return;
   kickTimer = setTimeout(() => {
     kickTimer = null;
     drainOnce();
@@ -201,6 +221,14 @@ const kick = (delayMs = 1000) => {
 
 const startMailDispatcher = () => {
   if (timer) return; // guard against double-start within a process
+  const blockedBy = localAppUrlBlockingSend();
+  if (blockedBy) {
+    console.error(
+      `[mail] dispatcher NOT started — APP_URL=${blockedBy} would put localhost links in real ` +
+        `emails. Set APP_URL to the public site URL, or MAIL_TRANSPORT=console for local dev.`
+    );
+    return;
+  }
   console.log(`[mail] dispatcher starting — transport: ${transport.transportKind()}`);
   setTimeout(() => {
     drainOnce();

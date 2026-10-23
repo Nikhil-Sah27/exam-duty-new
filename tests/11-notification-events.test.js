@@ -9,7 +9,7 @@ const {
  *
  *   - a teacher self-claiming a duty now gets a `duty_self_claimed` confirmation
  *     (the self-assign path used to notify no one at all)
- *   - CS now learns about that claim (`duty_claimed_by_teacher`)
+ *   - CS is NOT alerted on every self-claim (removed in d0be45b; CS sees holders in Manage Duties)
  *   - CS now learns when the teacher gives the duty back
  *     (`duty_released_by_teacher`)
  *
@@ -113,16 +113,11 @@ async function run(token) {
     );
   });
 
-  await test("Self-claim notifies CS (duty_claimed_by_teacher)", async () => {
+  await test("Self-claim does not alert CS", async () => {
     const feed = await myNotifications(adminToken);
-    const match = feed.find((n) => n.type === "duty_claimed_by_teacher");
     assert(
-      Boolean(match),
-      `expected a duty_claimed_by_teacher notification, got: [${feed.map((n) => n.type).join(", ")}]`
-    );
-    assert(
-      match.message.includes("Notif Test Teacher"),
-      `CS alert should name the teacher, got: "${match.message}"`
+      !feed.some((n) => n.type === "duty_claimed_by_teacher"),
+      `CS should not be alerted on a self-claim, got: [${feed.map((n) => n.type).join(", ")}]`
     );
   });
 

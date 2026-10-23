@@ -9,6 +9,7 @@ import { AppState } from "react-native";
 
 import { findRingingAlarm, fromAlarmData, getLaunchAlarm, subscribeAlarmEvents, syncAlarms } from "@/alarms";
 import { afterSignedIn } from "@/features/auth/session";
+import { CR_KEYS } from "@/features/change-requests/hooks";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { pushDataOf } from "@/push";
@@ -69,6 +70,8 @@ export function TeacherRuntime() {
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myUnits });
+      // Approvals/rejections arrive as pushes too: refresh an open requests list.
+      void queryClient.invalidateQueries({ queryKey: CR_KEYS.all });
       lastSync.current = Date.now();
       void syncAlarms();
     });

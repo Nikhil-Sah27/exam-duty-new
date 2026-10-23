@@ -1,14 +1,14 @@
 import { router } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { View } from "react-native";
 
 import { useAlarmSettings, useAlarmState } from "@/alarms";
-import { Banner, Button, Card, EmptyState, Icon, ListRow, Divider, Screen, Text } from "@/components/ui";
+import { Banner, Button, Card, Chip, EmptyState, Icon, ListRow, Divider, Screen, Text } from "@/components/ui";
 import { SoundCheckBanner } from "@/features/alarms/SoundCheckBanner";
+import { CHANGE_REQUESTS_HREF } from "@/features/change-requests/routes";
 import { DutyUnitCard } from "@/features/duties/DutyUnitCard";
 import { useConfirmUnit, useMyUnits } from "@/features/duties/hooks";
-import { WEB_URL } from "@/lib/config";
+import { useUnreadMessages } from "@/features/messages/hooks";
 import { formatInstant } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
@@ -27,6 +27,7 @@ export default function HomeScreen() {
   const nextAlarm = useAlarmState((s) => s.nextAlarm);
   const alarmsOn = useAlarmSettings((s) => s.settings.enabled);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const { data: unreadMessages = 0 } = useUnreadMessages();
   const role = user?.activeRole;
   const unconfirmed = units.data?.filter((u) => !u.confirmed).length ?? 0;
 
@@ -117,23 +118,21 @@ export default function HomeScreen() {
 
       {role && role !== "cs" ? (
         <Card>
-          <Text variant="label" muted>
-            On the website
-          </Text>
           <ListRow
             icon="swap"
             title="Change requests"
-            subtitle="Swap or give up a duty"
+            subtitle="Move or swap a duty"
             chevron
-            onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/${role}/change-requests`)}
+            onPress={() => router.push(CHANGE_REQUESTS_HREF)}
           />
           <Divider />
           <ListRow
             icon="chat"
             title="Message the exam cell"
             subtitle="Chat with CS"
+            right={unreadMessages > 0 ? <Chip label={String(unreadMessages)} fg={colors.onPrimary} bg={colors.danger} /> : null}
             chevron
-            onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/${role}/messages`)}
+            onPress={() => router.push("/messages")}
           />
         </Card>
       ) : null}

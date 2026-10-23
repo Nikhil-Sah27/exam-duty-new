@@ -1,12 +1,11 @@
-import { Stack, useLocalSearchParams } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { alarmsForUnit, useAlarmState } from "@/alarms";
 import { Banner, Button, Card, Chip, EmptyState, Icon, RoleChip, Screen, Text } from "@/components/ui";
+import { requestChangeHref } from "@/features/change-requests/routes";
 import { useConfirmUnit, useUnit } from "@/features/duties/hooks";
-import { WEB_URL } from "@/lib/config";
 import { examTitle, formatClock, formatExamDate, formatInstant } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/roles";
 import { useTheme } from "@/theme";
@@ -93,10 +92,10 @@ export default function DutyDetailScreen() {
       </Card>
 
       <Button
-        title="Request a change on the website"
+        title="Request a change"
         variant="secondary"
-        icon="external"
-        onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/${unit.role}/change-requests`)}
+        icon="swap"
+        onPress={() => router.push(requestChangeHref(unit.key))}
       />
     </Screen>
   );

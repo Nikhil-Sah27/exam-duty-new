@@ -107,9 +107,17 @@ export function useReplacementSlots(dutyId: string | null) {
 
 /** Every RS group derivable from active exams — the same pipeline as RS Select Duty (web useAvailableRsGroups). */
 export function useAvailableRsGroups(enabled: boolean) {
+  const qc = useQueryClient();
   const slots = useAvailableDutySlots(enabled);
   const groups = useMemo<RSDutyGroup[]>(() => groupRoomsIntoRSGroups(slots.data ?? []), [slots.data]);
-  return { groups, isLoading: slots.isLoading, error: slots.error, refetch: slots.refetchGroups };
+  // Pull-to-refresh: re-read every exam's rooms and occupancy, not just the exam list.
+  const refetch = () =>
+    Promise.all(
+      [["shared", "exam-groups"], ["shared", "exam-details"], ["shared", "duty-status"]].map((queryKey) =>
+        qc.invalidateQueries({ queryKey }),
+      ),
+    );
+  return { groups, isLoading: slots.isLoading, error: slots.error, refetch };
 }
 
 export function useOpenDcsGroups(enabled: boolean) {

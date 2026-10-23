@@ -78,7 +78,28 @@ npx eas-cli@latest submit -p ios                            # → TestFlight / A
 ```
 
 Profiles are in `eas.json`. `development` is the dev client, `preview` is an internal APK or IPA, and
-`production` is the store build. All three point at `https://proctavo.com/api`.
+`production` is the store build. All three point at `https://proctavo.com/api`. Teachers' sideloaded
+APKs are `preview` builds on the `preview` channel.
+
+What gets uploaded is set by the repo-root `.easignore`: only `mobile/`, so `db-dump.json`,
+`CREDENTIALS.md` and the backend never leave this machine. EAS reads it *instead of* `.gitignore`. A new
+ignore rule in `mobile/.gitignore` needs repeating there. Check with
+`npx eas-cli@latest build:inspect -p android --profile preview -s archive -o /tmp/eas-archive`.
+
+### Shipping a JS fix without a new build (EAS Update)
+
+Installed builds check for an update every time they launch and apply it on the *next* launch.
+
+```bash
+npm run update:preview -- --message "Fix change-request date picker"
+```
+
+That script pins `EXPO_PUBLIC_API_URL` to production, because `eas update` doesn't read the `env` in
+`eas.json`, which only applies to builds. `runtimeVersion` uses the `fingerprint` policy, so an update
+only reaches builds with the same native code. After adding or upgrading a native module, or changing a
+config plugin or `app.json`'s native settings, the change needs a **new build**: an `eas update`
+publishes fine but won't reach the older installs. `npx expo-updates fingerprint:generate --platform android`
+shows the current hash, which you can compare with the build's runtime version on expo.dev.
 
 Local Android release without EAS:
 `cd android && ./gradlew assembleRelease`. Run `npx expo prebuild -p android` first and set up a

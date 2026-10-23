@@ -3,6 +3,12 @@
     "name": "Proctavo",
     "slug": "proctavo",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d2cfd096-eda7-4d19-b00b-028203e9fc97"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "proctavo",

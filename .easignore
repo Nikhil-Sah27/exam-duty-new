@@ -1,0 +1,31 @@
+# What EAS Build uploads from this repo. Only mobile/ is an Expo project, so everything else
+# stays on this machine — db-dump.json, CREDENTIALS.md, backend/ and the rest never go to Expo.
+# EAS reads this file *instead of* .gitignore, so mobile/.gitignore's rules are repeated below.
+/*
+!/mobile
+
+# mobile/.gitignore
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env
+.env*.local
+*.tsbuildinfo
+/mobile/example
+/mobile/ios
+/mobile/android

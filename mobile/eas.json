@@ -5,17 +5,20 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": { "EXPO_PUBLIC_API_URL": "https://proctavo.com/api" }
     },
     "preview": {
+      "channel": "preview",
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": { "EXPO_PUBLIC_API_URL": "https://proctavo.com/api" }
     },
     "production": {
+      "channel": "production",
       "autoIncrement": true,
       "env": { "EXPO_PUBLIC_API_URL": "https://proctavo.com/api" }
     }

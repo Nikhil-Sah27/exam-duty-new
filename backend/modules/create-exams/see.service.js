@@ -542,8 +542,7 @@ const finalizeSEEPlan = async (data, userId) => {
     return out;
   });
 
-  // Post-commit, per created group: DCS sizing (reads back ExamRooms) and the
-  // exam_created announcement. Both are failure-isolated.
+  // Post-commit, per created group: DCS sizing (reads back ExamRooms). Failure-isolated.
   for (const { group } of results) {
     try {
       await dcsGroupService.generateDCSGroupsForExamGroup(group._id);
@@ -551,12 +550,19 @@ const finalizeSEEPlan = async (data, userId) => {
       console.error("DCS group generation failed for", group._id, err);
     }
   }
-  for (const { summary } of results) {
-    try {
-      await notifyExamPublished(summary);
-    } catch (err) {
-      console.error("exam_created notification failed for", summary._id, err);
-    }
+
+  // One exam_created announcement for the whole batch, not one per department —
+  // otherwise every teacher gets N identical "SEE · Semester X" alerts (and pushes).
+  // The date range spans every department's group.
+  try {
+    await notifyExamPublished({
+      examType: "SEE",
+      semester: semInt,
+      startDate: new Date(Math.min(...prepared.map((p) => p.startDate.getTime()))),
+      endDate: new Date(Math.max(...prepared.map((p) => p.endDate.getTime()))),
+    });
+  } catch (err) {
+    console.error("exam_created notification failed for SEE batch", semInt, err);
   }
 
   return results.map((r) => r.summary);

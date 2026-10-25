@@ -8,6 +8,17 @@ const examScheduleSchema = new mongoose.Schema(
       ref: "ExamGroup",
       required: [true, "Exam group is required"],
     },
+    // Other exam groups sitting in this same slot. SEE departments of one
+    // semester that write at the same date + time share ONE schedule (so RS
+    // chunks and DCS sizing span all their rooms) while keeping their own
+    // exam cards; `examGroup` is the owner, these are the joiners. Each
+    // ExamRoom records which group it belongs to.
+    sharedWith: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ExamGroup",
+      },
+    ],
     date: {
       type: Date,
       required: [true, "Date is required"],
@@ -27,6 +38,7 @@ const examScheduleSchema = new mongoose.Schema(
 );
 
 examScheduleSchema.index({ examGroup: 1, date: 1 });
+examScheduleSchema.index({ sharedWith: 1 });
 
 examScheduleSchema.plugin(collegeScoped); // one college's data (MULTI_COLLEGE_PLAN.md)
 

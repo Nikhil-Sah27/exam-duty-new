@@ -41,6 +41,8 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   exam_deleted_duty_release: { tone: "red", highlight: false },
   duty_cancelled: { tone: "red", highlight: false },
   duty_group_cancelled: { tone: "red", highlight: false },
+  // Rooms moved in/out of a group the teacher holds — they must re-check it.
+  duty_group_updated: { tone: "amber", highlight: true },
   duty_reminder: { tone: "amber", highlight: false },
   // Something is still needed from the teacher — make it stand out.
   duty_confirm_nudge: { tone: "amber", highlight: true },

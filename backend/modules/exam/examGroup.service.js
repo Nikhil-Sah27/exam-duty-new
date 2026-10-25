@@ -148,8 +148,7 @@ const getGroupDetails = async (id) => {
   if (!group) throw new AppError("Exam group not found", 404);
 
   const schedules = await examScheduleRepo.findByExamGroup(id);
-  const scheduleIds = schedules.map((s) => s._id);
-  const allRooms = await examRoomRepo.findBySchedules(scheduleIds);
+  const allRooms = await examRoomRepo.findForGroup(id, schedules);
 
   // Pull every plan entry for this exam group in one query and group by
   // schedule. Populating the course gives us code + name without a second
@@ -277,8 +276,7 @@ const getDutyStatus = async (id) => {
   if (!group) throw new AppError("Exam group not found", 404);
 
   const schedules = await examScheduleRepo.findByExamGroup(id);
-  const scheduleIds = schedules.map((s) => s._id);
-  const allRooms = await examRoomRepo.findBySchedules(scheduleIds);
+  const allRooms = await examRoomRepo.findForGroup(id, schedules);
 
   // Build a schedule lookup for quick date/time access
   const scheduleMap = new Map();

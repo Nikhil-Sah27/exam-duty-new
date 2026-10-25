@@ -44,7 +44,12 @@ export function RSExamDuties({ examGroupId }: { examGroupId: string }) {
   );
 
   const allGroups = useMemo(() => groupRoomsIntoRSGroups(slotsQ.data), [slotsQ.data]);
-  const examGroups = useMemo(() => allGroups.filter((g) => g.examGroupId === examGroupId), [allGroups, examGroupId]);
+  // A group on a shared SEE slot can mix departments' rooms — list it under
+  // every exam that has a room in it, not just the first room's.
+  const examGroups = useMemo(
+    () => allGroups.filter((g) => g.rooms.some((r) => r.examGroupId === examGroupId)),
+    [allGroups, examGroupId],
+  );
 
   const dayChips = useMemo(() => {
     const seen = new Map<string, string>();

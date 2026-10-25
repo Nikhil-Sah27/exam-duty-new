@@ -15,6 +15,7 @@ const {
 const { unitFilter, unitKey, groupIntoUnits, locationFor, idOf } = require("./duty.unit");
 const confirmToken = require("./duty.confirmToken");
 const { localToUtc } = require("../../shared/utils/datetime");
+const { chunkRsGroups } = require("../../shared/utils/roomOrder");
 
 /**
  * Tell CS that a teacher took or gave back work themselves. Fire-and-forget and
@@ -860,6 +861,169 @@ const countUpcomingByCollege = () => {
   return dutyRepository.countUpcomingByCollege(today);
 };
 
+// Why an RS group changed, appended to the teacher's notification.
+const RS_SYNC_REASONS = {
+  join: "Another department's exam now shares this time slot.",
+  leave: "A department's exam in this time slot was deleted.",
+};
+
+/**
+ * Re-form one schedule's RS groups after its rooms changed — another SEE
+ * department joined the time slot (`reason: "join"`) or one was deleted
+ * (`"leave"`, with `removedDuties`: the RS duties the cascade just cancelled on
+ * the deleted rooms, so their holders hear about it).
+ *
+ * RS groups are derived — every building's rooms in room-number order, chunks
+ * of 5 (shared/utils/roomOrder.js, same as the app) — so adding or removing
+ * rooms re-forms them. Each RS keeps the group that holds most of their rooms
+ * and is given the rest of it; rooms of theirs that landed in another group go
+ * to that group's RS (cancel first, then create — the one-live-duty index). An
+ * RS left without a group (fewer groups are needed now) is released. Every
+ * affected RS gets one notification: `duty_group_updated` with the rooms added
+ * and removed, or `duty_group_cancelled` when released.
+ */
+const syncRsGroupsForSchedule = async (scheduleId, { reason, removedDuties = [] } = {}) => {
+  const schedule = await examScheduleRepo.findById(scheduleId);
+  if (!schedule) return;
+  const examGroup = await examGroupRepo.findById(schedule.examGroup);
+  const chunks = chunkRsGroups(await examRoomRepo.findBySchedule(scheduleId));
+  const live = await dutyRepository.findLiveForScheduleRole(scheduleId, "rs");
+
+  const chunkOfRoom = new Map();
+  chunks.forEach((chunk, ci) => chunk.forEach((er) => chunkOfRoom.set(String(er._id), ci)));
+  const dutyByRoom = new Map(live.map((d) => [String(d.examRoom), d]));
+
+  // Owners: the RS holding most rooms of a chunk (ties → earlier chunk, then
+  // whoever claimed first — `live` is in creation order). One chunk per RS.
+  const candidates = [];
+  chunks.forEach((chunk, ci) => {
+    const counts = new Map();
+    for (const er of chunk) {
+      const d = dutyByRoom.get(String(er._id));
+      if (d) counts.set(String(d.teacher), (counts.get(String(d.teacher)) || 0) + 1);
+    }
+    for (const [teacher, count] of counts) candidates.push({ ci, teacher, count });
+  });
+  const firstSeen = new Map();
+  live.forEach((d, i) => {
+    if (!firstSeen.has(String(d.teacher))) firstSeen.set(String(d.teacher), i);
+  });
+  candidates.sort(
+    (a, b) => b.count - a.count || a.ci - b.ci || firstSeen.get(a.teacher) - firstSeen.get(b.teacher),
+  );
+  const ownerOfChunk = new Map();
+  const chunkOfOwner = new Map();
+  for (const { ci, teacher } of candidates) {
+    if (ownerOfChunk.has(ci) || chunkOfOwner.has(teacher)) continue;
+    ownerOfChunk.set(ci, teacher);
+    chunkOfOwner.set(teacher, ci);
+  }
+
+  const changes = new Map(); // teacher → { added, removed, template }
+  const changeFor = (teacher) => {
+    if (!changes.has(teacher)) changes.set(teacher, { added: [], removed: [], template: null });
+    return changes.get(teacher);
+  };
+  for (const d of live) changeFor(String(d.teacher)).template ||= d;
+  for (const d of removedDuties) {
+    if (d.role === "rs") changeFor(String(idOf(d.teacher))).removed.push(d.room);
+  }
+
+  const toCancel = [];
+  for (const d of live) {
+    const teacher = String(d.teacher);
+    if (chunkOfOwner.get(teacher) !== chunkOfRoom.get(String(d.examRoom))) {
+      toCancel.push(d._id);
+      changeFor(teacher).removed.push(d.room);
+    }
+  }
+  const toCreate = [];
+  for (const [ci, teacher] of ownerOfChunk) {
+    for (const er of chunks[ci]) {
+      const d = dutyByRoom.get(String(er._id));
+      if (d && String(d.teacher) === teacher) continue;
+      toCreate.push({ teacher, examRoom: er });
+      changeFor(teacher).added.push(er.room?.roomNumber || "");
+    }
+  }
+  const affected = [...changes].filter(([, c]) => c.added.length || c.removed.length);
+  if (affected.length === 0) return;
+
+  const slot = {
+    date: schedule.date,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    examLabel: examGroup?.examType,
+    semester: examGroup?.semester,
+  };
+  const reasonText = RS_SYNC_REASONS[reason] || null;
+
+  await withOptionalTransaction(async (session) => {
+    // Cancel before create: a room changing hands must free its slot first.
+    if (toCancel.length > 0) {
+      await dutyRepository.cancelMany(toCancel, "RS groups re-formed — room moved to another group", session);
+    }
+    const created = await dutyRepository.createMany(
+      toCreate.map(({ teacher, examRoom }) => {
+        const template = changes.get(teacher).template;
+        return {
+          exam: null,
+          examSchedule: schedule._id,
+          examRoom: examRoom._id,
+          teacher,
+          role: "rs",
+          room: examRoom.room?.roomNumber || "",
+          roomRef: examRoom.room?._id || null,
+          date: schedule.date,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          // Same standing as the rest of the group: who assigned it, and
+          // whether the teacher already confirmed it.
+          assignedBy: template?.assignedBy || teacher,
+          isSelfAssigned: template?.isSelfAssigned || false,
+          confirmedAt: template?.confirmedAt || null,
+          confirmedVia: template?.confirmedVia || null,
+        };
+      }),
+      session,
+    );
+
+    for (const [teacher, { added, removed, template }] of affected) {
+      const ci = chunkOfOwner.get(teacher);
+      if (ci === undefined) {
+        await emit("duty_group_cancelled", {
+          recipient: teacher,
+          role: "rs",
+          data: {
+            roleLabel: "RS",
+            roomCount: removed.length,
+            ...slot,
+            reason: "rooms in this time slot were regrouped and fewer RS are needed",
+          },
+          session,
+        });
+        continue;
+      }
+      const ref = created.find((d) => String(d.teacher) === teacher) || template;
+      await emit("duty_group_updated", {
+        recipient: teacher,
+        role: "rs",
+        refModel: "Duty",
+        refId: ref?._id || null,
+        data: {
+          roleLabel: "RS",
+          added: added.filter(Boolean),
+          removed: removed.filter(Boolean),
+          roomCount: chunks[ci].length,
+          ...slot,
+          reason: reasonText,
+        },
+        session,
+      });
+    }
+  });
+};
+
 module.exports = {
   countUpcomingByCollege,
   confirmDutyUnit,
@@ -880,4 +1044,5 @@ module.exports = {
   getInvigilatorsForRooms,
   cancelDuty,
   adminUnassignDutyGroup,
+  syncRsGroupsForSchedule,
 };

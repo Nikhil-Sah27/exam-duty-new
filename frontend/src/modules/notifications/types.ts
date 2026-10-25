@@ -4,6 +4,7 @@ export type NotificationType =
   | "duty_self_claimed"
   | "duty_cancelled"
   | "duty_group_cancelled"
+  | "duty_group_updated"
   | "request_submitted"
   | "request_approved"
   | "request_rejected"

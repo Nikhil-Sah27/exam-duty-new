@@ -21,7 +21,8 @@
     "test:push": "node 15-push.test.js",
     "test:user-import": "node 16-user-import.test.js",
     "test:colleges": "node 17-colleges.test.js",
-    "test:authz": "node 18-authorization.test.js"
+    "test:authz": "node 18-authorization.test.js",
+    "test:shared-sitting": "node 19-shared-sitting.test.js"
   },
   "dependencies": {
     "axios": "^1.15.0"

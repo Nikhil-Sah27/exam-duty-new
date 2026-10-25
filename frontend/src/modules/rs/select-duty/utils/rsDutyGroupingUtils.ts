@@ -7,8 +7,10 @@ import type { RSDutyGroup, RSGroupingSourceItem } from "../types";
  * persistence — groups are derived so `groups update dynamically if rooms
  * change` (per spec).
  *
- * Partition key: examGroup | schedule | date | startTime | endTime | building.
+ * Partition key: schedule | date | startTime | endTime | building.
  * Inside each partition, sort numerically by roomNumber and chunk by `size`.
+ * Not keyed by exam group: SEE departments writing at the same time share one
+ * schedule, so their rooms (listed under separate exam cards) chunk together.
  */
 
 const NUMERIC_PREFIX_RE = /^(\d+)/;
@@ -35,7 +37,6 @@ export function compareRoomNumbers(a: string, b: string): number {
 
 function partitionKey(item: RSGroupingSourceItem): string {
   return [
-    item.examGroupId,
     item.scheduleId,
     item.date,
     item.startTime,

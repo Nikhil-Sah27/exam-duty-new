@@ -21,11 +21,8 @@ const {
   calculateRequiredDCS,
   distributeClasses,
 } = require("./dcsCalculation.utils");
+const { compareRoomNumbers } = require("../../shared/utils/roomOrder");
 
-// Sort by leading-numeric portion of the room number, then by the full string
-// as a tiebreaker — same algorithm as the RS frontend grouping. Inlined here
-// because the backend has no equivalent shared util and pulling in a new
-// shared module just for this would be overkill.
 /**
  * Tell CS that a DCS took or released a group themselves. Fire-and-forget: CS
  * awareness must never fail the teacher's own action.
@@ -45,21 +42,6 @@ const notifyCsOfTeacherAction = async (type, { refId, data }) => {
   }
 };
 
-const NUMERIC_PREFIX_RE = /^(\d+)/;
-const compareRoomNumbers = (a, b) => {
-  const am = a.match(NUMERIC_PREFIX_RE);
-  const bm = b.match(NUMERIC_PREFIX_RE);
-  if (am && bm) {
-    const an = Number(am[1]);
-    const bn = Number(bm[1]);
-    if (an !== bn) return an - bn;
-  } else if (am) {
-    return -1;
-  } else if (bm) {
-    return 1;
-  }
-  return a.localeCompare(b);
-};
 
 // ──────────────────────────────────────────────────────────────
 // Student-count resolution
@@ -104,92 +86,290 @@ const resolveStudentCount = async (examRooms, semesterNumber) => {
 };
 
 // ──────────────────────────────────────────────────────────────
-// Group generation (called from cie/see finalize)
+// Group sizing (called from cie/see finalize and exam deletion)
 // ──────────────────────────────────────────────────────────────
 
-const generateGroupsForSchedule = async (
-  schedule,
-  examGroup,
-  examRooms,
-  session
-) => {
-  // Sort rooms numerically so distribution is deterministic and chunk-1 owns
-  // the lowest-numbered classrooms (matches the printed seating plan order).
-  const sortedRooms = [...examRooms].sort((a, b) =>
-    compareRoomNumbers(
-      a.room?.roomNumber || "",
-      b.room?.roomNumber || ""
-    )
-  );
+// Parks re-used groups above any real index while they're renumbered, so the
+// unique { schedule, groupIndex } index never sees two at once.
+const TEMP_INDEX_BASE = 100000;
 
-  const { total: totalStudents } = await resolveStudentCount(
-    sortedRooms,
-    examGroup.semester
-  );
+// Why a held group changed, appended to the teacher's notification.
+const SYNC_REASONS = {
+  join: "Another department's exam now shares this time slot.",
+  leave: "A department's exam in this time slot was deleted.",
+};
 
-  // Fall back to "1 DCS" when student data is missing but there are rooms to
-  // staff — we never want a schedule with rooms and zero DCS slots.
-  let dcsRequired = calculateRequiredDCS(totalStudents);
-  if (dcsRequired === 0 && sortedRooms.length > 0) dcsRequired = 1;
-  if (dcsRequired === 0) return [];
-
-  const buckets = distributeClasses(sortedRooms, dcsRequired);
-
-  const docs = buckets.map((bucket, i) => {
-    const deptSet = new Set();
-    for (const room of bucket) {
-      for (const code of room.departments || []) {
-        deptSet.add(String(code).toUpperCase());
-      }
+// Hand `count` rooms out one at a time to whichever group is smallest (ties →
+// earlier group), so sizes stay balanced. Returns how many each group gets.
+const fillQuotas = (sizes, count) => {
+  const quotas = sizes.map(() => 0);
+  for (let k = 0; k < count; k++) {
+    let best = 0;
+    for (let i = 1; i < sizes.length; i++) {
+      if (sizes[i] + quotas[i] < sizes[best] + quotas[best]) best = i;
     }
-    // Per-group student count is best-effort: total split evenly by base+rem.
-    // Exact per-room counts aren't stored anywhere on ExamRoom, so we attribute
-    // proportionally to room count within the schedule.
-    const perGroupStudents =
-      sortedRooms.length > 0
-        ? Math.round((totalStudents * bucket.length) / sortedRooms.length)
-        : 0;
-
-    return {
-      examGroup: examGroup._id,
-      schedule: schedule._id,
-      groupIndex: i + 1,
-      dcsRequired,
-      assignedRooms: bucket.map((r) => r._id),
-      assignedDepartments: [...deptSet].sort(),
-      assignedStudents: perGroupStudents,
-      assignedTeacher: null,
-      status: "open",
-    };
-  });
-
-  return dcsGroupRepository.insertMany(docs, session);
+    quotas[best] += 1;
+  }
+  return quotas;
 };
 
 /**
- * Public entry point: called once at exam-creation time, after ExamRooms have
- * been written. Walks every schedule in the new ExamGroup and lays down a
- * DCSGroup row per chunk. Idempotent within a transaction — caller is expected
- * to invoke this exactly once per group.
+ * Size one schedule's DCS groups to the rooms and students it has NOW:
+ * N = ceil(students / 300) across every department in the slot. Runs when a
+ * schedule is created, when another department joins a shared SEE slot
+ * (`reason: "join"`), and when one leaves it (`reason: "leave"`), so
+ * 6 departments × 60 students in 12 rooms get 2 DCS whether they were created
+ * together or one at a time.
+ *
+ * - Nobody holds a group yet: the groups are laid out from scratch, exactly as
+ *   if every department had been created together.
+ * - Some are held: a held group keeps its rooms (minus deleted ones) and the
+ *   rest are topped up, smallest group first, across max(N, held) groups — so
+ *   new rooms go INTO the held groups rather than needing more DCS. The holder
+ *   gets a duty for each added room and one `duty_group_updated` notification
+ *   (in-app, email, push) listing what was added and removed. A held group left
+ *   with no rooms is released and its holder told.
+ *
+ * Open groups are updated in place rather than recreated, so change requests
+ * that point at them stay valid. All writes and notifications share one
+ * transaction.
  */
-const generateDCSGroupsForExamGroup = async (examGroupId, session) => {
+const syncGroupsForSchedule = async (scheduleId, { reason } = {}) => {
+  const schedule = await examScheduleRepository.findById(scheduleId);
+  if (!schedule) return [];
+  const examGroup = await examGroupRepository.findById(schedule.examGroup);
+  if (!examGroup) return [];
+
+  // Sort rooms numerically so distribution is deterministic and group 1 owns
+  // the lowest-numbered classrooms (matches the printed seating plan order).
+  const examRooms = (await examRoomRepository.findBySchedule(scheduleId)).sort((a, b) =>
+    compareRoomNumbers(a.room?.roomNumber || "", b.room?.roomNumber || "")
+  );
+  const roomById = new Map(examRooms.map((r) => [String(r._id), r]));
+  const existing = await dcsGroupRepository.findRawBySchedule(scheduleId);
+
+  const held = [];
+  const reusable = [];
+  const emptied = [];
+  for (const g of existing) {
+    const rooms = (g.assignedRooms || []).filter((id) => roomById.has(String(id)));
+    if (g.status === "claimed" && rooms.length > 0) held.push({ doc: g, rooms });
+    else {
+      if (g.status === "claimed") emptied.push(g);
+      reusable.push(g);
+    }
+  }
+  reusable.sort((a, b) => a.groupIndex - b.groupIndex);
+
+  const { total: totalStudents } = await resolveStudentCount(examRooms, examGroup.semester);
+  // Fall back to "1 DCS" when student data is missing but there are rooms to
+  // staff — we never want a schedule with rooms and zero DCS slots.
+  let required = calculateRequiredDCS(totalStudents);
+  if (required === 0 && examRooms.length > 0) required = 1;
+
+  // ---- Plan: every group's final rooms, held groups first by index ----
+  const heldIndices = new Set(held.map((h) => h.doc.groupIndex));
+  const openCount = held.length === 0 ? required : Math.max(required, held.length) - held.length;
+  const freeIndices = [];
+  for (let i = 1; freeIndices.length < openCount; i++) {
+    if (!heldIndices.has(i)) freeIndices.push(i);
+  }
+  const plan = [
+    ...held.map((h) => ({ held: h, groupIndex: h.doc.groupIndex, rooms: h.rooms, added: [] })),
+    ...freeIndices.map((groupIndex) => ({ held: null, groupIndex, rooms: [], added: [] })),
+  ].sort((a, b) => a.groupIndex - b.groupIndex);
+
+  if (held.length === 0) {
+    const buckets = distributeClasses(examRooms, plan.length);
+    plan.forEach((p, i) => {
+      p.rooms = buckets[i].map((r) => r._id);
+    });
+  } else {
+    const covered = new Set(held.flatMap((h) => h.rooms.map(String)));
+    const pool = examRooms.filter((r) => !covered.has(String(r._id)));
+    const quotas = fillQuotas(plan.map((p) => p.rooms.length), pool.length);
+    let cursor = 0;
+    plan.forEach((p, i) => {
+      p.added = pool.slice(cursor, cursor + quotas[i]);
+      p.rooms = [...p.rooms, ...p.added.map((r) => r._id)];
+      cursor += quotas[i];
+    });
+  }
+
+  const total = plan.length;
+  // Per-group student count is best-effort: total split by room count, since
+  // exact per-room counts aren't stored anywhere on ExamRoom.
+  const describe = (roomIds) => {
+    const deptSet = new Set();
+    for (const id of roomIds) {
+      for (const code of roomById.get(String(id))?.departments || []) {
+        deptSet.add(String(code).toUpperCase());
+      }
+    }
+    return {
+      dcsRequired: total,
+      assignedRooms: roomIds,
+      assignedDepartments: [...deptSet].sort(),
+      assignedStudents: examRooms.length
+        ? Math.round((totalStudents * roomIds.length) / examRooms.length)
+        : 0,
+    };
+  };
+  const slot = {
+    date: schedule.date,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    examLabel: examGroup.examType,
+    semester: examGroup.semester,
+  };
+  const reasonText = SYNC_REASONS[reason] || null;
+
+  await withOptionalTransaction(async (session) => {
+    const opt = session ? { session } : {};
+
+    // A held group whose every room was deleted: back to open, holder told.
+    for (const g of emptied) {
+      await dcsGroupRepository.updateIfStatus(
+        g._id,
+        "claimed",
+        { assignedTeacher: null, status: "open", duties: [] },
+        session
+      );
+      if (g.assignedTeacher) {
+        await emit("duty_group_cancelled", {
+          recipient: g.assignedTeacher,
+          role: "dcs",
+          data: {
+            roleLabel: "DCS",
+            roomCount: (g.assignedRooms || []).length,
+            ...slot,
+            reason: "the exam for its rooms was deleted",
+          },
+          session,
+        });
+      }
+      g.status = "open";
+    }
+
+    const openPlan = plan.filter((p) => !p.held);
+    const reused = reusable.slice(0, openPlan.length);
+    const surplus = reusable.slice(openPlan.length);
+    if (surplus.length > 0) {
+      await dcsGroupRepository.deleteOpenByIds(surplus.map((g) => g._id), session);
+    }
+    for (let i = 0; i < reused.length; i++) {
+      await dcsGroupRepository.updateIfStatus(
+        reused[i]._id,
+        reused[i].status,
+        { groupIndex: TEMP_INDEX_BASE + i },
+        session
+      );
+    }
+
+    // Held groups: duties for added rooms, drop deleted ones, tell the holder.
+    for (const p of plan.filter((x) => x.held)) {
+      const { doc } = p.held;
+      const groupDuties = await Duty.find({ _id: { $in: doc.duties || [] } }, null, opt);
+      const liveRoomIds = new Set(p.rooms.map(String));
+      // Duties on rooms that no longer exist (cancelled by the deletion
+      // cascade). They leave `duties` below, so a later sync won't re-report them.
+      const removed = groupDuties
+        .filter((d) => !liveRoomIds.has(String(d.examRoom)))
+        .map((d) => d.room)
+        .filter(Boolean);
+      const template = groupDuties.find((d) => d.status === "assigned");
+
+      let created = [];
+      if (p.added.length > 0) {
+        created = await dutyRepository.createMany(
+          p.added.map((examRoom) => ({
+            exam: null,
+            examSchedule: schedule._id,
+            examRoom: examRoom._id,
+            teacher: doc.assignedTeacher,
+            role: "dcs",
+            room: examRoom.room?.roomNumber || "",
+            roomRef: examRoom.room?._id || null,
+            date: schedule.date,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            // Same standing as the rest of the group: who assigned it, and
+            // whether the teacher already confirmed it.
+            assignedBy: template?.assignedBy || doc.assignedTeacher,
+            isSelfAssigned: template?.isSelfAssigned || false,
+            confirmedAt: template?.confirmedAt || null,
+            confirmedVia: template?.confirmedVia || null,
+          })),
+          session
+        );
+      }
+
+      const keptDuties = groupDuties
+        .filter((d) => d.status === "assigned" && liveRoomIds.has(String(d.examRoom)))
+        .map((d) => d._id);
+      await dcsGroupRepository.updateIfStatus(
+        doc._id,
+        "claimed",
+        { ...describe(p.rooms), duties: [...keptDuties, ...created.map((d) => d._id)] },
+        session
+      );
+
+      const added = p.added.map((r) => r.room?.roomNumber).filter(Boolean);
+      if (added.length > 0 || removed.length > 0) {
+        await emit("duty_group_updated", {
+          recipient: doc.assignedTeacher,
+          role: "dcs",
+          refModel: "Duty",
+          refId: keptDuties[0] || created[0]?._id || null,
+          data: {
+            roleLabel: "DCS",
+            added,
+            removed,
+            roomCount: p.rooms.length,
+            ...slot,
+            reason: reasonText,
+          },
+          session,
+        });
+      }
+    }
+
+    // Open groups: re-use existing docs (renumbered), insert the rest.
+    const fresh = [];
+    openPlan.forEach((p, i) => {
+      p.fields = {
+        ...describe(p.rooms),
+        groupIndex: p.groupIndex,
+        assignedTeacher: null,
+        status: "open",
+        duties: [],
+      };
+      if (i >= reused.length) {
+        fresh.push({ ...p.fields, examGroup: schedule.examGroup, schedule: schedule._id });
+      }
+    });
+    for (let i = 0; i < reused.length; i++) {
+      await dcsGroupRepository.updateIfStatus(reused[i]._id, reused[i].status, openPlan[i].fields, session);
+    }
+    if (fresh.length > 0) await dcsGroupRepository.insertMany(fresh, session);
+  });
+
+  return dcsGroupRepository.findRawBySchedule(scheduleId);
+};
+
+/**
+ * Public entry point: called at exam-creation time, after ExamRooms have been
+ * written. Sizes the DCS groups of every schedule the ExamGroup sits in —
+ * including shared slots, which re-size to cover the new rooms too.
+ */
+const generateDCSGroupsForExamGroup = async (examGroupId) => {
   const examGroup = await examGroupRepository.findById(examGroupId);
   if (!examGroup) throw new AppError("Exam group not found", 404);
 
   const schedules = await examScheduleRepository.findByExamGroup(examGroupId);
-  if (schedules.length === 0) return [];
-
   const allGroups = [];
   for (const schedule of schedules) {
-    const examRooms = await examRoomRepository.findBySchedule(schedule._id);
-    if (examRooms.length === 0) continue;
-    const created = await generateGroupsForSchedule(
-      schedule,
-      examGroup,
-      examRooms,
-      session
-    );
-    allGroups.push(...created);
+    allGroups.push(...(await syncGroupsForSchedule(schedule._id)));
   }
   return allGroups;
 };
@@ -200,7 +380,15 @@ const generateDCSGroupsForExamGroup = async (examGroupId, session) => {
 
 const listGroups = async (query = {}) => {
   const filter = {};
-  if (query.examGroup) filter.examGroup = query.examGroup;
+  if (query.examGroup) {
+    // A department that joined a shared SEE slot doesn't own its DCS groups
+    // (the slot's owner does), so match by the schedules the group sits in too.
+    const schedules = await examScheduleRepository.findByExamGroup(query.examGroup);
+    filter.$or = [
+      { examGroup: query.examGroup },
+      { schedule: { $in: schedules.map((s) => s._id) } },
+    ];
+  }
   if (query.schedule) filter.schedule = query.schedule;
   if (query.status) filter.status = query.status;
   // CS views a specific teacher's claimed groups (Manage Duties) by filtering
@@ -551,6 +739,7 @@ module.exports = {
   distributeClasses,
   // Lifecycle
   generateDCSGroupsForExamGroup,
+  syncGroupsForSchedule,
   resolveStudentCount,
   // Read
   listGroups,

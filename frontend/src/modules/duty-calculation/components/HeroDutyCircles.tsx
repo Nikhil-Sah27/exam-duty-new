@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
 import { CheckCircle2, ClipboardList, Hourglass, Info, Loader2 } from "lucide-react";
 import type { TeacherDutyProgress } from "../types";
+import { dutyUnitFor, selectionStatus } from "../utils/progressCopy";
 
 /**
  * Presentational duty-status widget for `DashboardHero`'s right slot. Shared by
@@ -11,7 +12,8 @@ import type { TeacherDutyProgress } from "../types";
  *
  * Translucent glass styling (bg-white/15 + backdrop-blur) reads well over any
  * role's hero gradient. Three circles, in product order:
- * Completed → Remaining → Assigned.
+ * Completed → Remaining → Target, then the selection status line. The mobile
+ * Home card (DutyProgressSummary) shows the same numbers with the same words.
  */
 export interface HeroDutyCirclesProps {
   data: TeacherDutyProgress | undefined;
@@ -56,25 +58,30 @@ export default function HeroDutyCircles({
   }
 
   return (
-    <div className="flex items-end gap-4">
-      <HeroStatCircle
-        tone="completed"
-        label="Completed"
-        value={data.completed}
-        icon={CheckCircle2}
-      />
-      <HeroStatCircle
-        tone="remaining"
-        label="Remaining"
-        value={data.remaining}
-        icon={Hourglass}
-      />
-      <HeroStatCircle
-        tone="assigned"
-        label="Assigned"
-        value={data.target}
-        icon={ClipboardList}
-      />
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex items-end gap-4">
+        <HeroStatCircle
+          tone="completed"
+          label="Completed"
+          value={data.completed}
+          icon={CheckCircle2}
+        />
+        <HeroStatCircle
+          tone="remaining"
+          label="Remaining"
+          value={data.remaining}
+          icon={Hourglass}
+        />
+        <HeroStatCircle
+          tone="assigned"
+          label="Target"
+          value={data.target}
+          icon={ClipboardList}
+        />
+      </div>
+      <span className="text-xs font-semibold text-white/90 drop-shadow">
+        {selectionStatus(data, dutyUnitFor(data.role))}
+      </span>
     </div>
   );
 }

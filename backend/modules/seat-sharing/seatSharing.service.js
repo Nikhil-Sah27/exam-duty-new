@@ -116,7 +116,7 @@ const findShareableRoomsForSlots = async ({
       roomCapacity: room.room.capacity,
       remainingSeats: config.remainingSeats,
       initialShareableSeats: config.initialShareableSeats,
-      sourceExamGroupId: String(sched.examGroup._id),
+      sourceExamGroupId: String(room.examGroup || sched.examGroup._id),
       sourceExamType: sched.examGroup.examType,
       sourceSemester: sched.examGroup.semester,
       sourceDepartmentCodes: room.departments || [],
@@ -183,7 +183,8 @@ const markRoomShareable = async ({
   return repo.upsertConfig(
     {
       examRoom: examRoomId,
-      sourceExamGroup: schedule.examGroup,
+      // On a shared slot the room's own group is the source, not the owner.
+      sourceExamGroup: examRoom.examGroup || schedule.examGroup,
       sourceSchedule: schedule._id,
       sourceDepartmentCode,
       shareable: true,

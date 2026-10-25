@@ -1,4 +1,5 @@
 const ExamRoom = require("./examRoom.model");
+const { ownershipFilter } = require("./examRoomOwnership.utils");
 
 const POPULATE_FIELDS = [
   {
@@ -18,6 +19,13 @@ const findBySchedule = (scheduleId) => {
 
 const findBySchedules = (scheduleIds) => {
   return ExamRoom.find({ schedule: { $in: scheduleIds } }).populate(POPULATE_FIELDS);
+};
+
+// One exam group's rooms out of the schedules it sits in (a shared slot holds
+// other departments' rooms too).
+const findForGroup = (examGroupId, schedules) => {
+  if (schedules.length === 0) return Promise.resolve([]);
+  return ExamRoom.find(ownershipFilter(examGroupId, schedules)).populate(POPULATE_FIELDS);
 };
 
 const findById = (id) => {
@@ -44,6 +52,7 @@ module.exports = {
   create,
   findBySchedule,
   findBySchedules,
+  findForGroup,
   findById,
   findManyByIds,
   deleteById,

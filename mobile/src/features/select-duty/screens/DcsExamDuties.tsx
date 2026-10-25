@@ -56,7 +56,14 @@ export function DcsExamDuties({ examGroupId }: { examGroupId: string }) {
   );
   const ordinalMap = useMemo(() => buildDcsGroupOrdinalMap(allGroups), [allGroups]);
   const examGroups = useMemo(
-    () => buildDcsGroups(allGroups.filter((g) => g.examGroup?._id === examGroupId)),
+    // A shared SEE slot's DCS groups belong to its owner exam; the departments
+    // that joined the slot list it under their own exam too.
+    () =>
+      buildDcsGroups(
+        allGroups.filter(
+          (g) => g.examGroup?._id === examGroupId || g.schedule.sharedWith?.includes(examGroupId),
+        ),
+      ),
     [allGroups, examGroupId],
   );
 

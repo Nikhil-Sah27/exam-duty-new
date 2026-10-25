@@ -1076,8 +1076,7 @@ const getAvailableReplacements = async (dutyId, userId) => {
 
   for (const group of upcomingGroups) {
     const schedules = await examScheduleRepo.findByExamGroup(group._id);
-    const scheduleIds = schedules.map((s) => s._id);
-    const rooms = await examRoomRepo.findBySchedules(scheduleIds);
+    const rooms = await examRoomRepo.findForGroup(group._id, schedules);
 
     // Quick lookup: scheduleId -> [examRoom]
     const roomsBySchedule = new Map();

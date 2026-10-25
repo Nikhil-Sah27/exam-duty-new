@@ -53,11 +53,11 @@ const RS_ROOMS_PER_GROUP = 5;
 
 // ---------- DCS (Deputy Chief Superintendent) duty constants ----------
 //
-// DCS is a group role handled only by HOD/Dean. Each semester's DCS duties =
-// courses × examTypes × ceil(students / 300) — one DCS per exam sitting (≤300
-// students), ceiled per sitting — summed across semesters and departments, then
-// split evenly across the HOD/Dean pool (no 70/30 weighting — a single
-// designation).
+// DCS is a group role handled only by HOD/Dean. The total is the real DCSGroup
+// count for semesters whose SEE exists, plus the estimate
+// courses × examTypes × ceil(students / 300) for the rest (see
+// calculateDcsInstitutionDuty), split evenly across the HOD/Dean pool (no 70/30
+// weighting — a single designation).
 const DCS_ELIGIBLE_DESIGNATIONS = ["HOD/Dean"];
 const DCS_STUDENTS_PER_DUTY = 300;
 
@@ -532,6 +532,8 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
     options.assigned ?? (await countActiveDutiesForTeacher(teacherId));
   const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
+  // Still to pick: what web and mobile show beside "target reached".
+  const toSelect = Math.max(0, target - assigned);
   const percentage =
     target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
 
@@ -549,6 +551,7 @@ const calculateTeacherProgress = async (teacherId, options = {}) => {
     assigned,
     reached,
     remaining,
+    toSelect,
     percentage,
     breakdown: {
       totalDuties: perInvigilator.totalDuties,
@@ -642,6 +645,8 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
     options.assigned ?? (await countActiveRsGroupsForTeacher(teacherId));
   const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
+  // Still to pick: what web and mobile show beside "target reached".
+  const toSelect = Math.max(0, target - assigned);
   const percentage =
     target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
 
@@ -659,6 +664,7 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
     assigned,
     reached,
     remaining,
+    toSelect,
     percentage,
     breakdown: {
       totalDuties: perRs.totalDuties,
@@ -676,35 +682,60 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
 // ---------- DCS (Deputy Chief Superintendent) target + progress ----------
 
 /**
- * Institution-wide DCS duty total. Reuses the invigilator institution walk —
- * every semester breakdown already carries (courses, students, examTypes) — and
- * re-divides by 300 (the DCS-per-student divisor) instead of the average room
- * capacity.
+ * Total DCS duties to split across the HOD/Dean pool.
  *
- * One DCS supervises one exam sitting (≤300 students). Each course exam is a
- * separate sitting on its own day, so we ceil PER sitting and multiply by the
- * number of sittings — matching how `DCSGroup` docs are actually created
- * (ceil(students/300) per exam schedule). Rounding once on the lumped total
- * would drop the whole supervisor every sitting still needs and under-count.
+ * One DCS supervises ≤300 students of one sitting. Departments of a semester
+ * that write their SEE at the same time share a sitting (and its DCS groups —
+ * see see.service findSharedSitting), so the per-department estimate below
+ * over-counts them: 6 departments × 60 students need 2 DCS, not 6. Hence:
  *
- *   Semester DCS duties = courses × examTypes × ceil(students / 300)
- *   Total               = Σ over every semester of every active department
+ *   - (department, semester) pairs whose SEE is already created count the real
+ *     DCSGroups — each group once, however many departments share it;
+ *   - pairs not scheduled yet keep the planning estimate,
+ *       courses × examTypes × ceil(students / 300)
+ *     so targets exist before any SEE is created.
+ *
+ * Targets therefore firm up (usually drop) as SEE exams are created. Real
+ * groups are counted all-time, like the claimed groups a teacher's progress
+ * counts against them.
  */
 const calculateDcsInstitutionDuty = async (options = {}) => {
   const institution = options.institution || (await calculateInstitutionDuty());
 
-  let total = 0;
+  // A DCSGroup of a cancelled exam has a null examGroup (pre-find hook) — the
+  // deletion cascade removes those anyway.
+  const seeGroups = (
+    await DCSGroup.find({ examType: "SEE" })
+      .select("assignedDepartments examGroup")
+      .populate({ path: "examGroup", select: "semester" })
+  ).filter((g) => g.examGroup);
+
+  const scheduled = new Set();
+  for (const g of seeGroups) {
+    for (const code of g.assignedDepartments || []) {
+      scheduled.add(`${String(code).toUpperCase()}|${g.examGroup.semester}`);
+    }
+  }
+
+  let estimated = 0;
   for (const dept of institution.departments) {
     for (const sem of dept.semesters) {
+      const semNumber = Number(String(sem.semesterName).match(/\d+/)?.[0]);
+      if (scheduled.has(`${String(dept.code).toUpperCase()}|${semNumber}`)) continue;
       const b = sem.breakdown || {};
       if (b.courses > 0 && b.students > 0 && b.examTypes > 0) {
         const dcsPerSitting = Math.ceil(b.students / DCS_STUDENTS_PER_DUTY);
-        total += b.courses * b.examTypes * dcsPerSitting;
+        estimated += b.courses * b.examTypes * dcsPerSitting;
       }
     }
   }
 
-  return { total, avgClassroomCapacity: institution.avgClassroomCapacity };
+  return {
+    total: seeGroups.length + estimated,
+    scheduled: seeGroups.length,
+    estimated,
+    avgClassroomCapacity: institution.avgClassroomCapacity,
+  };
 };
 
 const countDcsEligibleTeachers = () =>
@@ -795,6 +826,8 @@ const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
     options.assigned ?? (await countActiveDcsGroupsForTeacher(teacherId));
   const reached = target > 0 && assigned >= target;
   const remaining = Math.max(0, target - completed);
+  // Still to pick: what web and mobile show beside "target reached".
+  const toSelect = Math.max(0, target - assigned);
   const percentage =
     target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;
 
@@ -812,6 +845,7 @@ const calculateDcsTeacherProgress = async (teacherId, options = {}) => {
     assigned,
     reached,
     remaining,
+    toSelect,
     percentage,
     breakdown: {
       totalDuties: perDcs.totalDuties,

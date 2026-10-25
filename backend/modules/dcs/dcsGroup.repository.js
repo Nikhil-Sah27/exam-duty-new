@@ -2,7 +2,7 @@ const DCSGroup = require("./dcsGroup.model");
 
 const POPULATE = [
   { path: "examGroup", select: "examType semester startDate endDate" },
-  { path: "schedule", select: "date startTime endTime examGroup" },
+  { path: "schedule", select: "date startTime endTime examGroup sharedWith" },
   {
     path: "assignedRooms",
     select: "room departments schedule",
@@ -56,6 +56,31 @@ const claimIfOpen = (id, teacherId, session) =>
     session ? { session } : {}
   ).then((res) => res.matchedCount === 1);
 
+// Unpopulated rows for re-sizing a schedule's groups (syncGroupsForSchedule).
+const findRawBySchedule = (scheduleId, session) =>
+  DCSGroup.find({ schedule: scheduleId }).session(session || null);
+
+// Optimistic write: applies only while the group is still in `status`, so a
+// concurrent claim always wins over a re-size. Resolves true when applied.
+const updateIfStatus = (id, status, data, session) =>
+  DCSGroup.updateOne({ _id: id, status }, data, session ? { session } : {}).then(
+    (res) => res.matchedCount === 1
+  );
+
+const deleteOpenByIds = (ids, session) =>
+  DCSGroup.deleteMany(
+    { _id: { $in: ids }, status: { $ne: "claimed" } },
+    session ? { session } : {}
+  );
+
+// A shared slot's owner left: its DCS groups follow the slot to the new owner.
+const reassignExamGroupForSchedules = (scheduleIds, examGroupId, session) =>
+  DCSGroup.updateMany(
+    { schedule: { $in: scheduleIds } },
+    { examGroup: examGroupId },
+    session ? { session } : {}
+  );
+
 const deleteBySchedules = (scheduleIds, session) =>
   DCSGroup.deleteMany(
     { schedule: { $in: scheduleIds } },
@@ -76,6 +101,10 @@ module.exports = {
   findByTeacher,
   findByDuty,
   findBySchedule,
+  findRawBySchedule,
+  updateIfStatus,
+  deleteOpenByIds,
+  reassignExamGroupForSchedules,
   findByExamGroup,
   findByExamGroups,
   updateById,

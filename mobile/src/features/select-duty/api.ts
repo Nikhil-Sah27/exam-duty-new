@@ -55,7 +55,10 @@ export interface DutyProgress {
   completed: number;
   assigned: number;
   reached: boolean;
+  /** target − completed: still to *complete*. */
   remaining: number;
+  /** target − assigned: still to *select*; 0 once `reached`. */
+  toSelect: number;
   percentage: number;
 }
 

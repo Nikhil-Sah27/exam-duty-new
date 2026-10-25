@@ -43,6 +43,8 @@ export interface DcsGroup {
     startTime: string;
     endTime: string;
     examGroup: string;
+    /** Other exam groups sharing this SEE slot (same semester, same time). */
+    sharedWith?: string[];
   };
   groupIndex: number;
   dcsRequired: number;

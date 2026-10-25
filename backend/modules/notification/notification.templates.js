@@ -136,6 +136,23 @@ const templates = {
     };
   },
 
+  // Rooms moved in or out of a group the teacher already holds — another
+  // department's exam joined their SEE time slot, or one was deleted. Once per
+  // teacher per group, listing what changed.
+  duty_group_updated: ({ roleLabel, added = [], removed = [], roomCount, date, startTime, endTime, reason }) => {
+    const list = (rooms) => `${rooms.length === 1 ? "room" : "rooms"} ${rooms.join(", ")}`;
+    const changes = [
+      added.length ? `${list(added)} added` : null,
+      removed.length ? `${list(removed)} removed` : null,
+    ].filter(Boolean);
+    return {
+      title: "Duty Group Updated",
+      message: `Your ${roleLabel} group on ${formatDate(date)} (${startTime}–${endTime}) changed: ${changes.join("; ")}. You now supervise ${roomCount} room${
+        roomCount === 1 ? "" : "s"
+      }.${reason ? ` ${reason}` : ""}`,
+    };
+  },
+
   request_submitted: ({ type, date, by }) => ({
     title: "New Change Request",
     message: `${by || "A teacher"} requested a ${type} for their duty on ${formatDate(date)}. Review and approve it.`,

@@ -18,6 +18,8 @@ const ExamSchedule = require("../../exam/examSchedule.model");
 const ExamRoom = require("../../exam/examRoom.model");
 const Exam = require("../../exam/exam.model");
 const dcsGroupRepository = require("../../dcs/dcsGroup.repository");
+const dcsGroupService = require("../../dcs/dcsGroup.service");
+const dutyService = require("../../duty/duty.service");
 
 const { releaseDuties } = require("./dutyReleaseService");
 const { notifyReleasedDuties } = require("./notificationCleanupService");
@@ -33,6 +35,23 @@ const {
   getCascadeScopeForExam,
 } = require("../utils/scheduleReleaseUtils");
 const { buildRoomLabel } = require("../utils/examCleanupUtils");
+
+// The leaving group's shared slots stay for the departments still in them: a
+// joiner just drops out of `sharedWith`; an owner hands the slot — and its DCS
+// groups — to the next department in line. Its own rooms are deleted by the
+// cascade like any other.
+const leaveSharedSchedules = async (groupId, sharedSchedules, session) => {
+  const opt = session ? { session } : {};
+  for (const s of sharedSchedules) {
+    if (String(s.examGroup) === String(groupId)) {
+      const [next, ...rest] = s.sharedWith;
+      await ExamSchedule.updateOne({ _id: s._id }, { examGroup: next, sharedWith: rest }, opt);
+      await dcsGroupRepository.reassignExamGroupForSchedules([s._id], next, session);
+    } else {
+      await ExamSchedule.updateOne({ _id: s._id }, { $pull: { sharedWith: groupId } }, opt);
+    }
+  }
+};
 
 const summarizeCascade = (duties) => {
   // First-seen wins for the teacher's display name + role.
@@ -78,6 +97,8 @@ const runCascade = async ({
   ipAddress,
   finalize, // (session) => Promise — runs after release/notify, inside the txn
   details = {},
+  // Released duties that get the per-duty "exam deleted" notice. Defaults to all.
+  notifyDuties = scope.duties,
 }) => {
   return withOptionalTransaction(async (session) => {
     const dutyIds = scope.duties.map((d) => d._id);
@@ -91,7 +112,7 @@ const runCascade = async ({
 
     // Notifications go inside the transaction — if they fail, the entire
     // cascade rolls back. Per the spec: never leave partial state.
-    await notifyReleasedDuties(scope.duties, { session });
+    await notifyReleasedDuties(notifyDuties, { session });
 
     // Finalize: actual deletion of the entity (and its substructure).
     // This runs after release/notify so foreign-key-ish references stay
@@ -138,8 +159,17 @@ const deleteExamGroupWithCleanup = async (
 
   const scope = await getCascadeScopeForGroup(groupId);
 
-  return runCascade({
+  // RS/DCS holders in a shared slot that survives keep their group, minus this
+  // department's rooms; the regrouping below tells them exactly what changed,
+  // instead of a per-room "duty cancelled" for a duty they still mostly hold.
+  const sharedIds = new Set(scope.sharedSchedules.map((s) => String(s._id)));
+  const onSurvivingGroup = (d) =>
+    (d.role === "rs" || d.role === "dcs") &&
+    sharedIds.has(String(d.examSchedule?._id || d.examSchedule));
+
+  const summary = await runCascade({
     scope,
+    notifyDuties: scope.duties.filter((d) => !onSurvivingGroup(d)),
     entity: "ExamGroup",
     entityId: groupId,
     actorId,
@@ -163,6 +193,10 @@ const deleteExamGroupWithCleanup = async (
         sourceExamGroupId: groupId,
         session,
       });
+
+      // Shared SEE slots outlive this department: hand them over first, so the
+      // DCS groups that follow the slot survive the delete below.
+      await leaveSharedSchedules(groupId, scope.sharedSchedules, session);
 
       // DCS groups belong to the exam-group lifecycle — drop them alongside
       // schedules/rooms. Any duties they generated were already released by
@@ -188,6 +222,30 @@ const deleteExamGroupWithCleanup = async (
       );
     },
   });
+
+  // Post-commit, like exam creation: the departments left in each shared slot
+  // get their DCS and RS groups re-formed without this department's rooms, and
+  // every holder is told what was removed (or added). Failure-isolated — the
+  // delete itself already succeeded.
+  for (const s of scope.sharedSchedules) {
+    try {
+      await dcsGroupService.syncGroupsForSchedule(s._id, { reason: "leave" });
+    } catch (err) {
+      console.error("DCS group sizing failed for schedule", s._id, err);
+    }
+    try {
+      await dutyService.syncRsGroupsForSchedule(s._id, {
+        reason: "leave",
+        removedDuties: scope.duties.filter(
+          (d) => d.role === "rs" && String(d.examSchedule?._id || d.examSchedule) === String(s._id),
+        ),
+      });
+    } catch (err) {
+      console.error("RS regrouping failed for schedule", s._id, err);
+    }
+  }
+
+  return summary;
 };
 
 const deleteScheduleWithCleanup = async (

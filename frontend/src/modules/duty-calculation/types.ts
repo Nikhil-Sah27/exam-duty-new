@@ -41,7 +41,10 @@ export interface TeacherDutyProgress {
   assigned: number;
   /** True once `assigned >= target` (and target > 0) — CS assignment is blocked. */
   reached: boolean;
+  /** target − completed: still to *complete*. */
   remaining: number;
+  /** target − assigned: still to *select*; 0 once `reached`. */
+  toSelect: number;
   percentage: number;
   breakdown: DutyCalculationBreakdown;
 }

@@ -2,12 +2,15 @@ import { View } from "react-native";
 
 import { Card, Text } from "@/components/ui";
 import { useMyProgress } from "@/features/select-duty/hooks/queries";
+import { dutyUnitFor, selectionStatus } from "./progressCopy";
 import type { TeacherRole } from "@/lib/types";
 import { radius, roleColors, spacing, useTheme } from "@/theme";
 
 /**
- * Home-screen duty tally for the active role — Total (target), Completed
- * (past), Remaining (target − completed). Works for every teacher role:
+ * Home-screen duty tally for the active role — Completed (past), Remaining
+ * (target − completed), Target, then the selection status line: the same
+ * numbers, order and words as the web dashboard's HeroDutyCircles, all straight
+ * from the backend progress endpoint. Works for every teacher role:
  * invigilator counts single duties, RS/DCS count groups. Reads the same
  * `useMyProgress` query the Select-Duty flow uses, so a claim invalidating
  * `["duty-calculation"]` refreshes this card too.
@@ -29,7 +32,6 @@ export function DutyProgressSummary({ role }: { role: TeacherRole }) {
   const { colors } = useTheme();
   const { data: progress, isLoading, isError } = useMyProgress(role);
   const rc = roleColors[role];
-  const unit = role === "invigilator" ? "duties" : "groups";
 
   // Upcoming-duty load errors already surface their own banner below — keep the
   // summary quiet rather than stacking a second error on the home screen.
@@ -69,9 +71,9 @@ export function DutyProgressSummary({ role }: { role: TeacherRole }) {
       ) : (
         <>
           <View style={{ flexDirection: "row" }}>
-            <Stat label="Total" value={target} color={colors.text} />
             <Stat label="Completed" value={completed} color={colors.success} />
-            <Stat label="Remaining" value={remaining} color={reached ? colors.success : colors.primary} />
+            <Stat label="Remaining" value={remaining} color={remaining === 0 ? colors.success : colors.primary} />
+            <Stat label="Target" value={target} color={colors.text} />
           </View>
           <View style={{ height: 8, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, overflow: "hidden" }}>
             <View
@@ -79,12 +81,12 @@ export function DutyProgressSummary({ role }: { role: TeacherRole }) {
                 height: 8,
                 borderRadius: radius.pill,
                 width: `${pct * 100}%`,
-                backgroundColor: reached ? colors.success : colors.primary,
+                backgroundColor: remaining === 0 ? colors.success : colors.primary,
               }}
             />
           </View>
-          <Text variant="caption" muted>
-            {reached ? `✓ Target reached — ${completed} ${unit} done` : `${completed} of ${target} ${unit} done`}
+          <Text variant="caption" color={reached ? colors.success : colors.textMuted}>
+            {progress && selectionStatus(progress, dutyUnitFor(role))}
           </Text>
         </>
       )}

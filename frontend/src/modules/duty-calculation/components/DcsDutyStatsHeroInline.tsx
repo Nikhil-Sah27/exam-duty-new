@@ -5,7 +5,8 @@ import HeroDutyCircles from "./HeroDutyCircles";
  * DCS (Deputy Chief Superintendent) dashboard duty-status widget for
  * `DashboardHero`'s right slot. Mirrors the invigilator/RS widgets exactly —
  * same glass circles — sourced from `useMyDcsDutyProgress` (HOD/Dean pool,
- * total DCS duties = Σ (courses × students × examTypes) / 300, split evenly).
+ * total DCS duties = real DCS groups of created SEE exams + the
+ * courses × examTypes × ceil(students / 300) estimate for the rest, split evenly).
  *
  * Shares the `duty-calculation` query root, so teacher / department / semester /
  * course changes auto-refresh it with no manual reload.

@@ -39,42 +39,43 @@ const findAllWithStats = async (filter = {}) => {
   const groups = await findAll(filter);
   const groupIds = groups.map((g) => g._id);
 
-  // Get schedule counts per group
+  // Schedule counts per group — owned schedules plus shared slots the group
+  // joined (ExamSchedule.sharedWith), so each department card counts its own.
   const scheduleCounts = await ExamSchedule.aggregate([
-    { $match: { examGroup: { $in: groupIds } } },
-    { $group: { _id: "$examGroup", count: { $sum: 1 } } },
+    { $match: { $or: [{ examGroup: { $in: groupIds } }, { sharedWith: { $in: groupIds } }] } },
+    { $project: { member: { $concatArrays: [["$examGroup"], { $ifNull: ["$sharedWith", []] }] } } },
+    { $unwind: "$member" },
+    { $match: { member: { $in: groupIds } } },
+    { $group: { _id: "$member", count: { $sum: 1 } } },
   ]);
 
-  // Get room counts per group (via schedules)
+  // Rooms are attributed to the group that owns them: ExamRoom.examGroup on a
+  // shared slot, else the schedule's owner.
+  const roomsWithOwner = [
+    {
+      $lookup: {
+        from: "examschedules",
+        localField: "schedule",
+        foreignField: "_id",
+        as: "sched",
+      },
+    },
+    { $unwind: "$sched" },
+    { $addFields: { owner: { $ifNull: ["$examGroup", "$sched.examGroup"] } } },
+    { $match: { owner: { $in: groupIds } } },
+  ];
+
   const roomCounts = await ExamRoom.aggregate([
-    {
-      $lookup: {
-        from: "examschedules",
-        localField: "schedule",
-        foreignField: "_id",
-        as: "sched",
-      },
-    },
-    { $unwind: "$sched" },
-    { $match: { "sched.examGroup": { $in: groupIds } } },
-    { $group: { _id: "$sched.examGroup", count: { $sum: 1 } } },
+    ...roomsWithOwner,
+    { $group: { _id: "$owner", count: { $sum: 1 } } },
   ]);
 
-  // Distinct department codes per group, aggregated across every ExamRoom in
-  // every schedule of the group. Rendered as chips on the exam card.
+  // Distinct department codes per group, aggregated across every ExamRoom the
+  // group owns. Rendered as chips on the exam card.
   const departmentSets = await ExamRoom.aggregate([
-    {
-      $lookup: {
-        from: "examschedules",
-        localField: "schedule",
-        foreignField: "_id",
-        as: "sched",
-      },
-    },
-    { $unwind: "$sched" },
-    { $match: { "sched.examGroup": { $in: groupIds } } },
+    ...roomsWithOwner,
     { $unwind: "$departments" },
-    { $group: { _id: "$sched.examGroup", departments: { $addToSet: "$departments" } } },
+    { $group: { _id: "$owner", departments: { $addToSet: "$departments" } } },
   ]);
 
   const scheduleMap = new Map(scheduleCounts.map((s) => [s._id.toString(), s.count]));

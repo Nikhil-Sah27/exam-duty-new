@@ -13,6 +13,13 @@ const examRoomSchema = new mongoose.Schema(
       ref: "Room",
       required: [true, "Room is required"],
     },
+    // The exam group (department card) this room belongs to. Only matters on a
+    // schedule shared by several groups; null means the schedule's owner.
+    examGroup: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ExamGroup",
+      default: null,
+    },
     departments: [
       {
         type: String,

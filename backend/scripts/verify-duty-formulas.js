@@ -8,7 +8,8 @@
  *
  * Formulas printed:
  *   Invigilator semester = ceil((courses x students x examTypes) / avgRoomCap)
- *   DCS         semester = ceil((courses x students x examTypes) / 300)
+ *   DCS         real DCS groups for semesters whose SEE exists; for the rest,
+ *               semester = courses x examTypes x ceil(students / 300)
  *   Total RS             = round(total invigilator duties / 5)
  *   Per-teacher split: base designation = x, secondary = 0.7x (30% less)
  *     invigilator -> Assistant Prof (x) / Associate Prof (0.7x)
@@ -84,7 +85,8 @@ const money = (n) => (Math.round(n * 100) / 100).toString();
   const dcsInst = await svc.calculateDcsInstitutionDuty({ institution });
   const perDcs = await svc.calculateDcsDutyPerTeacher({ dcsInstitution: dcsInst });
   console.log("\n" + "=".repeat(64));
-  console.log("DCS — semester = courses x examTypes x ceil(students/300)");
+  console.log("DCS — real DCS groups for created SEE exams + estimate for the rest");
+  console.log("      estimate per semester = courses x examTypes x ceil(students/300)");
   console.log("=".repeat(64));
   for (const dept of institution.departments) {
     const parts = [];
@@ -100,7 +102,10 @@ const money = (n) => (Math.round(n * 100) / 100).toString();
       );
     }
   }
-  console.log(`\n  INSTITUTION DCS TOTAL: ${dcsInst.total}`);
+  console.log("  (per-department estimates above; semesters with a created SEE use the real count)");
+  console.log(
+    `\n  INSTITUTION DCS TOTAL: ${dcsInst.scheduled} real + ${dcsInst.estimated} estimated = ${dcsInst.total}`
+  );
   console.log(
     `  Eligible HOD/Dean: ${perDcs.eligibleTeachers} -> ` +
       `per-DCS = round(${dcsInst.total} / ${perDcs.eligibleTeachers}) = ${perDcs.target}`

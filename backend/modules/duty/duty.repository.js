@@ -45,6 +45,12 @@ const createMany = async (items, session) => {
   }
 };
 
+/** Live duties of one role on one schedule, unpopulated (RS regrouping). */
+const findLiveForScheduleRole = (scheduleId, role, session) =>
+  Duty.find({ examSchedule: scheduleId, role, status: "assigned" })
+    .sort({ createdAt: 1 })
+    .session(session || null);
+
 const findAll = (filter = {}) => {
   return Duty.find(filter).populate(POPULATE_FIELDS).sort({ date: 1, startTime: 1 });
 };
@@ -176,6 +182,7 @@ module.exports = {
   cancelMany,
   create,
   createMany,
+  findLiveForScheduleRole,
   distinctTeachersForSchedules,
   distinctTeachersWithDutiesSince,
   findAll,

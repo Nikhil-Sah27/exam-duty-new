@@ -33,6 +33,7 @@ const CALENDAR_TRIGGERS = new Set([
   "duty_self_claimed",
   "duty_cancelled",
   "duty_group_cancelled",
+  "duty_group_updated",
   "duty_swapped",
   "exam_updated",
   "exam_deleted_duty_release",

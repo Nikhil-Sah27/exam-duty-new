@@ -43,4 +43,81 @@ function distributeClasses(rooms, requiredDCS) {
   return result;
 }
 
-module.exports = { calculateRequiredDCS, distributeClasses };
+// Hand `count` rooms out one at a time to whichever group is smallest (ties →
+// earlier group), so sizes stay balanced. Returns how many each group gets.
+function fillQuotas(sizes, count) {
+  const quotas = sizes.map(() => 0);
+  for (let k = 0; k < count; k++) {
+    let best = 0;
+    for (let i = 1; i < sizes.length; i++) {
+      if (sizes[i] + quotas[i] < sizes[best] + quotas[best]) best = i;
+    }
+    quotas[best] += 1;
+  }
+  return quotas;
+}
+
+/**
+ * Lay out one schedule's DCS groups for the rooms it has now (pure — the
+ * service writes the result; see dcsGroup.service.syncGroupsForSchedule).
+ *
+ *   rooms     ExamRooms, already in room-number order
+ *   existing  the schedule's DCSGroup docs
+ *   required  ceil(students / 300) for the whole slot
+ *
+ * Nobody holding a group → laid out from scratch (identical to creating every
+ * department together). Otherwise each held group keeps its surviving rooms and
+ * the rest are topped up, smallest group first, across max(required, held)
+ * groups — new rooms go INTO held groups rather than needing more DCS.
+ *
+ * Returns { plan, emptied, reusable }: `plan` is every final group in index
+ * order ({ held: { doc, rooms } | null, groupIndex, rooms: ids, added: rooms });
+ * `emptied` are held groups whose rooms are all gone (to release); `reusable`
+ * are non-held docs, by index, to re-use for the open groups (rest = surplus).
+ */
+function planGroupLayout({ rooms, existing, required }) {
+  const live = new Set(rooms.map((r) => String(r._id)));
+  const held = [];
+  const reusable = [];
+  const emptied = [];
+  for (const g of existing) {
+    const kept = (g.assignedRooms || []).filter((id) => live.has(String(id)));
+    if (g.status === "claimed" && kept.length > 0) held.push({ doc: g, rooms: kept });
+    else {
+      if (g.status === "claimed") emptied.push(g);
+      reusable.push(g);
+    }
+  }
+  reusable.sort((a, b) => a.groupIndex - b.groupIndex);
+
+  const heldIndices = new Set(held.map((h) => h.doc.groupIndex));
+  const openCount = held.length === 0 ? required : Math.max(required, held.length) - held.length;
+  const freeIndices = [];
+  for (let i = 1; freeIndices.length < openCount; i++) {
+    if (!heldIndices.has(i)) freeIndices.push(i);
+  }
+  const plan = [
+    ...held.map((h) => ({ held: h, groupIndex: h.doc.groupIndex, rooms: h.rooms, added: [] })),
+    ...freeIndices.map((groupIndex) => ({ held: null, groupIndex, rooms: [], added: [] })),
+  ].sort((a, b) => a.groupIndex - b.groupIndex);
+
+  if (held.length === 0) {
+    const buckets = distributeClasses(rooms, plan.length);
+    plan.forEach((p, i) => {
+      p.rooms = buckets[i].map((r) => r._id);
+    });
+  } else {
+    const covered = new Set(held.flatMap((h) => h.rooms.map(String)));
+    const pool = rooms.filter((r) => !covered.has(String(r._id)));
+    const quotas = fillQuotas(plan.map((p) => p.rooms.length), pool.length);
+    let cursor = 0;
+    plan.forEach((p, i) => {
+      p.added = pool.slice(cursor, cursor + quotas[i]);
+      p.rooms = [...p.rooms, ...p.added.map((r) => r._id)];
+      cursor += quotas[i];
+    });
+  }
+  return { plan, emptied, reusable };
+}
+
+module.exports = { calculateRequiredDCS, distributeClasses, fillQuotas, planGroupLayout };

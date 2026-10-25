@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AlertsBell } from "@/features/notifications/AlertsBell";
+import { TabHeader } from "@/features/notifications/TabHeader";
 import type { TeacherRole } from "@/lib/types";
 import { useAuthStore } from "@/store/auth";
 import { radius, roleColors, spacing, useTheme } from "@/theme";
@@ -26,6 +26,7 @@ import { groupExamsByStatusThenType } from "../shared/examSortUtils";
 import { getTypeSubtitle } from "../shared/examStatusUtils";
 import type { ExamGroup } from "../shared/examTypes";
 import { groupRoomsIntoRSGroups } from "../shared/rsDutyGroupingUtils";
+import { dcsGroupExamIds, rsGroupExamIds } from "../shared/sharedSlot";
 
 export function asTeacherRole(role: string | null | undefined): TeacherRole | null {
   return role === "invigilator" || role === "rs" || role === "dcs" ? role : null;
@@ -100,10 +101,8 @@ export default function SelectDutyHome() {
       }
     } else if (role === "rs") {
       for (const g of groupRoomsIntoRSGroups(slotsQ.data)) {
-        // A group on a shared SEE slot can mix departments' rooms — it counts
-        // under every exam with a room in it (same rule as RSExamDuties).
         const mine = g.allAssigned && g.rooms.every((r) => holds(r.examRoomId, "rs"));
-        for (const examId of new Set(g.rooms.map((r) => r.examGroupId))) bump(examId, !g.allAssigned, mine);
+        for (const examId of rsGroupExamIds(g)) bump(examId, !g.allAssigned, mine);
       }
     } else if (role === "dcs") {
       const selectable = selectableFilter(dcsQ.data ?? [], (g) => ({
@@ -113,11 +112,8 @@ export default function SelectDutyHome() {
         cancelled: g.status === "released",
       }));
       for (const g of selectable) {
-        // A shared SEE slot's DCS groups belong to its owner exam; the
-        // departments that joined it count them too (same rule as DcsExamDuties).
-        const examIds = [g.examGroup?._id, ...(g.schedule.sharedWith ?? [])].filter(Boolean) as string[];
         const mine = g.status === "claimed" && g.assignedTeacher?._id === user?.id;
-        for (const examId of new Set(examIds)) bump(examId, g.status === "open", mine);
+        for (const examId of dcsGroupExamIds(g)) bump(examId, g.status === "open", mine);
       }
     }
     return out;
@@ -151,10 +147,9 @@ export default function SelectDutyHome() {
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl * 2 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <TabHeader>
         <Text style={[styles.h1, { color: colors.text }]}>Select Duty</Text>
-        <AlertsBell />
-      </View>
+      </TabHeader>
       <Text style={[styles.intro, { color: colors.textMuted }]}>{INTRO[role]}</Text>
 
       <ProgressCard role={role} progress={progressQ.data} />

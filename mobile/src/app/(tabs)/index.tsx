@@ -2,16 +2,14 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 
-import { useAlarmSettings, useAlarmState } from "@/alarms";
-import { Banner, Button, Card, Chip, EmptyState, Icon, ListRow, Divider, Screen, Text } from "@/components/ui";
-import { SoundCheckBanner } from "@/features/alarms/SoundCheckBanner";
+import { Banner, Button, Card, Chip, EmptyState, ListRow, Divider, Screen, Text } from "@/components/ui";
+import { NextAlarmCard } from "@/features/alarms/NextAlarmCard";
 import { CHANGE_REQUESTS_HREF } from "@/features/change-requests/routes";
 import { DutyProgressSummary } from "@/features/duties/DutyProgressSummary";
 import { DutyUnitCard } from "@/features/duties/DutyUnitCard";
 import { useConfirmUnit, useMyUnits } from "@/features/duties/hooks";
 import { useUnreadMessages } from "@/features/messages/hooks";
-import { AlertsBell } from "@/features/notifications/AlertsBell";
-import { formatInstant } from "@/lib/format";
+import { TabHeader } from "@/features/notifications/TabHeader";
 import { ROLE_LABELS, isTeacherRole } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
@@ -26,8 +24,6 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const units = useMyUnits();
   const confirm = useConfirmUnit();
-  const nextAlarm = useAlarmState((s) => s.nextAlarm);
-  const alarmsOn = useAlarmSettings((s) => s.settings.enabled);
   const [confirming, setConfirming] = useState<string | null>(null);
   const { data: unreadMessages = 0 } = useUnreadMessages();
   const role = user?.activeRole;
@@ -35,8 +31,8 @@ export default function HomeScreen() {
 
   return (
     <Screen refreshing={units.isRefetching} onRefresh={() => void units.refetch()}>
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-        <View style={{ flex: 1, gap: 4 }}>
+      <TabHeader>
+        <View style={{ gap: 4 }}>
           <Text muted>{greeting()},</Text>
           <Text variant="title">{user?.name ?? ""}</Text>
           {role ? (
@@ -45,30 +41,9 @@ export default function HomeScreen() {
             </Text>
           ) : null}
         </View>
-        <AlertsBell />
-      </View>
+      </TabHeader>
 
-      <Card onPress={() => router.navigate("/settings")} style={{ backgroundColor: colors.primaryDeep, borderColor: colors.primaryDeep }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-          <Icon name={alarmsOn ? "alarmOn" : "alarmOff"} size={28} color="#ffffff" />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="label" color="#e0e7ff">
-              {alarmsOn ? "Next alarm" : "Duty alarms are off"}
-            </Text>
-            <Text variant="subheading" color="#ffffff">
-              {!alarmsOn ? "Turn them on in Settings" : nextAlarm ? formatInstant(nextAlarm.fireAt) : "None scheduled"}
-            </Text>
-            {alarmsOn && nextAlarm ? (
-              <Text variant="caption" color="#e0e7ff">
-                {nextAlarm.title}
-              </Text>
-            ) : null}
-          </View>
-          <Icon name="chevron" size={16} color="#e0e7ff" />
-        </View>
-      </Card>
-
-      {alarmsOn && nextAlarm ? <SoundCheckBanner /> : null}
+      <NextAlarmCard />
 
       {unconfirmed > 0 ? (
         <Banner tone="warning" title={`${unconfirmed} dut${unconfirmed === 1 ? "y needs" : "ies need"} your confirmation`}>

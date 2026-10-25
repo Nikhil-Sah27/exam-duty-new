@@ -25,6 +25,20 @@ const getMyDcsProgress = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: progress });
 });
 
+/**
+ * The signed-in teacher's completed duties for their active role — exactly the
+ * units the progress endpoints' `completed` counts (mobile Home → Completed).
+ * Own duties only, so it is safe for every teacher to call.
+ */
+const COMPLETED_ROLES = new Set(["invigilator", "rs", "dcs"]);
+const getMyCompletedDuties = catchAsync(async (req, res) => {
+  const role = req.user.activeRole;
+  const units = COMPLETED_ROLES.has(role)
+    ? await dutyCalculationService.listCompletedDutyUnits(req.user.id, role)
+    : [];
+  res.status(200).json({ success: true, count: units.length, data: units });
+});
+
 /** Progress for a specific teacher — admin analytics + drill-in views. */
 const getTeacherProgress = catchAsync(async (req, res) => {
   const progress = await dutyCalculationService.calculateTeacherProgress(
@@ -94,6 +108,7 @@ module.exports = {
   getMyProgress,
   getMyRsProgress,
   getMyDcsProgress,
+  getMyCompletedDuties,
   getTeacherProgress,
   getTeacherRsProgress,
   getTeacherDcsProgress,

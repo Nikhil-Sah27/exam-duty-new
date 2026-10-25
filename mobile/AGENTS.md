@@ -1,5 +1,15 @@
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
+## IMPORTANT — modularity and component-based architecture
+
+Every change must keep the app modular; check before finishing (full rule: the repo-root `CLAUDE.md`).
+
+- Feature code lives in `src/features/<domain>/`; `src/app/` route files stay thin (re-export or compose a feature screen).
+- `src/components/ui/` holds primitives only and never imports from `features/`.
+- A UI pattern used in two places becomes a component (e.g. `features/notifications/TabHeader`, `AlertsBell`); a rule used in two places becomes a helper (e.g. `features/select-duty/shared/sharedSlot.ts`).
+- Numbers and statuses come from the backend; don't re-derive them on the phone. Logic shared with the web is a marked port of the web file, changed together with it.
+- Query keys live in `src/lib/queryKeys.ts`, not as inline literals.
+
 ## Expo has changed — do not trust your training data
 
 Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:

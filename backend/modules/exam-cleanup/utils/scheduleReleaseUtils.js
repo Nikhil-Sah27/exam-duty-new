@@ -5,7 +5,7 @@
 const Duty = require("../../duty/duty.model");
 const ExamSchedule = require("../../exam/examSchedule.model");
 const ExamRoom = require("../../exam/examRoom.model");
-const { ownershipFilter } = require("../../exam/examRoomOwnership.utils");
+const { membershipFilter, ownershipFilter, isSharedBeyond } = require("../../exam/sharedSchedule.utils");
 const AppError = require("../../../shared/utils/AppError");
 
 const POPULATE_DUTY = [
@@ -33,13 +33,6 @@ const findActiveDuties = (filter, session) => {
 };
 
 const withSession = (q, session) => (session ? q.session(session) : q);
-
-// A schedule other exam groups still sit in (ExamSchedule.sharedWith) — when
-// one of them leaves, only its own rooms go; the slot stays for the rest.
-const isSharedBeyond = (schedule, groupId) => {
-  const members = [String(schedule.examGroup), ...(schedule.sharedWith || []).map(String)];
-  return members.some((m) => m !== String(groupId));
-};
 
 /**
  * Scope for `groupId` leaving `schedules`: schedules only it sits in are
@@ -79,7 +72,7 @@ const scopeForGroupLeaving = async (groupId, schedules, session) => {
 
 const getCascadeScopeForGroup = async (groupId, session) => {
   const schedules = await withSession(
-    ExamSchedule.find({ $or: [{ examGroup: groupId }, { sharedWith: groupId }] }),
+    ExamSchedule.find(membershipFilter(groupId)),
     session,
   );
   return scopeForGroupLeaving(groupId, schedules, session);

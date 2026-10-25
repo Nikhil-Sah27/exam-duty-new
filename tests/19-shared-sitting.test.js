@@ -314,6 +314,21 @@ async function run(token) {
     }
   });
 
+  await test("Completed-duties list is exactly what the progress 'Completed' counts", async () => {
+    for (const [role, path] of [["rs", "my-rs-progress"], ["dcs", "my-dcs-progress"]]) {
+      setToken(people[role].token);
+      try {
+        const progress = (await api.get(`/duty-calculation/${path}`)).data.data;
+        const list = (await api.get("/duty-calculation/my-completed")).data.data;
+        assert(Array.isArray(list), `${role} list is an array`);
+        assertEqual(list.length, progress.completed, `${role} list length vs completed`);
+        assert(list.every((u) => u.role === role), `${role} list holds only ${role} units`);
+      } finally {
+        setToken(token);
+      }
+    }
+  });
+
   await test("Cleanup: delete this suite's exams", async () => {
     // 404 = already deleted above.
     for (const id of createdGroups) {

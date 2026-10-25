@@ -7,6 +7,7 @@ const { withOptionalTransaction } = require("../../shared/utils/withOptionalTran
 const departmentService = require("../department/department.service");
 const { resolveAssignment } = require("./assignmentResolver");
 const dcsGroupService = require("../dcs/dcsGroup.service");
+const examScheduleService = require("../exam/examSchedule.service");
 const dutyService = require("../duty/duty.service");
 const roomReservationService = require("../exam/roomReservation.service");
 const seatSharingService = require("../seat-sharing/seatSharing.service");
@@ -301,34 +302,6 @@ const prepareDepartmentPlan = async (dep, semester) => {
 };
 
 /**
- * The live SEE schedule of this semester at exactly this date + start + end,
- * from any department — including one persisted earlier in the same batch.
- * Departments sitting together share it, so RS chunks and DCS sizing cover all
- * their rooms (6 × 60 students in 12 rooms → 3 RS, 2 DCS) while each keeps its
- * own exam card. Different semesters never share.
- */
-const findSharedSitting = async (entry, { semInt, session }) => {
-  const dayStart = new Date(entry.date);
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
-
-  // The ExamGroup pre-find hook already hides cancelled groups.
-  const groups = await ExamGroup.find({ examType: "SEE", semester: semInt })
-    .select("_id")
-    .session(session || null);
-  if (groups.length === 0) return null;
-  const groupIds = groups.map((g) => g._id);
-
-  return ExamSchedule.findOne({
-    date: { $gte: dayStart, $lt: dayEnd },
-    startTime: entry.startTime,
-    endTime: entry.endTime,
-    $or: [{ examGroup: { $in: groupIds } }, { sharedWith: { $in: groupIds } }],
-  }).session(session || null);
-};
-
-/**
  * Persist one department's SEE plan inside the shared transaction. Returns a
  * summary object (the created ExamGroup plus counts).
  */
@@ -363,14 +336,11 @@ const persistDepartmentPlan = async (prep, { semInt, userId, session }) => {
   for (let i = 0; i < schedules.length; i++) {
     const entry = schedules[i];
     const slotKey = entry.slotKey || entry.localId;
-    const shared = await findSharedSitting(entry, { semInt, session });
+    // Same semester, same date + exact time → join that department's slot.
+    const shared = await examScheduleService.findSharedSeeSitting(entry, semInt, session);
     let schedule = shared;
     if (shared) {
-      await ExamSchedule.updateOne(
-        { _id: shared._id },
-        { $addToSet: { sharedWith: examGroup._id } },
-        sessionOpt,
-      );
+      await examScheduleService.joinSharedSitting(shared._id, examGroup._id, session);
     } else {
       [schedule] = await ExamSchedule.create(
         [
@@ -591,12 +561,12 @@ const finalizeSEEPlan = async (data, userId) => {
   const touchedSchedules = new Set(results.flatMap((r) => r.scheduleIds.map(String)));
   for (const scheduleId of touchedSchedules) {
     try {
-      await dcsGroupService.syncGroupsForSchedule(scheduleId, { reason: "join" });
+      await dcsGroupService.syncGroupsForSchedule(scheduleId, { cause: "join" });
     } catch (err) {
       console.error("DCS group sizing failed for schedule", scheduleId, err);
     }
     try {
-      await dutyService.syncRsGroupsForSchedule(scheduleId, { reason: "join" });
+      await dutyService.syncRsGroupsForSchedule(scheduleId, { cause: "join" });
     } catch (err) {
       console.error("RS regrouping failed for schedule", scheduleId, err);
     }

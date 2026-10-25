@@ -33,7 +33,30 @@ const deleteSchedule = async (id, actor = {}) => {
   return examDeletionService.deleteScheduleWithCleanup(id, actor);
 };
 
+/**
+ * The live SEE schedule of `semester` at exactly this date + start + end, from
+ * any department — including one persisted earlier in the same (transactional)
+ * batch. Departments sitting together share it, so RS chunks and DCS sizing
+ * cover all their rooms (6 × 60 students in 12 rooms → 3 RS, 2 DCS) while each
+ * keeps its own exam card. Different semesters never share.
+ */
+const findSharedSeeSitting = async ({ date, startTime, endTime }, semester, session) => {
+  const groupIds = await examGroupRepo.findIdsByTypeAndSemester("SEE", semester, session);
+  if (groupIds.length === 0) return null;
+  const dayStart = new Date(date);
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+  return examScheduleRepo.findSittingOfGroups({ groupIds, dayStart, dayEnd, startTime, endTime }, session);
+};
+
+/** `examGroupId` joins the shared sitting `scheduleId`. */
+const joinSharedSitting = (scheduleId, examGroupId, session) =>
+  examScheduleRepo.addSharedMember(scheduleId, examGroupId, session);
+
 module.exports = {
+  findSharedSeeSitting,
+  joinSharedSitting,
   createSchedule,
   getSchedulesByGroup,
   deleteSchedule,

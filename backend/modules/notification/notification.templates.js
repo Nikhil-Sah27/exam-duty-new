@@ -12,6 +12,16 @@ const {
   formatTime12h,
 } = require("../../shared/utils/datetime");
 
+// Shared-slot regrouping (SEE departments joining / leaving a time slot).
+const REGROUP_CAUSE = {
+  join: "Another department's exam now shares this time slot.",
+  leave: "A department's exam in this time slot was deleted.",
+};
+const REGROUP_RELEASE = {
+  dcsRoomsDeleted: "the exam for its rooms was deleted",
+  rsFewerGroups: "rooms in this time slot were regrouped and fewer RS are needed",
+};
+
 const templates = {
   duty_assigned: ({ room, date, startTime, endTime }) => ({
     title: "New Duty Assigned",
@@ -124,7 +134,9 @@ const templates = {
   // CS took a teacher off a whole RS / DCS group. Once per group, mirroring
   // duty_group_assigned.
   // Also the confirmation to a DCS who released their own group (`selfReleased`).
-  duty_group_cancelled: ({ roleLabel, roomCount, date, startTime, endTime, reason, selfReleased }) => {
+  // `cause` = a shared-slot regroup released them (REGROUP_RELEASE below).
+  duty_group_cancelled: ({ roleLabel, roomCount, date, startTime, endTime, reason, selfReleased, cause }) => {
+    const why = reason || REGROUP_RELEASE[cause];
     const group = `${roleLabel === "RS" ? "an" : "a"} ${roleLabel} group of ${roomCount} room${
       roomCount === 1 ? "" : "s"
     } on ${formatDate(date)} (${startTime}–${endTime})`;
@@ -132,14 +144,15 @@ const templates = {
       title: "Duty Cancelled",
       message: selfReleased
         ? `You released ${group}. It is no longer on your schedule.`
-        : `You have been unassigned from ${group}${reason ? ` — ${reason}` : ""}`,
+        : `You have been unassigned from ${group}${why ? ` — ${why}` : ""}`,
     };
   },
 
   // Rooms moved in or out of a group the teacher already holds — another
-  // department's exam joined their SEE time slot, or one was deleted. Once per
-  // teacher per group, listing what changed.
-  duty_group_updated: ({ roleLabel, added = [], removed = [], roomCount, date, startTime, endTime, reason }) => {
+  // department's exam joined their SEE time slot (`cause: "join"`), or one was
+  // deleted (`"leave"`). Once per teacher per group, listing what changed.
+  duty_group_updated: ({ roleLabel, added = [], removed = [], roomCount, date, startTime, endTime, cause }) => {
+    const reason = REGROUP_CAUSE[cause];
     const list = (rooms) => `${rooms.length === 1 ? "room" : "rooms"} ${rooms.join(", ")}`;
     const changes = [
       added.length ? `${list(added)} added` : null,

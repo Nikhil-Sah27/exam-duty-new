@@ -36,20 +36,14 @@ const {
 } = require("../utils/scheduleReleaseUtils");
 const { buildRoomLabel } = require("../utils/examCleanupUtils");
 
-// The leaving group's shared slots stay for the departments still in them: a
-// joiner just drops out of `sharedWith`; an owner hands the slot — and its DCS
-// groups — to the next department in line. Its own rooms are deleted by the
+// The leaving group's shared slots stay for the departments still in them
+// (examScheduleRepository.leaveShared); when it owned one, the slot's DCS
+// groups follow the slot to its new owner. Its own rooms are deleted by the
 // cascade like any other.
 const leaveSharedSchedules = async (groupId, sharedSchedules, session) => {
-  const opt = session ? { session } : {};
   for (const s of sharedSchedules) {
-    if (String(s.examGroup) === String(groupId)) {
-      const [next, ...rest] = s.sharedWith;
-      await ExamSchedule.updateOne({ _id: s._id }, { examGroup: next, sharedWith: rest }, opt);
-      await dcsGroupRepository.reassignExamGroupForSchedules([s._id], next, session);
-    } else {
-      await ExamSchedule.updateOne({ _id: s._id }, { $pull: { sharedWith: groupId } }, opt);
-    }
+    const newOwner = await examScheduleRepository.leaveShared(s, groupId, session);
+    if (newOwner) await dcsGroupRepository.reassignExamGroupForSchedules([s._id], newOwner, session);
   }
 };
 
@@ -229,13 +223,13 @@ const deleteExamGroupWithCleanup = async (
   // delete itself already succeeded.
   for (const s of scope.sharedSchedules) {
     try {
-      await dcsGroupService.syncGroupsForSchedule(s._id, { reason: "leave" });
+      await dcsGroupService.syncGroupsForSchedule(s._id, { cause: "leave" });
     } catch (err) {
       console.error("DCS group sizing failed for schedule", s._id, err);
     }
     try {
       await dutyService.syncRsGroupsForSchedule(s._id, {
-        reason: "leave",
+        cause: "leave",
         removedDuties: scope.duties.filter(
           (d) => d.role === "rs" && String(d.examSchedule?._id || d.examSchedule) === String(s._id),
         ),

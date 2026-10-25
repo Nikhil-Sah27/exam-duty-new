@@ -1,4 +1,5 @@
-import { View } from "react-native";
+import { router } from "expo-router";
+import { Pressable, View } from "react-native";
 
 import { Card, Text } from "@/components/ui";
 import { useMyProgress } from "@/features/select-duty/hooks/queries";
@@ -15,16 +16,28 @@ import { radius, roleColors, spacing, useTheme } from "@/theme";
  * `useMyProgress` query the Select-Duty flow uses, so a claim invalidating
  * `["duty-calculation"]` refreshes this card too.
  */
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <View style={{ flex: 1, gap: 2 }}>
+function Stat({ label, value, color, onPress }: { label: string; value: number; color: string; onPress?: () => void }) {
+  const body = (
+    <>
       <Text variant="title" color={color}>
         {value}
       </Text>
       <Text variant="caption" muted>
         {label}
+        {onPress ? " ›" : ""}
       </Text>
-    </View>
+    </>
+  );
+  if (!onPress) return <View style={{ flex: 1, gap: 2 }}>{body}</View>;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${value} ${label}, show list`}
+      style={({ pressed }) => ({ flex: 1, gap: 2, opacity: pressed ? 0.6 : 1 })}
+    >
+      {body}
+    </Pressable>
   );
 }
 
@@ -71,7 +84,7 @@ export function DutyProgressSummary({ role }: { role: TeacherRole }) {
       ) : (
         <>
           <View style={{ flexDirection: "row" }}>
-            <Stat label="Completed" value={completed} color={colors.success} />
+            <Stat label="Completed" value={completed} color={colors.success} onPress={() => router.push("/completed-duties")} />
             <Stat label="Remaining" value={remaining} color={remaining === 0 ? colors.success : colors.primary} />
             <Stat label="Target" value={target} color={colors.text} />
           </View>

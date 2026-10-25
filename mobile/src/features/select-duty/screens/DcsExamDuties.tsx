@@ -17,6 +17,7 @@ import { dcsGroupWindow, dcsStateOf, dcsValidate, summarizeConflicts } from "../
 import { buildDcsGroupOrdinalMap, buildDcsGroups } from "../shared/dcsGroupingService";
 import type { DcsGroup } from "../shared/dcsTypes";
 import { selectableFilter } from "../shared/dutyStatusFilter";
+import { dcsGroupExamIds } from "../shared/sharedSlot";
 
 const dcsId = (g: DcsGroup) => g._id;
 
@@ -56,14 +57,7 @@ export function DcsExamDuties({ examGroupId }: { examGroupId: string }) {
   );
   const ordinalMap = useMemo(() => buildDcsGroupOrdinalMap(allGroups), [allGroups]);
   const examGroups = useMemo(
-    // A shared SEE slot's DCS groups belong to its owner exam; the departments
-    // that joined the slot list it under their own exam too.
-    () =>
-      buildDcsGroups(
-        allGroups.filter(
-          (g) => g.examGroup?._id === examGroupId || g.schedule.sharedWith?.includes(examGroupId),
-        ),
-      ),
+    () => buildDcsGroups(allGroups.filter((g) => dcsGroupExamIds(g).includes(examGroupId))),
     [allGroups, examGroupId],
   );
 

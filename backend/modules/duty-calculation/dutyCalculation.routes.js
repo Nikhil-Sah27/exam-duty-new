@@ -12,6 +12,7 @@ router.use(protect);
 router.get("/my-progress", controller.getMyProgress);
 router.get("/my-rs-progress", controller.getMyRsProgress);
 router.get("/my-dcs-progress", controller.getMyDcsProgress);
+router.get("/my-completed", controller.getMyCompletedDuties);
 router.get("/teacher/:teacherId/progress", requireRole("cs"), controller.getTeacherProgress);
 router.get("/teacher/:teacherId/rs-progress", requireRole("cs"), controller.getTeacherRsProgress);
 router.get("/teacher/:teacherId/dcs-progress", requireRole("cs"), controller.getTeacherDcsProgress);

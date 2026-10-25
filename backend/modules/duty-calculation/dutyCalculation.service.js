@@ -7,6 +7,7 @@ const Room = require("../infrastructure/infrastructure.model");
 const Duty = require("../duty/duty.model");
 const DCSGroup = require("../dcs/dcsGroup.model");
 const examGroupRepo = require("../exam/examGroup.repository");
+const { compareRoomNumbers } = require("../../shared/utils/roomOrder");
 
 /**
  * Centralised duty-target calculation.
@@ -406,15 +407,79 @@ const completedDutyMatch = () => {
   };
 };
 
-const countCompletedDutiesForTeacher = async (teacherId) => {
-  return Duty.countDocuments({
+const roomOf = (room, fallback) => ({
+  roomNumber: room?.roomNumber || fallback || "",
+  building: room?.building?.name || null,
+});
+const newestFirst = (a, b) =>
+  new Date(b.date) - new Date(a.date) || String(b.startTime).localeCompare(String(a.startTime));
+
+/**
+ * A teacher's completed duties for one role, as the units the progress
+ * "Completed" number counts — invigilator: one per duty; RS: one per group of
+ * ≤5 rooms (partitionRsDuties); DCS: one per held DCS group whose slot ended.
+ * The per-teacher completed counters ARE this list's length, so the number on
+ * the dashboard and the list it opens can never disagree. Newest first.
+ */
+const listCompletedDutyUnits = async (teacherId, role) => {
+  if (role === "dcs") {
+    const groups = await DCSGroup.find({ assignedTeacher: teacherId, status: "claimed" })
+      .populate({ path: "schedule", select: "date startTime endTime" })
+      .populate({ path: "examGroup", select: "examType semester" })
+      .populate({
+        path: "assignedRooms",
+        select: "room",
+        populate: { path: "room", select: "roomNumber building", populate: { path: "building", select: "name" } },
+      });
+    return groups
+      .filter((g) => scheduleHasEnded(g.schedule))
+      .map((g) => ({
+        key: `dcs:${g._id}`,
+        role: "dcs",
+        date: g.schedule.date,
+        startTime: g.schedule.startTime,
+        endTime: g.schedule.endTime,
+        examType: g.examGroup?.examType || null,
+        semester: g.examGroup?.semester ?? null,
+        rooms: (g.assignedRooms || []).map((er) => roomOf(er?.room)),
+      }))
+      .sort(newestFirst);
+  }
+
+  const duties = await Duty.find({
     teacher: teacherId,
     // Role-scoped so a teacher's RS/DCS room duties never inflate their
     // invigilator completed count (matches the role-scoped active counter).
-    role: "invigilator",
+    role,
     ...completedDutyMatch(),
-  });
+  })
+    .populate({ path: "examSchedule", select: "examGroup", populate: { path: "examGroup", select: "examType semester" } })
+    .populate({ path: "roomRef", select: "roomNumber building", populate: { path: "building", select: "name" } });
+
+  const units = role === "rs"
+    ? partitionRsDuties(duties).map((g) => ({ key: `rs:${g.key}`, duties: g.duties }))
+    : duties.map((d) => ({ key: `invigilator:${d._id}`, duties: [d] }));
+
+  return units
+    .map(({ key, duties: list }) => {
+      const first = list[0];
+      const examGroup = first.examSchedule?.examGroup;
+      return {
+        key,
+        role,
+        date: first.date,
+        startTime: first.startTime,
+        endTime: first.endTime,
+        examType: examGroup?.examType || null,
+        semester: examGroup?.semester ?? null,
+        rooms: list.map((d) => roomOf(d.roomRef, d.room)),
+      };
+    })
+    .sort(newestFirst);
 };
+
+const countCompletedDutiesForTeacher = async (teacherId) =>
+  (await listCompletedDutyUnits(teacherId, "invigilator")).length;
 
 /**
  * Count a teacher's *active* (non-cancelled) invigilator duties — i.e. every
@@ -444,27 +509,36 @@ const countActiveDutiesForTeacher = (teacherId) =>
  * count. Shared by the per-teacher counter and the batched cohort path so both
  * always agree.
  */
-const countRsGroupsFromDuties = (duties) => {
+// Works on populated or bare refs.
+const refId = (v) => (v ? String(v._id || v) : null);
+
+/** RS duties → their groups: partition by schedule + date + slot + building,
+ *  rooms in number order, chunks of 5. Legacy duties missing schedule/building
+ *  can't be grouped — each is its own group so nothing is silently dropped. */
+const partitionRsDuties = (duties) => {
   const partitions = new Map();
   for (const d of duties) {
-    const scheduleId = d.examSchedule?.toString();
-    const buildingId = d.roomRef?.building?.toString();
+    const scheduleId = refId(d.examSchedule);
+    const buildingId = refId(d.roomRef?.building);
     const dateKey = new Date(d.date).toISOString().slice(0, 10);
-    // Legacy duties missing schedule/building can't be grouped — count each as
-    // its own group so nothing is silently dropped.
     const key =
       scheduleId && buildingId
         ? [scheduleId, dateKey, d.startTime, d.endTime, buildingId].join("|")
         : `legacy:${d._id}`;
-    partitions.set(key, (partitions.get(key) || 0) + 1);
+    if (!partitions.has(key)) partitions.set(key, []);
+    partitions.get(key).push(d);
   }
-
-  let groups = 0;
-  for (const roomCount of partitions.values()) {
-    groups += Math.ceil(roomCount / RS_ROOMS_PER_GROUP);
+  const groups = [];
+  for (const [key, list] of partitions) {
+    list.sort((a, b) => compareRoomNumbers(a.roomRef?.roomNumber || a.room || "", b.roomRef?.roomNumber || b.room || ""));
+    for (let i = 0; i < list.length; i += RS_ROOMS_PER_GROUP) {
+      groups.push({ key: `${key}|${i / RS_ROOMS_PER_GROUP}`, duties: list.slice(i, i + RS_ROOMS_PER_GROUP) });
+    }
   }
   return groups;
 };
+
+const countRsGroupsFromDuties = (duties) => partitionRsDuties(duties).length;
 
 const RS_GROUP_DUTY_FIELDS = "examSchedule roomRef date startTime endTime _id";
 
@@ -481,8 +555,8 @@ const countRsGroupsForTeacher = async (teacherId, dutyMatch) => {
 };
 
 /** Completed RS groups — schedule already ended. Powers the progress circle. */
-const countCompletedRsGroupsForTeacher = (teacherId) =>
-  countRsGroupsForTeacher(teacherId, completedDutyMatch());
+const countCompletedRsGroupsForTeacher = async (teacherId) =>
+  (await listCompletedDutyUnits(teacherId, "rs")).length;
 
 /** Active (non-cancelled) RS groups — upcoming + ongoing + completed. */
 const countActiveRsGroupsForTeacher = (teacherId) =>
@@ -686,7 +760,7 @@ const calculateRsTeacherProgress = async (teacherId, options = {}) => {
  *
  * One DCS supervises ≤300 students of one sitting. Departments of a semester
  * that write their SEE at the same time share a sitting (and its DCS groups —
- * see see.service findSharedSitting), so the per-department estimate below
+ * see examSchedule.service findSharedSeeSitting), so the per-department estimate below
  * over-counts them: 6 departments × 60 students need 2 DCS, not 6. Hence:
  *
  *   - (department, semester) pairs whose SEE is already created count the real
@@ -792,14 +866,8 @@ const scheduleHasEnded = (schedule) => {
  * DCS is a group role and `DCSGroup` is persisted, so we count groups directly
  * (no room-chunking needed, unlike RS) — the circle matches the group cards.
  */
-const countCompletedDcsGroupsForTeacher = async (teacherId) => {
-  const groups = await DCSGroup.find({
-    assignedTeacher: teacherId,
-    status: "claimed",
-  }).populate({ path: "schedule", select: "date endTime" });
-
-  return groups.filter((g) => scheduleHasEnded(g.schedule)).length;
-};
+const countCompletedDcsGroupsForTeacher = async (teacherId) =>
+  (await listCompletedDutyUnits(teacherId, "dcs")).length;
 
 /**
  * All DCS groups a teacher currently holds (upcoming + ongoing + completed) —
@@ -1108,6 +1176,7 @@ module.exports = {
   // DCS (Deputy Chief Superintendent)
   DCS_ELIGIBLE_DESIGNATIONS,
   calculateDcsInstitutionDuty,
+  listCompletedDutyUnits,
   countDcsEligibleTeachers,
   calculateDcsDutyPerTeacher,
   calculateDcsTeacherProgress,

@@ -93,6 +93,13 @@ const findAllWithStats = async (filter = {}) => {
   });
 };
 
+/** Ids of the live groups of one exam type + semester (pre-find hides cancelled). */
+const findIdsByTypeAndSemester = (examType, semester, session) =>
+  ExamGroup.find({ examType, semester })
+    .select("_id")
+    .session(session || null)
+    .then((groups) => groups.map((g) => g._id));
+
 /** { collegeId: live exam groups } — superadmin overview, platform scope. */
 const countByCollege = async () => {
   const rows = await ExamGroup.aggregate([
@@ -104,6 +111,7 @@ const countByCollege = async () => {
 
 module.exports = {
   countByCollege,
+  findIdsByTypeAndSemester,
   create,
   findAll,
   findById,

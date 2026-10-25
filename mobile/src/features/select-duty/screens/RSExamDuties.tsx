@@ -15,6 +15,7 @@ import { useSelectionSet } from "../hooks/useSelectionSet";
 import { sectionizeByWindow } from "../sections";
 import { rsGroupWindow, rsStateOf, rsTakenRooms, rsValidate, summarizeConflicts } from "../selection";
 import { groupRoomsIntoRSGroups } from "../shared/rsDutyGroupingUtils";
+import { rsGroupExamIds } from "../shared/sharedSlot";
 import type { RSDutyGroup } from "../shared/rsTypes";
 
 const groupId = (g: RSDutyGroup) => g.groupId;
@@ -44,10 +45,8 @@ export function RSExamDuties({ examGroupId }: { examGroupId: string }) {
   );
 
   const allGroups = useMemo(() => groupRoomsIntoRSGroups(slotsQ.data), [slotsQ.data]);
-  // A group on a shared SEE slot can mix departments' rooms — list it under
-  // every exam that has a room in it, not just the first room's.
   const examGroups = useMemo(
-    () => allGroups.filter((g) => g.rooms.some((r) => r.examGroupId === examGroupId)),
+    () => allGroups.filter((g) => rsGroupExamIds(g).includes(examGroupId)),
     [allGroups, examGroupId],
   );
 

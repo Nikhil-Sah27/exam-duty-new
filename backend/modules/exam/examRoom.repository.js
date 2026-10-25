@@ -1,5 +1,5 @@
 const ExamRoom = require("./examRoom.model");
-const { ownershipFilter } = require("./examRoomOwnership.utils");
+const { ownershipFilter } = require("./sharedSchedule.utils");
 
 const POPULATE_FIELDS = [
   {

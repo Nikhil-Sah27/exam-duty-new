@@ -1,11 +1,11 @@
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 
-import { useUnreadCount } from "@/features/notifications/hooks";
+import { useUnreadMessages } from "@/features/messages/hooks";
 import { useTheme } from "@/theme";
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  const { data: unread = 0 } = useUnreadCount();
+  const { data: unreadMessages = 0 } = useUnreadMessages();
 
   return (
     <NativeTabs
@@ -22,10 +22,18 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Select Duty</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="plus.rectangle.on.rectangle" md="add_task" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="alerts">
-        <NativeTabs.Trigger.Label>Alerts</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: "bell", selected: "bell.fill" }} md="notifications" />
-        {unread > 0 ? <NativeTabs.Trigger.Badge>{unread > 99 ? "99+" : String(unread)}</NativeTabs.Trigger.Badge> : null}
+      {/* Alerts moved to the bell at the top right of each tab (AlertsBell).
+          The chat sizes itself above the tab bar and keyboard (MessagesScreen),
+          so the automatic insets are off for this tab. */}
+      <NativeTabs.Trigger name="messages" disableAutomaticContentInsets>
+        <NativeTabs.Trigger.Label>Messages</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "bubble.left.and.bubble.right", selected: "bubble.left.and.bubble.right.fill" }}
+          md="chat"
+        />
+        {unreadMessages > 0 ? (
+          <NativeTabs.Trigger.Badge>{unreadMessages > 99 ? "99+" : String(unreadMessages)}</NativeTabs.Trigger.Badge>
+        ) : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>

@@ -16,6 +16,7 @@ import {
 } from "@/alarms";
 import { Banner, Button, Card, Divider, Icon, ListRow, Screen, Text } from "@/components/ui";
 import { chooseRole, signOut } from "@/features/auth/session";
+import { AlertsBell } from "@/features/notifications/AlertsBell";
 import { API_URL } from "@/lib/config";
 import { formatInstant } from "@/lib/format";
 import { isTeacherRole, ROLE_LABELS } from "@/lib/roles";
@@ -102,7 +103,10 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <Text variant="title">Settings</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text variant="title">Settings</Text>
+        <AlertsBell />
+      </View>
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>

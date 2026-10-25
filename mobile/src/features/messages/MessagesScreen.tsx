@@ -13,9 +13,10 @@ import {
   ToastAndroid,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-screens/experimental";
 
 import { Banner, Button, EmptyState, Icon, Text } from "@/components/ui";
+import { AlertsBell } from "@/features/notifications/AlertsBell";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
 
@@ -58,7 +59,6 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
  */
 export default function MessagesScreen() {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const { ref: rootRef, onLayout: onRootLayout, inset: keyboardInset, keyboardOpen } = useKeyboardInset();
   const myUserId = useAuthStore((s) => s.user?.id ?? null);
 
@@ -194,7 +194,8 @@ export default function MessagesScreen() {
     return m;
   };
 
-  const bottomInset = keyboardOpen ? keyboardInset : insets.bottom;
+  // Closed keyboard: the SafeAreaView below already clears the tab bar.
+  const bottomInset = keyboardOpen ? keyboardInset : 0;
 
   let body;
   if (thread.isPending) {
@@ -206,7 +207,7 @@ export default function MessagesScreen() {
     );
   } else if (thread.isError && !thread.data) {
     body = (
-      <View style={[styles.center, { paddingBottom: insets.bottom }]}>
+      <View style={styles.center}>
         <EmptyState
           icon="error"
           title="Couldn't load your messages"
@@ -290,12 +291,17 @@ export default function MessagesScreen() {
   }
 
   return (
-    <View ref={rootRef} onLayout={onRootLayout} style={[styles.flex, { backgroundColor: colors.background }]}>
+    // The Messages tab turns off automatic insets, so this keeps the chat (and
+    // its composer) above the tab bar; useKeyboardInset then measures the root
+    // view's real bottom edge, so the keyboard maths needs no tab-bar height.
+    <SafeAreaView edges={{ bottom: true }} style={[styles.flex, { backgroundColor: colors.background }]}>
+    <View ref={rootRef} onLayout={onRootLayout} style={styles.flex}>
       <Stack.Screen
         options={{
           headerTitle: () => <HeaderTitle />,
-          headerRight: hasMessages
-            ? () => (
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              {hasMessages ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={searchOpen ? "Close search" : "Search in conversation"}
@@ -308,8 +314,10 @@ export default function MessagesScreen() {
                 >
                   <Icon name={searchOpen ? "close" : "search"} size={20} color={colors.primary} />
                 </Pressable>
-              )
-            : undefined,
+              ) : null}
+              <AlertsBell />
+            </View>
+          ),
         }}
       />
       {body}
@@ -341,11 +349,13 @@ export default function MessagesScreen() {
         }}
       />
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
   inlineBanner: { paddingHorizontal: 12, paddingVertical: 6 },
   headerTitle: { flexDirection: "row", alignItems: "center", gap: 10, maxWidth: 260 },

@@ -58,13 +58,14 @@ export default function AlertsScreen() {
   };
 
   return (
-    <Screen refreshing={list.isRefetching} onRefresh={() => void list.refetch()}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Text variant="title">Alerts</Text>
-        {unread > 0 ? (
+    // A stack screen (the header carries the "Alerts" title), opened from the
+    // bell at the top right of every tab — see AlertsBell.
+    <Screen edges={[]} refreshing={list.isRefetching} onRefresh={() => void list.refetch()}>
+      {unread > 0 ? (
+        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
           <Button title="Mark all read" variant="ghost" icon="doneAll" onPress={() => markAll.mutate()} loading={markAll.isPending} />
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {list.isLoading ? (
         <Text muted>Loading…</Text>

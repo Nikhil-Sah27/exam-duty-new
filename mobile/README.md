@@ -9,7 +9,7 @@ this is Expo SDK 57, so check the versioned docs rather than relying on memory.
 
 | Path | What |
 |---|---|
-| `src/app/` | Expo Router screens: `login`, `forgot-password`, `select-role`, `cs-web`, `(tabs)/{index,select,alerts,settings}`, `duty/[key]`, `alarm`, `select/[examGroupId]` |
+| `src/app/` | Expo Router screens: `login`, `forgot-password`, `select-role`, `cs-web`, `(tabs)/{index,select,messages,settings}` (Messages = chat with CS, in a nested stack), `alerts` (opened from the bell at the top right of each tab), `duty/[key]`, `alarm`, `select/[examGroupId]` |
 | `src/alarms/` | On-device alarm engine. `syncAlarms()` reconciles scheduled alarms with `GET /api/duties/my-units` × the teacher's alarm settings |
 | `src/push/` | Expo push token → `POST /api/push/devices`; `DELETE` on logout |
 | `src/runtime/` | Teacher-only wiring: sync on foreground and on every push, notification tap routing, alarm screen routing |

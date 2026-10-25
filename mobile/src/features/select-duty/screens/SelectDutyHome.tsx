@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AlertsBell } from "@/features/notifications/AlertsBell";
 import type { TeacherRole } from "@/lib/types";
 import { useAuthStore } from "@/store/auth";
 import { radius, roleColors, spacing, useTheme } from "@/theme";
@@ -99,7 +100,10 @@ export default function SelectDutyHome() {
       }
     } else if (role === "rs") {
       for (const g of groupRoomsIntoRSGroups(slotsQ.data)) {
-        bump(g.examGroupId, !g.allAssigned, g.allAssigned && g.rooms.every((r) => holds(r.examRoomId, "rs")));
+        // A group on a shared SEE slot can mix departments' rooms — it counts
+        // under every exam with a room in it (same rule as RSExamDuties).
+        const mine = g.allAssigned && g.rooms.every((r) => holds(r.examRoomId, "rs"));
+        for (const examId of new Set(g.rooms.map((r) => r.examGroupId))) bump(examId, !g.allAssigned, mine);
       }
     } else if (role === "dcs") {
       const selectable = selectableFilter(dcsQ.data ?? [], (g) => ({
@@ -109,9 +113,11 @@ export default function SelectDutyHome() {
         cancelled: g.status === "released",
       }));
       for (const g of selectable) {
-        const examId = g.examGroup?._id;
-        if (!examId) continue;
-        bump(examId, g.status === "open", g.status === "claimed" && g.assignedTeacher?._id === user?.id);
+        // A shared SEE slot's DCS groups belong to its owner exam; the
+        // departments that joined it count them too (same rule as DcsExamDuties).
+        const examIds = [g.examGroup?._id, ...(g.schedule.sharedWith ?? [])].filter(Boolean) as string[];
+        const mine = g.status === "claimed" && g.assignedTeacher?._id === user?.id;
+        for (const examId of new Set(examIds)) bump(examId, g.status === "open", mine);
       }
     }
     return out;
@@ -145,7 +151,10 @@ export default function SelectDutyHome() {
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl * 2 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-      <Text style={[styles.h1, { color: colors.text }]}>Select Duty</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={[styles.h1, { color: colors.text }]}>Select Duty</Text>
+        <AlertsBell />
+      </View>
       <Text style={[styles.intro, { color: colors.textMuted }]}>{INTRO[role]}</Text>
 
       <ProgressCard role={role} progress={progressQ.data} />

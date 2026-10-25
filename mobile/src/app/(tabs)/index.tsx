@@ -10,6 +10,7 @@ import { DutyProgressSummary } from "@/features/duties/DutyProgressSummary";
 import { DutyUnitCard } from "@/features/duties/DutyUnitCard";
 import { useConfirmUnit, useMyUnits } from "@/features/duties/hooks";
 import { useUnreadMessages } from "@/features/messages/hooks";
+import { AlertsBell } from "@/features/notifications/AlertsBell";
 import { formatInstant } from "@/lib/format";
 import { ROLE_LABELS, isTeacherRole } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
@@ -34,14 +35,17 @@ export default function HomeScreen() {
 
   return (
     <Screen refreshing={units.isRefetching} onRefresh={() => void units.refetch()}>
-      <View style={{ gap: 4 }}>
-        <Text muted>{greeting()},</Text>
-        <Text variant="title">{user?.name ?? ""}</Text>
-        {role ? (
-          <Text variant="caption" muted>
-            Signed in as {ROLE_LABELS[role]}
-          </Text>
-        ) : null}
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text muted>{greeting()},</Text>
+          <Text variant="title">{user?.name ?? ""}</Text>
+          {role ? (
+            <Text variant="caption" muted>
+              Signed in as {ROLE_LABELS[role]}
+            </Text>
+          ) : null}
+        </View>
+        <AlertsBell />
       </View>
 
       <Card onPress={() => router.navigate("/settings")} style={{ backgroundColor: colors.primaryDeep, borderColor: colors.primaryDeep }}>
@@ -135,7 +139,7 @@ export default function HomeScreen() {
             subtitle="Chat with CS"
             right={unreadMessages > 0 ? <Chip label={String(unreadMessages)} fg={colors.onPrimary} bg={colors.danger} /> : null}
             chevron
-            onPress={() => router.push("/messages")}
+            onPress={() => router.navigate("/messages")}
           />
         </Card>
       ) : null}

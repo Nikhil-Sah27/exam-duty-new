@@ -21,7 +21,11 @@ export type NotificationType =
   | "duty_claimed_by_teacher"
   | "duty_released_by_teacher"
   | "group_released"
-  | "announcement";
+  | "announcement"
+  // CS (the exam cell) wrote in the teacher's message thread.
+  | "cs_message"
+  // A teacher wrote to CS (refId = the conversation).
+  | "teacher_message";
 
 export interface Notification {
   _id: string;
@@ -35,7 +39,7 @@ export interface Notification {
   role?: "cs" | "dcs" | "rs" | "invigilator" | null;
   title: string;
   message: string;
-  refModel: "Duty" | "ChangeRequest" | null;
+  refModel: "Duty" | "ChangeRequest" | "Conversation" | null;
   refId: string | null;
   isRead: boolean;
   readAt: string | null;

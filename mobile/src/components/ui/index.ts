@@ -7,5 +7,6 @@ export { Icon, type IconName } from "./Icon";
 export { Divider, ListRow } from "./ListRow";
 export { Logo } from "./Logo";
 export { Screen } from "./Screen";
+export { SegmentedControl, type Segment } from "./SegmentedControl";
 export { Text } from "./Text";
 export { TextField } from "./TextField";

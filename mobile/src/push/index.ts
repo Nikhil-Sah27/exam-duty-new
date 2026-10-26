@@ -29,6 +29,8 @@ export interface PushData {
   type?: string;
   notificationId?: string;
   dutyId?: string;
+  /** A chat message's conversation (teacher_message → open it in the CS app). */
+  conversationId?: string;
   sync?: boolean;
   kind?: string;
 }

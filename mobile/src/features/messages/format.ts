@@ -70,6 +70,17 @@ export const refId = (ref: NamedRef | string | undefined | null): string | null 
 export const refName = (ref: NamedRef | string | undefined | null): string | undefined =>
   ref && typeof ref === "object" ? ref.name : undefined;
 
+/** Up-to-two-letter initials from a name, for avatar chips (web `initials`). */
+export function initials(name: string | undefined): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 /** Who a message (or a reply preview) is from, as the web labels it. */
 export function senderLabel(m: Pick<ChatMessage, "senderIsCs"> & { sender?: NamedRef | string }): string {
   if (m.senderIsCs) return CS_LABEL;

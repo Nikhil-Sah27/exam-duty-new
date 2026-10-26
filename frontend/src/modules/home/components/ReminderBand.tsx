@@ -6,7 +6,7 @@ import Reveal from "./Reveal";
 const TIMELINE: { when: string; title: string; body: string; icon: LucideIcon }[] = [
   { when: "Assigned", title: "Email + calendar invite", body: "The duty lands in their calendar — and moves or cancels itself if the duty does.", icon: CalendarCheck2 },
   { when: "+24 h", title: "Nudge to confirm", body: "Not confirmed yet? One click in the email tells the exam cell they’ll be there.", icon: MailCheck },
-  { when: "−3 d · −1 d · −30 min", title: "Reminders", body: "Dated reminders — never a vague “tomorrow” — once per duty, even for a five-room group.", icon: CheckCircle2 },
+  { when: "−3 d · −1 d · −2 h", title: "Reminders", body: "Dated reminders — never a vague “tomorrow” — once per duty, even for a five-room group.", icon: CheckCircle2 },
   { when: "−1 h · −20 min", title: "The phone rings", body: "With the Proctavo app: a real alarm, full-screen, with “I’m on my way” — nobody sleeps through a 9:30 paper.", icon: AlarmClock },
   { when: "Exam day", title: "Everyone’s where they should be", body: "Still unconfirmed the day before? The exam cell is told first, with time to act.", icon: Footprints },
 ];

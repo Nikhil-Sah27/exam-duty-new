@@ -1,11 +1,10 @@
-import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 
 import { Banner, Button, Card, EmptyState, Screen, Text } from "@/components/ui";
 import type { AppNotification } from "@/features/notifications/api";
 import { useMarkAllRead, useMarkRead, useNotifications } from "@/features/notifications/hooks";
 import { timeAgo } from "@/lib/format";
-import { findUnitByDutyId } from "@/runtime/navigation";
+import { openNotificationTarget } from "@/runtime/navigation";
 import { useTheme } from "@/theme";
 
 function NotificationRow({ n, onPress }: { n: AppNotification; onPress: () => void }) {
@@ -49,12 +48,13 @@ export default function AlertsScreen() {
   const markAll = useMarkAllRead();
   const unread = list.data?.filter((n) => !n.isRead).length ?? 0;
 
-  const open = async (n: AppNotification) => {
+  const open = (n: AppNotification) => {
     if (!n.isRead) markRead.mutate(n._id);
-    if (n.refModel === "Duty" && n.refId) {
-      const unit = await findUnitByDutyId(n.refId);
-      if (unit) router.push({ pathname: "/duty/[key]", params: { key: unit.key } });
-    }
+    void openNotificationTarget({
+      type: n.type,
+      dutyId: n.refModel === "Duty" ? n.refId : null,
+      conversationId: n.refModel === "Conversation" ? n.refId : null,
+    });
   };
 
   return (
@@ -78,7 +78,7 @@ export default function AlertsScreen() {
       ) : list.data && list.data.length > 0 ? (
         <View style={{ gap: 10 }}>
           {list.data.map((n) => (
-            <NotificationRow key={n._id} n={n} onPress={() => void open(n)} />
+            <NotificationRow key={n._id} n={n} onPress={() => open(n)} />
           ))}
           <Text variant="caption" muted style={{ textAlign: "center", marginTop: 8 }}>
             Showing your latest {list.data.length} alerts.

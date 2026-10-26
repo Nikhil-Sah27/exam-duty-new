@@ -65,3 +65,9 @@ export function timeAgo(iso: string): string {
 export function examTitle(examLabel: string, semester: number | null): string {
   return `${examLabel}${semester ? ` · Sem ${semester}` : ""}`;
 }
+
+/** "Good morning" / "Good afternoon" / "Good evening" for the device's local time. */
+export function greeting(now: Date = new Date()): string {
+  const h = now.getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}

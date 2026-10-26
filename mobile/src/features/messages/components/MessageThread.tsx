@@ -23,8 +23,10 @@ interface Props {
   messages: ChatMessage[];
   pending: SendVars[];
   myUserId: string | null;
-  /** When CS last read the thread — the teacher's older messages show as read. */
-  csLastReadAt: string | null;
+  /** The viewer is CS: their bubbles are the CS ones (right side, with ticks). */
+  viewerIsCs: boolean;
+  /** When the OTHER side last read the thread — the viewer's older messages show as read. */
+  peerLastReadAt: string | null;
   searchTerm: string;
   activeMatchId: string | null;
   onLongPress: (m: ChatMessage) => void;
@@ -36,12 +38,12 @@ export type ThreadRow = Row;
 const NEAR_BOTTOM = 80;
 
 /** A not-yet-confirmed send, shaped like a message so it renders as a pending bubble. */
-function pendingAsMessage(p: SendVars, myUserId: string | null): ChatMessage {
+function pendingAsMessage(p: SendVars, myUserId: string | null, viewerIsCs: boolean): ChatMessage {
   return {
     _id: p.tempId,
     conversation: "",
     sender: myUserId ?? "",
-    senderIsCs: false,
+    senderIsCs: viewerIsCs,
     body: p.body,
     createdAt: p.createdAt,
     replyTo: p.replyTo
@@ -57,21 +59,21 @@ function pendingAsMessage(p: SendVars, myUserId: string | null): ChatMessage {
  * The list is inverted so it opens at the newest message and stays pinned there as
  * the keyboard opens or new messages arrive.
  */
-export function MessageThread({ listRef, messages, pending, myUserId, csLastReadAt, searchTerm, activeMatchId, onLongPress, onReact }: Props) {
+export function MessageThread({ listRef, messages, pending, myUserId, viewerIsCs, peerLastReadAt, searchTerm, activeMatchId, onLongPress, onReact }: Props) {
   const { colors } = useTheme();
   const [atBottom, setAtBottom] = useState(true);
   const [seen, setSeen] = useState(0);
 
   const rows = useMemo(() => {
-    const readCutoff = csLastReadAt ? new Date(csLastReadAt).getTime() : 0;
+    const readCutoff = peerLastReadAt ? new Date(peerLastReadAt).getTime() : 0;
     const all: { message: ChatMessage; pending: boolean }[] = [
       ...messages.map((message) => ({ message, pending: false })),
-      ...pending.map((p) => ({ message: pendingAsMessage(p, myUserId), pending: true })),
+      ...pending.map((p) => ({ message: pendingAsMessage(p, myUserId, viewerIsCs), pending: true })),
     ];
     const out: Row[] = all.map(({ message: m, pending: isPending }, i) => {
       const prev = all[i - 1]?.message;
       const showDay = isNewDay(prev?.createdAt, m.createdAt);
-      const mine = !m.senderIsCs;
+      const mine = m.senderIsCs === viewerIsCs;
       return {
         key: m._id,
         message: m,
@@ -82,7 +84,7 @@ export function MessageThread({ listRef, messages, pending, myUserId, csLastRead
       };
     });
     return out.reverse(); // inverted list: newest first
-  }, [messages, pending, myUserId, csLastReadAt]);
+  }, [messages, pending, myUserId, viewerIsCs, peerLastReadAt]);
 
   // Bring the active search match into view — once per match, not on every poll
   // that rebuilds `rows`.

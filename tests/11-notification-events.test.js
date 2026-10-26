@@ -189,6 +189,66 @@ async function run(token) {
     );
   });
 
+  // ── CS message → teacher alert (and phone push) that the chat clears ──────
+  await test("A CS message notifies the teacher; opening the chat marks it read", async () => {
+    const users = (await api.get("/users", { params: { limit: 500 } })).data.data;
+    const teacher = users.find((u) => u.email === "rs@examduty.com");
+    assert(teacher, "seeded RS teacher");
+    const login = await api.post("/auth/login", { email: "rs@examduty.com", password: "Rs123456" });
+    const teacherToken = login.data.data.token;
+
+    setToken(token);
+    const conv = (await api.post("/messages/conversations/start", { teacherId: teacher._id })).data.data;
+    const body = `Please report 15 minutes early to Block A (${Date.now()}).`;
+    assertStatus(await api.post(`/messages/conversations/${conv._id}`, { body }), 201);
+
+    setToken(teacherToken);
+    try {
+      const find = async () =>
+        (await api.get("/notifications", { params: { limit: 50 } })).data.data.find(
+          (n) => n.type === "cs_message" && n.message.includes(body),
+        );
+      const note = await eventually(find, (n) => !!n);
+      assert(note, "teacher got a cs_message notification");
+      assert(note.title === "New message from the exam cell", `title: ${note.title}`);
+      assert(!note.isRead, "starts unread");
+
+      await api.get("/messages/thread");
+      const after = await find();
+      assert(after && after.isRead, "opening the chat marks it read");
+    } finally {
+      setToken(token);
+    }
+  });
+
+  // ── Teacher message → CS alert (and phone push) that opening the chat clears ─
+  await test("A teacher's message notifies CS with the conversation; opening it marks it read", async () => {
+    const login = await api.post("/auth/login", { email: "rs@examduty.com", password: "Rs123456" });
+    const teacherToken = login.data.data.token;
+    const body = `Can I swap my Friday duty? (${Date.now()})`;
+
+    setToken(teacherToken);
+    try {
+      assertStatus(await api.post("/messages/thread", { body }), 201);
+    } finally {
+      setToken(token);
+    }
+
+    const find = async () =>
+      (await api.get("/notifications", { params: { limit: 50 } })).data.data.find(
+        (n) => n.type === "teacher_message" && n.message.includes(body),
+      );
+    const note = await eventually(find, (n) => !!n);
+    assert(note, "CS got a teacher_message notification");
+    assert(/^Message from /.test(note.title), `title names the teacher: ${note.title}`);
+    assert(note.refModel === "Conversation" && note.refId, "points at the conversation");
+    assert(!note.isRead, "starts unread");
+
+    await api.get(`/messages/conversations/${note.refId}`);
+    const after = await find();
+    assert(after && after.isRead, "opening the conversation marks it read");
+  });
+
   const result = summary("NOTIFICATION EVENTS");
   return result;
 }

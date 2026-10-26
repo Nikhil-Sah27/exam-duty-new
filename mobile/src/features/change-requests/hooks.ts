@@ -12,10 +12,12 @@ import { useAuthStore } from "@/store/auth";
 
 import {
   createChangeRequest,
+  fetchAllChangeRequests,
   fetchMyChangeRequests,
   fetchMyDcsGroups,
   fetchOpenDcsGroups,
   fetchReplacementSlots,
+  reviewChangeRequest,
 } from "./api";
 import { filterUpcomingRSDuties, groupRSDutiesIntoUpcomingGroups } from "./shared/rsUpcomingGrouping";
 import type { ChangeRequest, CreateChangeRequestPayload } from "./types";
@@ -26,6 +28,7 @@ import { isDcsGroupUpcoming, upcomingAssignedDuties } from "./validation";
 // same everywhere.
 export const CR_KEYS = {
   all: ["change-requests"] as const,
+  byStatus: (status: string) => ["change-requests", "all", status] as const,
   mine: ["change-requests", "mine"] as const,
   replacements: (dutyId: string) => ["change-requests", "replacements", dutyId] as const,
   myDcsGroups: ["dcs", "my-groups"] as const,
@@ -141,6 +144,36 @@ export function useSubmitChangeRequest() {
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: CR_KEYS.all });
       for (const key of CLAIM_INVALIDATIONS) void qc.invalidateQueries({ queryKey: [...key] });
+    },
+  });
+}
+
+// ── CS review ───────────────────────────────────────────────────────────────
+
+export type ReviewStatus = "pending" | "approved" | "rejected";
+
+/** CS: the review queue for one status (web useAllChangeRequests). */
+export function useAllChangeRequests(status: ReviewStatus) {
+  const token = useAuthStore((s) => s.token);
+  const isCs = useAuthStore((s) => s.user?.activeRole === "cs");
+  return useQuery({
+    queryKey: CR_KEYS.byStatus(status),
+    queryFn: () => fetchAllChangeRequests(status),
+    enabled: !!token && isCs,
+  });
+}
+
+/** CS: approve / reject. Like the web, refreshes requests and the duty caches a swap can move. */
+export function useReviewChangeRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; action: "approve" | "reject"; note?: string }) => reviewChangeRequest(v.id, v.action, v.note),
+    onSettled: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: CR_KEYS.all }),
+        qc.invalidateQueries({ queryKey: ["shared"] }),
+        qc.invalidateQueries({ queryKey: ["dcs"] }),
+      ]);
     },
   });
 }

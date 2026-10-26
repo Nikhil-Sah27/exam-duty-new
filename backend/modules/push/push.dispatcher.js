@@ -8,6 +8,7 @@
 const pushRepository = require("./push.repository");
 const transport = require("./push.transport");
 const policy = require("./push.policy");
+const { pushTtlSeconds } = require("../notification/reminder.stages");
 
 // Lazy: user.service is a sibling domain; keep load order independent.
 const userService = () => require("../user/user.service");
@@ -41,8 +42,9 @@ const markFailure = (id, attempts, err) => {
   });
 };
 
-/** A 30-minute reminder delivered an hour late is noise — let Expo drop it. */
-const ttlFor = (row) => (row.type === "duty_reminder" && row.data?.stage === "30m" ? 30 * 60 : 2 * 24 * 3600);
+/** A "starting soon" reminder delivered after the duty began is noise — let Expo drop it. */
+const ttlFor = (row) =>
+  (row.type === "duty_reminder" && pushTtlSeconds(row.data?.stage)) || 2 * 24 * 3600;
 
 const messageFor = (row, token) => {
   const urgent = policy.isUrgent(row.type);

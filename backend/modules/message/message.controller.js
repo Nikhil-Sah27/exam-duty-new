@@ -54,7 +54,7 @@ const startConversation = catchAsync(async (req, res) => {
 });
 
 const getConversation = catchAsync(async (req, res) => {
-  const data = await messageService.getConversationForCs(req.params.id);
+  const data = await messageService.getConversationForCs(req.params.id, req.user.id);
   res.status(200).json({ success: true, data });
 });
 

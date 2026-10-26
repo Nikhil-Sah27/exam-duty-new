@@ -82,7 +82,7 @@ export default function LoginScreen() {
         </View>
 
         <Text variant="caption" muted style={{ textAlign: "center" }}>
-          For Invigilators, RS and DCS. CS manages exams on the web dashboard.
+          For Invigilators, RS, DCS and the exam cell (CS). Creating exams and reports stay on the web.
         </Text>
       </Screen>
     </KeyboardAvoidingView>

@@ -11,6 +11,7 @@ const {
   formatLongDate,
   formatTime12h,
 } = require("../../shared/utils/datetime");
+const { isLastStage } = require("./reminder.stages");
 
 // Shared-slot regrouping (SEE departments joining / leaving a time slot).
 const REGROUP_CAUSE = {
@@ -166,6 +167,20 @@ const templates = {
     };
   },
 
+  // CS wrote to the teacher in their message thread. The body is the message
+  // itself (trimmed), like a chat app's notification; tapping it opens the chat.
+  cs_message: ({ preview }) => ({
+    title: "New message from the exam cell",
+    message: preview && preview.length > 140 ? `${preview.slice(0, 139)}…` : preview || "You have a new message.",
+  }),
+
+  // A teacher wrote to CS. Titled with the teacher like a chat app; tapping it
+  // opens that conversation in the CS app.
+  teacher_message: ({ teacherName, preview }) => ({
+    title: teacherName ? `Message from ${teacherName}` : "New message from a teacher",
+    message: preview && preview.length > 140 ? `${preview.slice(0, 139)}…` : preview || "You have a new message.",
+  }),
+
   request_submitted: ({ type, date, by }) => ({
     title: "New Change Request",
     message: `${by || "A teacher"} requested a ${type} for their duty on ${formatDate(date)}. Review and approve it.`,
@@ -190,7 +205,7 @@ const templates = {
   // The message is anchored to the ABSOLUTE date (never "tomorrow"): a stored
   // notification is read later than it's created, so relative wording goes stale
   // the moment the day rolls over ("tomorrow" while the duty is actually today).
-  // Per duty unit at 3 days / 1 day / 30 minutes out (reminder.jobs.js). `count`
+  // Per duty unit at 3 days / 1 day / 2 hours out (reminder.stages.js). `count`
   // is the older once-a-day digest shape, kept so stored rows still render.
   duty_reminder: ({ room, date, startTime, endTime, count, stage, roleLabel, roomCount, unconfirmed }) => {
     // Absolute date, never "tomorrow" / "in 3 days": a stored reminder is read
@@ -198,9 +213,10 @@ const templates = {
     if (stage) {
       const what =
         roomCount > 1 ? `${roleLabel} group duty (${roomCount} rooms: ${room})` : `${roleLabel || ""} duty at ${room}`.trim();
-      const confirm = unconfirmed && stage !== "30m" ? " Please confirm you'll be there." : "";
+      const soon = isLastStage(stage);
+      const confirm = unconfirmed && !soon ? " Please confirm you'll be there." : "";
       return {
-        title: stage === "30m" ? "Duty Starting Soon" : "Upcoming Duty Reminder",
+        title: soon ? "Duty Starting Soon" : "Upcoming Duty Reminder",
         message: `Your ${what} is on ${formatLongDate(date)}, ${formatTime12h(startTime)} – ${formatTime12h(
           endTime
         )}.${confirm}`,

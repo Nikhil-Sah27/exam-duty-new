@@ -51,6 +51,12 @@ const markAllAsRead = (recipientId) => {
   );
 };
 
+const markTypeAsRead = (recipientId, type, refId) =>
+  Notification.updateMany(
+    { recipient: recipientId, type, isRead: false, ...(refId ? { refId } : {}) },
+    { isRead: true, readAt: new Date() }
+  );
+
 const deleteById = (id) => {
   return Notification.findByIdAndDelete(id);
 };
@@ -71,6 +77,7 @@ module.exports = {
   existsByDedupeKey,
   markAsRead,
   markAllAsRead,
+  markTypeAsRead,
   deleteById,
   deleteAllByRecipient,
 };

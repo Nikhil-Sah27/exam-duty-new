@@ -3,7 +3,7 @@ import Reveal from "./Reveal";
 /** Product guarantees, stated as numbers — each one is how Proctavo actually behaves. */
 const FACTS = [
   { value: "0", label: "double-booked duties", note: "only one teacher can hold a room’s duty — the database enforces it" },
-  { value: "3", label: "reminders per duty", note: "three days, one day and 30 minutes before" },
+  { value: "3", label: "reminders per duty", note: "three days, one day and two hours before" },
   { value: "1 tap", label: "to confirm", note: "one click in the email (no login), or one tap in the app" },
   { value: "4", label: "roles, one roster", note: "CS, DCS, RS and invigilators each see their part" },
 ];

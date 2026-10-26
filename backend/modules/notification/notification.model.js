@@ -35,6 +35,10 @@ const notificationSchema = new mongoose.Schema(
         "duty_released_by_teacher",
         "group_released",
         "announcement",
+        // CS (the exam cell) wrote in the teacher's message thread.
+        "cs_message",
+        // A teacher wrote to CS — every CS user hears it (refId = the conversation).
+        "teacher_message",
       ],
     },
     // Which role this notification concerns. Null = role-agnostic (exam
@@ -59,7 +63,7 @@ const notificationSchema = new mongoose.Schema(
     // Optional reference to the entity that triggered the notification
     refModel: {
       type: String,
-      enum: ["Duty", "ChangeRequest"],
+      enum: ["Duty", "ChangeRequest", "Conversation"],
       default: null,
     },
     refId: {

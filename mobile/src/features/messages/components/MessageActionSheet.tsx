@@ -9,6 +9,8 @@ import { QUICK_REACTIONS, senderLabel } from "../format";
 
 interface Props {
   message: ChatMessage | null;
+  /** The viewer is CS — their own messages are the CS ones. */
+  viewerIsCs: boolean;
   /** Own, non-deleted message → Edit and Delete are offered. */
   canModify: boolean;
   /** The viewer's current reaction on this message, highlighted in the row. */
@@ -42,7 +44,7 @@ function Action({ icon, label, onPress, danger }: { icon: IconName; label: strin
  * Long-press menu for a message — the phone equivalent of the web's hover
  * dropdown (MessageActions): quick reactions, then Reply / Copy / Edit / Delete.
  */
-export function MessageActionSheet({ message, canModify, currentReaction, onClose, onReact, onReply, onCopy, onEdit, onDelete }: Props) {
+export function MessageActionSheet({ message, viewerIsCs, canModify, currentReaction, onClose, onReact, onReply, onCopy, onEdit, onDelete }: Props) {
   const { colors, radius } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -64,7 +66,7 @@ export function MessageActionSheet({ message, canModify, currentReaction, onClos
           <View style={[styles.grabber, { backgroundColor: colors.border }]} />
           <View style={styles.preview}>
             <Text variant="caption" color={colors.primary} style={{ fontWeight: "700" }}>
-              {message.senderIsCs ? senderLabel(message) : "You"}
+              {message.senderIsCs === viewerIsCs ? "You" : senderLabel(message)}
             </Text>
             <Text variant="caption" muted numberOfLines={2}>
               {message.body}

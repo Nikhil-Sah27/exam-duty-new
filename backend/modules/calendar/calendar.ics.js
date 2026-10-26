@@ -7,6 +7,7 @@
  * the teacher's calendar at all.
  */
 
+const { STAGES: REMINDER_STAGES } = require("../notification/reminder.stages");
 const { appTimezone, localToUtc } = require("../../shared/utils/datetime");
 
 /** 20261001T040000Z */
@@ -83,11 +84,7 @@ const buildIcs = (e) => {
     // Google Calendar ignores invite alarms and applies the user's default.
     ...(cancel
       ? []
-      : [
-          ["-P3D", "Exam duty in 3 days"],
-          ["-P1D", "Exam duty tomorrow"],
-          ["-PT30M", "Exam duty in 30 minutes"],
-        ].flatMap(([trigger, text]) => [
+      : REMINDER_STAGES.map((s) => [s.ical, s.alarmText]).flatMap(([trigger, text]) => [
           "BEGIN:VALARM",
           "ACTION:DISPLAY",
           `DESCRIPTION:${text}`,

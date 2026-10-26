@@ -24,12 +24,16 @@ export async function chooseRole(role: UserRole): Promise<void> {
   await store.setAuth(user, token); // TeacherRuntime re-runs afterSignedIn() for the new token
 }
 
-/** Device registration + alarm sync once a role-bound teacher token exists (called by TeacherRuntime). */
+/**
+ * Once a role-bound token exists: register this phone for pushes, and for a
+ * teacher also schedule duty alarms (TeacherRuntime / CsRuntime call this).
+ */
 export async function afterSignedIn(): Promise<void> {
   const role = useAuthStore.getState().user?.activeRole;
-  if (!isTeacherRole(role)) return;
+  const teacher = isTeacherRole(role);
+  if (!teacher && role !== "cs") return;
   await ensureNotificationPermission().catch(() => false); // alarms need it even without push
-  await Promise.allSettled([registerForPush(), syncAlarms()]);
+  await Promise.allSettled(teacher ? [registerForPush(), syncAlarms()] : [registerForPush()]);
 }
 
 /** Unregister this phone, clear alarms and cached data, then forget the session. */

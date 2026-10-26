@@ -7,7 +7,7 @@ export interface AppNotification {
   title: string;
   message: string;
   role: string | null;
-  refModel: "Duty" | "ChangeRequest" | null;
+  refModel: "Duty" | "ChangeRequest" | "Conversation" | null;
   refId: string | null;
   isRead: boolean;
   createdAt: string;

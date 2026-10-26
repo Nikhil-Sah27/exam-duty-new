@@ -2,9 +2,9 @@ import api from "@/lib/api";
 import type { ApiEnvelope } from "@/lib/types";
 
 // Teacher ↔ CS direct messages. Mirrors frontend/src/modules/messages/types +
-// services/messageService.ts (teacher side only). Each teacher has exactly one
-// thread with the CS office; the backend resolves it from the token, so nothing
-// here ever names a conversation or another user.
+// services/messageService.ts. Each teacher has exactly one thread with the CS
+// office: a teacher's calls resolve it from the token; CS addresses a teacher's
+// thread by conversation id and sees all of them as an inbox.
 
 export interface NamedRef {
   _id: string;
@@ -38,8 +38,18 @@ export interface ChatMessage {
   deleted?: boolean;
 }
 
+/** The teacher a conversation belongs to — populated on the CS endpoints. */
+export interface ConversationTeacher {
+  _id: string;
+  name: string;
+  email?: string;
+  department?: string | null;
+  designation?: string | null;
+}
+
 export interface Conversation {
   _id: string;
+  teacher?: ConversationTeacher | string;
   lastMessageBody: string;
   lastMessageAt: string | null;
   lastSenderIsCs: boolean;
@@ -89,4 +99,45 @@ export async function deleteMessage(id: string): Promise<ChatMessage> {
 export async function reactToMessage(id: string, emoji: string): Promise<ChatMessage> {
   const res = await api.put<ApiEnvelope<ChatMessage>>(`/messages/msg/${id}/reaction`, { emoji });
   return res.data.data;
+}
+
+// ── CS side (requireRole("cs") on the server) ──────────────────────────────
+
+/** Every teacher conversation, most recent first (the CS inbox). */
+export async function fetchConversations(): Promise<Conversation[]> {
+  const res = await api.get<ApiEnvelope<Conversation[]>>("/messages/conversations");
+  return res.data.data ?? [];
+}
+
+/** Total unread messages from teachers across every conversation. */
+export async function fetchCsUnread(): Promise<number> {
+  const res = await api.get<ApiEnvelope<{ count: number }>>("/messages/conversations/unread");
+  return res.data.data?.count ?? 0;
+}
+
+/** One conversation, oldest message first. Fetching it marks it read for CS. */
+export async function fetchConversation(id: string): Promise<Thread> {
+  const res = await api.get<ApiEnvelope<Thread>>(`/messages/conversations/${id}`);
+  return res.data.data;
+}
+
+export async function sendCsReply(id: string, body: string, replyTo?: string | null): Promise<ChatMessage> {
+  const res = await api.post<ApiEnvelope<ChatMessage>>(`/messages/conversations/${id}`, { body, replyTo: replyTo ?? null });
+  return res.data.data;
+}
+
+/** Open (or reuse) a teacher's thread — CS starting a new chat. */
+export async function startConversation(teacherId: string): Promise<Conversation> {
+  const res = await api.post<ApiEnvelope<Conversation>>("/messages/conversations/start", { teacherId });
+  return res.data.data;
+}
+
+export interface MessageableTeacher extends ConversationTeacher {
+  roles: string[];
+}
+
+/** Everyone CS can open a chat with — every user who isn't CS (web NewConversationModal's rule). */
+export async function fetchMessageableTeachers(): Promise<MessageableTeacher[]> {
+  const res = await api.get<ApiEnvelope<MessageableTeacher[]>>("/users");
+  return (res.data.data ?? []).filter((u) => !u.roles.includes("cs"));
 }

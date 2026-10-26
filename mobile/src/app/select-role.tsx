@@ -3,7 +3,7 @@ import { View } from "react-native";
 
 import { Banner, Button, Card, Icon, Logo, Screen, Text } from "@/components/ui";
 import { chooseRole, signOut } from "@/features/auth/session";
-import { ROLE_LABELS, isTeacherRole } from "@/lib/roles";
+import { ROLE_LABELS } from "@/lib/roles";
 import type { UserRole } from "@/lib/types";
 import { useAuthStore } from "@/store/auth";
 import { roleColors, useTheme } from "@/theme";
@@ -12,7 +12,7 @@ const ROLE_HINTS: Record<UserRole, string> = {
   invigilator: "Single exam rooms",
   rs: "Groups of up to 5 rooms",
   dcs: "Supervise a DCS group",
-  cs: "Admin — uses the web dashboard",
+  cs: "Exam cell — dashboard, requests and messages",
   superadmin: "Platform admin — uses the website",
 };
 
@@ -44,8 +44,8 @@ export default function SelectRoleScreen() {
       </View>
       {error ? <Banner tone="danger" title={error} /> : null}
       {roles.map((role) => {
-        const onWeb = !isTeacherRole(role);
-        const accent = onWeb ? { fg: colors.textMuted, bg: colors.surfaceMuted } : roleColors[role];
+        const onWeb = role === "superadmin";
+        const accent = role === "superadmin" ? { fg: colors.textMuted, bg: colors.surfaceMuted } : roleColors[role];
         return (
           <Card key={role} onPress={busy ? undefined : () => pick(role)}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>

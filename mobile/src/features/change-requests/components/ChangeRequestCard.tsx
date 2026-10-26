@@ -1,4 +1,5 @@
-import { View } from "react-native";
+import type { ReactNode } from "react";
+import { Linking, View } from "react-native";
 
 import { Card, Chip, Icon, Text } from "@/components/ui";
 import { compareRoomNumbers } from "@/features/select-duty/shared/rsDutyGroupingUtils";
@@ -11,7 +12,8 @@ import type { ChangeRequest, DcsGroupRef, RsSourceDutyRef, RsTargetExamRoomRef }
 import { examLabel, InfoLine, Panel, SectionLabel, StatusChip, TagRow, whenLabel } from "./parts";
 
 // Port of frontend/src/modules/shared/change-requests/components/ChangeRequestCard.tsx
-// (teacher view: no requester contact, no review/delete actions) and its
+// (teacher view, or with `reviewer` the CS view: requester + contact, and the
+// approve/reject `actions`; no delete control) and its
 // change-request-card/{DutyBlock,RsGroupBlock,DcsGroupBlock,changeRequestCardUtils}.
 
 /** changeRequestCardUtils.rsGroupSummary */
@@ -107,7 +109,49 @@ function DcsBlock({ label, group }: { label: string; group: DcsGroupRef }) {
   );
 }
 
-export function ChangeRequestCard({ request: r }: { request: ChangeRequest }) {
+/** Who asked — name, department, tap-to-call / tap-to-email (CS review view). */
+function Requester({ user }: { user: ChangeRequest["requestedBy"] }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ gap: 2 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Icon name="person" size={14} color={colors.textMuted} />
+        <Text variant="caption" style={{ fontWeight: "700" }}>
+          {user.name}
+        </Text>
+        {user.department ? (
+          <Text variant="caption" muted>
+            · {user.department}
+          </Text>
+        ) : null}
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+        {user.phone ? (
+          <Text variant="caption" color={colors.primary} onPress={() => void Linking.openURL(`tel:${user.phone}`)}>
+            {user.phone}
+          </Text>
+        ) : null}
+        {user.email ? (
+          <Text variant="caption" color={colors.primary} onPress={() => void Linking.openURL(`mailto:${user.email}`)}>
+            {user.email}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+export function ChangeRequestCard({
+  request: r,
+  reviewer = false,
+  actions,
+}: {
+  request: ChangeRequest;
+  /** CS's review view: shows the requester and speaks of "their" reason. */
+  reviewer?: boolean;
+  /** Approve / reject controls (CS, pending requests). */
+  actions?: ReactNode;
+}) {
   const { colors } = useTheme();
   const role = requestRole(r);
   const isDcsSwap = role === "dcs";
@@ -193,13 +237,15 @@ export function ChangeRequestCard({ request: r }: { request: ChangeRequest }) {
         </Text>
       </View>
 
+      {reviewer ? <Requester user={r.requestedBy} /> : null}
+
       {body}
 
       {r.reason ? (
         <Panel tone="muted">
           <Text variant="caption">
             <Text variant="caption" style={{ fontWeight: "700" }}>
-              Your reason:{" "}
+              {reviewer ? "Reason:" : "Your reason:"}{" "}
             </Text>
             {r.reason}
           </Text>
@@ -212,7 +258,7 @@ export function ChangeRequestCard({ request: r }: { request: ChangeRequest }) {
             <Icon name="chat" size={15} color={r.status === "approved" ? colors.success : colors.danger} />
             <Text variant="caption" color={r.status === "approved" ? colors.success : colors.danger} style={{ flex: 1 }}>
               <Text variant="caption" color={r.status === "approved" ? colors.success : colors.danger} style={{ fontWeight: "700" }}>
-                Note from CS:{" "}
+                {reviewer ? "Your note:" : "Note from CS:"}{" "}
               </Text>
               {r.reviewNote}
             </Text>
@@ -225,9 +271,11 @@ export function ChangeRequestCard({ request: r }: { request: ChangeRequest }) {
           Cancelled because the exam was removed.
         </Text>
       ) : r.status === "pending" ? (
-        <Text variant="caption" muted>
-          Waiting for the exam cell to review.
-        </Text>
+        actions ?? (
+          <Text variant="caption" muted>
+            Waiting for the exam cell to review.
+          </Text>
+        )
       ) : r.reviewedAt ? (
         <Text variant="caption" muted>
           {r.status === "approved" ? "Approved" : "Rejected"} {formatShortDate(r.reviewedAt)}

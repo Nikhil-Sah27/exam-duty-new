@@ -2,8 +2,10 @@
  * Per-notification-type push policy — the single place that decides whether a
  * notification also buzzes the recipient's phone. Mirrors mail/mail.policy.js.
  *
- * The app serves Invigilators, RS and DCS (CS works from the web dashboard), so
- * every teacher-facing type pushes and the CS awareness alerts don't.
+ * The app serves Invigilators, RS and DCS, plus a CS section (dashboard,
+ * requests, messages): every teacher-facing type pushes; of the CS-facing ones
+ * only `teacher_message` does — the awareness alerts stay in the CS app's
+ * Alerts list without buzzing the phone.
  *
  * Unlike email there is no per-send quota to protect, so the `exam_created`
  * fan-out pushes too: "a new exam is open — pick your duties" is exactly what a
@@ -34,12 +36,18 @@ const POLICY = {
   duty_confirm_nudge: PUSH,
   duty_selection_nudge: PUSH,
 
+  // CS wrote in the teacher's chat — the app opens the chat on tap.
+  cs_message: PUSH,
+
   // Teacher-facing broadcast / progress
   exam_created: PUSH,
   announcement: PUSH,
   target_reached: PUSH,
 
-  // CS-facing alerts — CS has no app.
+  // A teacher wrote to CS — the CS app opens that conversation on tap.
+  teacher_message: PUSH,
+
+  // Other CS-facing alerts: in the CS app's Alerts list, but no phone buzz.
   request_submitted: NONE, // goes to the CS reviewers
   duty_claimed_by_teacher: NONE,
   duty_released_by_teacher: NONE,

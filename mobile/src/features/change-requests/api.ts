@@ -9,7 +9,7 @@ import type { ChangeRequest, CreateChangeRequestPayload, ReplacementSlot } from 
 //   frontend/src/modules/dcs/change-requests/services/dcsChangeRequestService.ts
 //   frontend/src/modules/dcs/select-duty/services/dcsDutyService.ts
 // Teachers read only their own requests (GET /change-requests/mine) — the full
-// list is CS's review queue and is CS-only on the backend.
+// list is CS's review queue and is CS-only on the backend, as are approve/reject.
 
 /** Requests the signed-in teacher submitted, newest first. */
 export async function fetchMyChangeRequests(): Promise<ChangeRequest[]> {
@@ -38,4 +38,18 @@ export async function fetchMyDcsGroups(): Promise<DcsGroup[]> {
 export async function fetchOpenDcsGroups(): Promise<DcsGroup[]> {
   const res = await api.get<ApiEnvelope<DcsGroup[]>>("/dcs/groups", { params: { status: "open" } });
   return res.data.data ?? [];
+}
+
+// ── CS review (requireRole("cs") on the server) ─────────────────────────────
+
+/** CS's review queue, filtered by status, newest first. */
+export async function fetchAllChangeRequests(status?: "pending" | "approved" | "rejected"): Promise<ChangeRequest[]> {
+  const res = await api.get<ApiEnvelope<ChangeRequest[]>>("/change-requests", { params: status ? { status } : undefined });
+  return res.data.data ?? [];
+}
+
+/** Approve or reject with an optional note to the requester. */
+export async function reviewChangeRequest(id: string, action: "approve" | "reject", note?: string): Promise<ChangeRequest> {
+  const res = await api.patch<ApiEnvelope<ChangeRequest>>(`/change-requests/${id}/${action}`, { note: note || undefined });
+  return res.data.data;
 }

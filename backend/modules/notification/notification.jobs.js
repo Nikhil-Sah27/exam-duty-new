@@ -149,7 +149,7 @@ const runTargetReachedSweep = async () => {
  */
 const runDailySweep = async () => {
   // The day-before reminder moved to reminder.jobs.js (per duty unit, at 3 days,
-  // 1 day and 30 minutes); runDutyReminderSweep stays exported for scripts.
+  // 1 day and 2 hours); runDutyReminderSweep stays exported for scripts.
   try {
     const n = await runTargetReachedSweep();
     if (n > 0) console.log(`[notifications] target-reached sweep: ${n} sent`);

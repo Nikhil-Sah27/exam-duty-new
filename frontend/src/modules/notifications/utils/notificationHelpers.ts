@@ -55,6 +55,9 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   request_submitted: { tone: "blue", highlight: false },
   exam_created: { tone: "blue", highlight: false },
   announcement: { tone: "blue", highlight: false },
+  // A new chat message from the exam cell — worth a glance, like a chat app.
+  cs_message: { tone: "violet", highlight: true },
+  teacher_message: { tone: "violet", highlight: true },
   // CS-facing: a claim is informational, a release leaves a room to re-fill.
   duty_claimed_by_teacher: { tone: "blue", highlight: false },
   duty_released_by_teacher: { tone: "amber", highlight: false },

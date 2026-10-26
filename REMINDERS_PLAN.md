@@ -5,7 +5,7 @@
 **Built as planned, with two adjustments:** reminder wording names the absolute date ("on 1 October 2026"), never "tomorrow", per the existing stale-reminder rule; and the responsiveness endpoint lives in the previously empty `report` module (`GET /api/reports/responsiveness`) since it reads from four modules' services.
 
 **Ask:**
-1. Remind teachers **3 days, 1 day and 30 minutes** before each duty.
+1. Remind teachers **3 days, 1 day and 2 hours** before each duty (was 30 minutes; the stages now live in `backend/modules/notification/reminder.stages.js`).
 2. Know whether a teacher has **seen** the email and **accepted** the duty; if not, **remind them to confirm**
    (or to **select** duties, for teachers who haven't picked enough), more urgently as the duty gets close.
 3. Give CS a view of **who isn't responding** or isn't selecting duties.

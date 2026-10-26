@@ -44,6 +44,12 @@ const markAllAsRead = async (userId) => {
 
 // Ownership-checked delete. 404 on missing wins over 403 on wrong-owner so
 // we don't leak the existence of another user's notification.
+/**
+ * Mark a user's unread notifications of one type read — optionally only those
+ * about one item (`refId`), e.g. opening one conversation.
+ */
+const markTypeAsRead = (userId, type, refId) => notificationRepository.markTypeAsRead(userId, type, refId);
+
 const deleteNotification = async (id, userId) => {
   const notification = await notificationRepository.findById(id);
   if (!notification) throw new AppError("Notification not found", 404);
@@ -73,6 +79,7 @@ const countSelectionNudgesBefore = (since, before) =>
   notificationRepository.countByRecipientForTypes(["duty_selection_nudge"], since, before);
 
 module.exports = {
+  markTypeAsRead,
   countNudgesByRecipient,
   countSelectionNudgesBefore,
   getMyNotifications,

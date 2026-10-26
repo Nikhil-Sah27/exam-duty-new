@@ -1,6 +1,21 @@
 const AppError = require("../../shared/utils/AppError");
 const repo = require("./message.repository");
 const userService = require("../user/user.service");
+const { emit, emitToMany } = require("../notification/notification.emitter");
+const notificationService = require("../notification/notification.service");
+
+/**
+ * Tell the teacher CS wrote to them — an in-app alert and a phone push that
+ * opens their chat when tapped (no email: see mail.policy). Fire-and-forget: a
+ * notification hiccup must never fail the send itself.
+ */
+const notifyTeacherOfCsMessage = async (teacherId, text) => {
+  try {
+    await emit("cs_message", { recipient: teacherId, data: { preview: text } });
+  } catch (err) {
+    console.error("[messages] failed to notify teacher of a CS message:", err.message);
+  }
+};
 
 const DELETED_PREVIEW = "This message was deleted";
 
@@ -84,7 +99,30 @@ const getTeacherThread = async (teacherId) => {
     { teacherUnread: 0, teacherLastReadAt: new Date() },
     { timestamps: false }
   );
+  // Reading the chat also clears its "new message" alerts, like a chat app.
+  await notificationService.markTypeAsRead(teacherId, "cs_message").catch(() => undefined);
   return { conversation, messages };
+};
+
+/**
+ * Tell every CS user a teacher wrote — an in-app alert and a phone push that
+ * opens this conversation in the CS app (no email: see mail.policy).
+ * Fire-and-forget: a notification hiccup must never fail the send itself.
+ */
+const notifyCsOfTeacherMessage = async (teacherId, conversationId, text) => {
+  try {
+    const recipients = await userService.getCsUserIds();
+    if (recipients.length === 0) return;
+    const teacher = await userService.getUserById(teacherId).catch(() => null);
+    await emitToMany("teacher_message", {
+      recipients,
+      refModel: "Conversation",
+      refId: conversationId,
+      data: { teacherName: teacher?.name || null, preview: text, conversationId: String(conversationId) },
+    });
+  } catch (err) {
+    console.error("[messages] failed to notify CS of a teacher message:", err.message);
+  }
 };
 
 const sendTeacherMessage = async (teacherId, body, replyTo) => {
@@ -106,6 +144,7 @@ const sendTeacherMessage = async (teacherId, body, replyTo) => {
     teacherLastReadAt: message.createdAt,
     $inc: { csUnread: 1 },
   });
+  await notifyCsOfTeacherMessage(teacherId, conversation._id, text);
   return repo.findMessagePopulated(message._id);
 };
 
@@ -137,7 +176,7 @@ const startConversationForTeacher = async (teacherId) => {
 const getCsUnread = () => repo.totalCsUnread();
 
 /** Messages in a conversation for CS. Opening it clears the CS unread. */
-const getConversationForCs = async (conversationId) => {
+const getConversationForCs = async (conversationId, csUserId) => {
   const existing = await repo.findConversationById(conversationId);
   if (!existing) throw new AppError("Conversation not found", 404);
   const messages = await repo.listMessages(existing._id);
@@ -147,6 +186,10 @@ const getConversationForCs = async (conversationId) => {
     { csUnread: 0, csLastReadAt: new Date() },
     { timestamps: false }
   );
+  // Reading the chat also clears this CS user's alerts about it, like a chat app.
+  if (csUserId) {
+    await notificationService.markTypeAsRead(csUserId, "teacher_message", existing._id).catch(() => undefined);
+  }
   return { conversation, messages };
 };
 
@@ -170,6 +213,7 @@ const sendCsMessage = async (conversationId, csUserId, body, replyTo) => {
     csLastReadAt: message.createdAt,
     $inc: { teacherUnread: 1 },
   });
+  await notifyTeacherOfCsMessage(conversation.teacher, text);
   return repo.findMessagePopulated(message._id);
 };
 

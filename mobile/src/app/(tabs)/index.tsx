@@ -10,14 +10,10 @@ import { DutyUnitCard } from "@/features/duties/DutyUnitCard";
 import { useConfirmUnit, useMyUnits } from "@/features/duties/hooks";
 import { useUnreadMessages } from "@/features/messages/hooks";
 import { TabHeader } from "@/features/notifications/TabHeader";
+import { greeting } from "@/lib/format";
 import { ROLE_LABELS, isTeacherRole } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
-
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-}
 
 export default function HomeScreen() {
   const { colors } = useTheme();

@@ -1,7 +1,6 @@
-import * as Application from "expo-application";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Switch, View } from "react-native";
+import { Switch, View } from "react-native";
 
 import {
   getAlarmHealth,
@@ -14,14 +13,10 @@ import {
   type HealthItem,
   type LeadId,
 } from "@/alarms";
-import { Banner, Button, Card, Divider, Icon, ListRow, Screen, Text } from "@/components/ui";
-import { chooseRole, signOut } from "@/features/auth/session";
+import { Banner, Button, Card, Divider, Icon, Screen, Text } from "@/components/ui";
+import { AccountCard, AppVersionNote } from "@/features/auth/AccountCard";
 import { TabHeader } from "@/features/notifications/TabHeader";
-import { API_URL } from "@/lib/config";
 import { formatInstant } from "@/lib/format";
-import { isTeacherRole, ROLE_LABELS } from "@/lib/roles";
-import type { UserRole } from "@/lib/types";
-import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
 
 function HealthRow({ item, onFixed }: { item: HealthItem; onFixed: () => void }) {
@@ -54,12 +49,10 @@ function HealthRow({ item, onFixed }: { item: HealthItem; onFixed: () => void })
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
-  const user = useAuthStore((s) => s.user);
   const { settings, update } = useAlarmSettings();
   const alarmState = useAlarmState();
   const [health, setHealth] = useState<HealthItem[]>([]);
   const [testAt, setTestAt] = useState<number | null>(null);
-  const [switching, setSwitching] = useState(false);
 
   const refreshHealth = useCallback(() => {
     void getAlarmHealth().then(setHealth).catch(() => undefined);
@@ -84,20 +77,6 @@ export default function SettingsScreen() {
     setTestAt(at);
     setTimeout(() => setTestAt(null), 15_000);
   };
-
-  const otherRoles = (user?.roles ?? []).filter((r): r is UserRole => r !== user?.activeRole);
-  const switchTo = (role: UserRole) => {
-    setSwitching(true);
-    chooseRole(role)
-      .catch((e: unknown) => Alert.alert("Couldn't switch role", e instanceof Error ? e.message : String(e)))
-      .finally(() => setSwitching(false));
-  };
-
-  const confirmSignOut = () =>
-    Alert.alert("Sign out?", "Alarms on this phone will be removed until you sign in again.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: () => void signOut() },
-    ]);
 
   const problems = health.filter((h) => h.ok === false).length;
 
@@ -184,32 +163,9 @@ export default function SettingsScreen() {
         ))}
       </Card>
 
-      <Card>
-        <Text variant="subheading">Account</Text>
-        <ListRow icon="person" title={user?.name ?? ""} subtitle={user?.email} />
-        {user?.activeRole ? <ListRow icon="info" title="Current role" subtitle={ROLE_LABELS[user.activeRole]} /> : null}
-        {otherRoles.length > 0 ? (
-          <>
-            <Divider />
-            {otherRoles.map((r) => (
-              <ListRow
-                key={r}
-                icon="swap"
-                title={`Switch to ${ROLE_LABELS[r]}`}
-                subtitle={isTeacherRole(r) ? "Alarms stay on for all your duties" : "Opens the web dashboard"}
-                chevron
-                onPress={switching ? undefined : () => switchTo(r)}
-              />
-            ))}
-          </>
-        ) : null}
-        <Divider />
-        <Button title="Sign out" variant="danger" icon="logout" onPress={confirmSignOut} />
-      </Card>
+      <AccountCard signOutWarning="Alarms on this phone will be removed until you sign in again." />
 
-      <Text variant="caption" muted style={{ textAlign: "center" }}>
-        Proctavo {Application.nativeApplicationVersion ?? ""} ({Application.nativeBuildVersion ?? "dev"}) · {API_URL.replace(/^https?:\/\//, "")}
-      </Text>
+      <AppVersionNote />
     </Screen>
   );
 }

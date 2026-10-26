@@ -48,6 +48,7 @@ const payloadFor = ({ notification, type, data }) => {
   if (notification?._id || notification) out.notificationId = String(notification?._id || notification);
   if (data?.refDutyId) out.dutyId = String(data.refDutyId);
   if (data?.stage) out.stage = data.stage;
+  if (data?.conversationId) out.conversationId = String(data.conversationId);
   return out;
 };
 

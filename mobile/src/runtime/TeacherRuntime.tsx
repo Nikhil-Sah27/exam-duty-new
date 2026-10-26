@@ -1,19 +1,16 @@
 /**
  * Background wiring that only runs for a signed-in Invigilator / RS / DCS:
- * device registration, alarm sync on every foreground, push listeners and
- * alarm-screen routing. Renders nothing.
+ * device registration, alarm sync on every foreground, push listeners
+ * (usePushListeners) and alarm-screen routing. Renders nothing.
  */
-import * as Notifications from "expo-notifications";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { findRingingAlarm, fromAlarmData, getLaunchAlarm, subscribeAlarmEvents, syncAlarms } from "@/alarms";
 import { afterSignedIn } from "@/features/auth/session";
-import { CR_KEYS } from "@/features/change-requests/hooks";
-import { queryClient } from "@/lib/queryClient";
-import { queryKeys } from "@/lib/queryKeys";
 import { pushDataOf } from "@/push";
-import { openAlarmScreen, openFromPush } from "@/runtime/navigation";
+import { openAlarmScreen } from "@/runtime/navigation";
+import { usePushListeners } from "@/runtime/usePushListeners";
 import { useAuthStore } from "@/store/auth";
 
 const FOREGROUND_SYNC_EVERY_MS = 30_000;
@@ -22,16 +19,6 @@ async function showRingingAlarm() {
   const ringing = await findRingingAlarm();
   const payload = ringing ? fromAlarmData(ringing.data) : null;
   if (ringing && payload) openAlarmScreen(payload, ringing.notificationId, true);
-}
-
-function handleResponse(response: Notifications.NotificationResponse) {
-  const data = pushDataOf(response.notification);
-  const alarm = fromAlarmData(data as Record<string, unknown>);
-  if (alarm) {
-    openAlarmScreen(alarm, response.notification.request.identifier);
-    return;
-  }
-  void openFromPush(data);
 }
 
 export function TeacherRuntime() {
@@ -58,37 +45,21 @@ export function TeacherRuntime() {
     return () => sub.remove();
   }, []);
 
-  // Server pushes: anything duty-related may have changed → refresh + re-sync.
-  useEffect(() => {
-    const received = Notifications.addNotificationReceivedListener((n) => {
+  // Server pushes (shared wiring) + our own duty alarms, which open the alarm
+  // screen; any other push may have moved a duty → re-sync the alarms.
+  usePushListeners({
+    intercept: (n) => {
       const alarm = fromAlarmData(pushDataOf(n) as Record<string, unknown>);
-      if (alarm) {
-        // One of our own alarms fired while the app is open: bring up the alarm
-        // screen, which rings out loud even on silent.
-        openAlarmScreen(alarm, n.request.identifier);
-        return;
-      }
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.myUnits });
-      // Approvals/rejections arrive as pushes too: refresh an open requests list.
-      void queryClient.invalidateQueries({ queryKey: CR_KEYS.all });
+      if (!alarm) return false;
+      // Rings out loud even on silent, whether it fired in the app or was tapped.
+      openAlarmScreen(alarm, n.request.identifier);
+      return true;
+    },
+    onReceived: () => {
       lastSync.current = Date.now();
       void syncAlarms();
-    });
-    const tapped = Notifications.addNotificationResponseReceivedListener(handleResponse);
-
-    // Cold start from a tapped push / iOS alarm notification.
-    void Notifications.getLastNotificationResponseAsync().then((last) => {
-      if (last) {
-        handleResponse(last);
-        void Notifications.clearLastNotificationResponseAsync();
-      }
-    });
-    return () => {
-      received.remove();
-      tapped.remove();
-    };
-  }, []);
+    },
+  });
 
   // Android alarm events + cold start from a full-screen alarm.
   useEffect(() => {

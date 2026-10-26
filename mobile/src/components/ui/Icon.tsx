@@ -53,6 +53,7 @@ const ICONS = {
   send: { ios: "paperplane.fill", android: "send" },
   emoji: { ios: "face.smiling", android: "mood" },
   search: { ios: "magnifyingglass", android: "search" },
+  compose: { ios: "square.and.pencil", android: "edit_square" },
   arrowDown: { ios: "arrow.down", android: "arrow_downward" },
   chevronUp: { ios: "chevron.up", android: "keyboard_arrow_up" },
   chevronDown: { ios: "chevron.down", android: "keyboard_arrow_down" },

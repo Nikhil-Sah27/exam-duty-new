@@ -15,6 +15,7 @@ import {
   selectDutySlotsForGroup,
   type AvailableDutySlot,
 } from "../shared/examSelectors";
+import { buildClassRowsForGroup, type ClassAssignmentRow } from "../shared/dashboardSelectors";
 
 // Query keys mirror the web (frontend/src/modules/shared/exams/hooks/useSharedExamData.ts,
 // dcs/select-duty/hooks/useDcsGroups.ts) so invalidation reads the same everywhere.
@@ -72,11 +73,11 @@ export function useMyProgress(role: TeacherRole | null) {
 }
 
 /**
- * Port of useAvailableDutySlots (web): all active exam groups + per-group
- * details + duty status, flattened into one slot per (schedule × examRoom).
- * Same cache keys, so a claim's invalidation refreshes every consumer.
+ * All active exam groups + each one's details and duty status — the shared feed
+ * behind Select Duty's slots and the CS dashboard's class rows (both ports of
+ * web hooks over the same cache keys), so it's fetched once for both.
  */
-export function useAvailableDutySlots(enabled = true) {
+function useExamGroupFeeds(enabled: boolean) {
   const groupsQuery = useQuery({
     queryKey: KEYS.groups,
     queryFn: fetchExamGroups,
@@ -114,15 +115,33 @@ export function useAvailableDutySlots(enabled = true) {
     dutyStatusQueries.find((q) => q.error)?.error ||
     null;
 
-  // Build from whatever is cached (like useAssignmentClassRows on the web) so a
-  // transient background-refetch error doesn't blank the list mid-selection.
-  const slots: AvailableDutySlot[] = [];
-  for (let i = 0; i < activeGroups.length; i++) {
+  // Whatever is cached, per group (like the web), so a transient background-
+  // refetch error doesn't blank a list mid-use.
+  const feeds = activeGroups.flatMap((group, i) => {
     const details = detailsQueries[i]?.data;
     const dutyStatus = dutyStatusQueries[i]?.data;
-    if (!details || !dutyStatus) continue;
-    slots.push(...selectDutySlotsForGroup({ group: activeGroups[i], details, dutyStatus }));
-  }
+    return details && dutyStatus ? [{ group, details, dutyStatus }] : [];
+  });
 
-  return { data: slots, activeGroups, isLoading, error, refetchGroups: groupsQuery.refetch };
+  return { feeds, activeGroups, isLoading, error, refetchGroups: groupsQuery.refetch };
+}
+
+/**
+ * Port of useAvailableDutySlots (web): one slot per (schedule × examRoom).
+ * Same cache keys, so a claim's invalidation refreshes every consumer.
+ */
+export function useAvailableDutySlots(enabled = true) {
+  const { feeds, activeGroups, isLoading, error, refetchGroups } = useExamGroupFeeds(enabled);
+  const slots: AvailableDutySlot[] = feeds.flatMap(selectDutySlotsForGroup);
+  return { data: slots, activeGroups, isLoading, error, refetchGroups };
+}
+
+/**
+ * Port of useAssignmentClassRows (web): one row per (schedule × classroom) with
+ * duty flags + status, for the CS dashboard's assignment-status counts.
+ */
+export function useAssignmentClassRows(enabled = true) {
+  const { feeds, activeGroups, isLoading, error, refetchGroups } = useExamGroupFeeds(enabled);
+  const rows: ClassAssignmentRow[] = feeds.flatMap(buildClassRowsForGroup);
+  return { data: rows, activeGroups, isLoading, error, refetchGroups };
 }

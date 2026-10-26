@@ -1,7 +1,10 @@
 # Proctavo mobile
 
 The phone app for **Invigilators, RS and DCS**: duty alerts pushed to the lock screen, and an
-**alarm that rings before every duty**. CS keeps using the web dashboard. Plan and decisions:
+**alarm that rings before every duty**. **CS** gets its own section (`src/app/cs/`): Home (ongoing /
+upcoming exams + the next exam date's classroom assignment status), Requests (approve / reject),
+Messages (chat with teachers; a teacher's message buzzes the phone and opens that chat) and Alerts.
+Everything else CS does stays on the web dashboard. Plan and decisions:
 [`../MOBILE_PLAN.md`](../MOBILE_PLAN.md). Before touching any Expo API read [`AGENTS.md`](AGENTS.md):
 this is Expo SDK 57, so check the versioned docs rather than relying on memory.
 
@@ -9,7 +12,7 @@ this is Expo SDK 57, so check the versioned docs rather than relying on memory.
 
 | Path | What |
 |---|---|
-| `src/app/` | Expo Router screens: `login`, `forgot-password`, `select-role`, `cs-web`, `(tabs)/{index,select,messages,settings}` (Messages = chat with CS, in a nested stack), `alerts` (opened from the bell at the top right of each tab), `duty/[key]`, `alarm`, `select/[examGroupId]` |
+| `src/app/` | Expo Router screens: `login`, `forgot-password`, `select-role`, `cs-web`, `(tabs)/{index,select,messages,settings}` (Messages = chat with CS, in a nested stack), `alerts` (opened from the bell at the top right of each tab), `cs/(tabs)/{index,requests,messages/{index,[id],new},settings}` (CS), `duty/[key]`, `alarm`, `select/[examGroupId]` |
 | `src/alarms/` | On-device alarm engine. `syncAlarms()` reconciles scheduled alarms with `GET /api/duties/my-units` × the teacher's alarm settings |
 | `src/push/` | Expo push token → `POST /api/push/devices`; `DELETE` on logout |
 | `src/runtime/` | Teacher-only wiring: sync on foreground and on every push, notification tap routing, alarm screen routing |

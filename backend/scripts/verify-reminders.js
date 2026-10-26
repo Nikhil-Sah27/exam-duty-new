@@ -113,7 +113,7 @@ const main = async () => {
   // ── scenarios ───────────────────────────────────────────────────────────
   const u3d = await mkUnit({ inMs: 2 * DAY + 23 * HOUR, assignedAgoMs: 5 * DAY, confirmed: true });
   const u1d = await mkUnit({ inMs: 20 * HOUR, assignedAgoMs: 5 * DAY });
-  const u30 = await mkUnit({ inMs: 25 * MIN, assignedAgoMs: 5 * DAY, confirmed: true });
+  const u2h = await mkUnit({ inMs: 100 * MIN, assignedAgoMs: 5 * DAY, confirmed: true });
   const uGroup = await mkUnit({ inMs: 21 * HOUR, assignedAgoMs: 5 * DAY, role: "rs", rooms: ["201", "202", "203"], confirmed: true });
   const uFresh = await mkUnit({ inMs: 2 * DAY, assignedAgoMs: 1 * HOUR });
 
@@ -124,7 +124,8 @@ const main = async () => {
   console.log("1. reminder stages");
   check((await keyed(k(u3d, "3d"))) === 1, "3-day reminder for a duty ~3 days out");
   check((await keyed(k(u1d, "1d"))) === 1, "1-day reminder for a duty ~20h out");
-  check((await keyed(k(u30, "30m"))) === 1, "30-minute reminder for a duty 25 min out");
+  check((await keyed(k(u2h, "2h"))) === 1, "2-hour reminder for a duty 100 min out");
+  check((await keyed(k(u2h, "1d"))) === 0, "no stale 1-day reminder once the 2-hour moment has passed");
   check((await keyed(k(u1d, "3d"))) === 0, "no stale 3-day reminder once the 1-day moment has passed");
   check((await keyed(k(uFresh, "3d"))) === 0, "no 3-day reminder for a duty assigned after that moment");
 

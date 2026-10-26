@@ -7,7 +7,7 @@ import { WEB_URL } from "@/lib/config";
 import { isTeacherRole } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
 
-/** CS is the admin role — it lives on the web dashboard, not in this app. */
+/** The platform superadmin manages colleges on the web; the app just points it there. */
 export default function CsWebScreen() {
   const user = useAuthStore((s) => s.user);
   const teacherRole = user?.roles.find(isTeacherRole);
@@ -16,8 +16,8 @@ export default function CsWebScreen() {
       <Logo size={36} />
       <EmptyState
         icon="web"
-        title="CS uses the web dashboard"
-        message="Creating exams, assigning duties and reports live on proctavo.com. This app is for Invigilators, RS and DCS."
+        title="Use the web dashboard"
+        message="Managing colleges lives on proctavo.com. This app is for the exam cell (CS) and for Invigilators, RS and DCS."
       />
       <View style={{ gap: 12 }}>
         <Button title="Open proctavo.com" icon="external" size="lg" onPress={() => void WebBrowser.openBrowserAsync(WEB_URL)} />

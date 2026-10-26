@@ -59,6 +59,11 @@ const POLICY = {
   // CS chose to broadcast, so it goes out. A per-broadcast "also email"
   // toggle is Phase 3.
   announcement: IMMEDIATE,
+
+  // A chat message: phone push + in-app, like a messaging app. An email per
+  // chat line would flood the inbox.
+  cs_message: NONE,
+  teacher_message: NONE,
 };
 
 // Duty facts a teacher must not be able to opt out of — they are operational

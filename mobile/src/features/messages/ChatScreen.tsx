@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,54 +20,55 @@ import { AlertsBell } from "@/features/notifications/AlertsBell";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
 
-import type { ChatMessage } from "./api";
+import type { ChatMessage, Conversation } from "./api";
 import { MessageActionSheet } from "./components/MessageActionSheet";
 import { MessageComposer } from "./components/MessageComposer";
 import { MessageSearchBar } from "./components/MessageSearchBar";
 import { MessageThread, type ThreadRow } from "./components/MessageThread";
-import { CS_LABEL, myReaction } from "./format";
-import { useDeleteMessage, useEditMessage, useMyThread, usePendingSends, useReactMessage, useSendMessage } from "./hooks";
+import { myReaction } from "./format";
+import {
+  useDeleteMessage,
+  useEditMessage,
+  usePendingSends,
+  useReactMessage,
+  useSendMessage,
+  useThread,
+  type ChatChannel,
+} from "./hooks";
 import { useKeyboardInset } from "./useKeyboardInset";
-
-function HeaderTitle() {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.headerTitle}>
-      <View style={[styles.avatar, { backgroundColor: colors.primaryDeep }]}>
-        <Icon name="support" size={18} color={colors.onPrimary} />
-        <View style={[styles.onlineDot, { borderColor: colors.surface }]} />
-      </View>
-      <View style={{ flexShrink: 1 }}>
-        <Text variant="label" numberOfLines={1}>
-          {CS_LABEL}
-        </Text>
-        <Text variant="caption" muted numberOfLines={1} style={{ fontSize: 11, lineHeight: 14 }}>
-          Exam Duty office · usually replies within a day
-        </Text>
-      </View>
-    </View>
-  );
-}
 
 const newTempId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+interface ChatScreenProps {
+  /** Which chat: the teacher's thread with CS, or one CS ↔ teacher conversation. */
+  channel: ChatChannel;
+  /** Header title, given the loaded conversation (CS shows the teacher's name). */
+  renderTitle: (conversation: Conversation | undefined) => ReactNode;
+  /** Shown before the first message. */
+  emptyMessage: string;
+}
+
 /**
- * A teacher's (Invigilator / RS / DCS) direct thread with the CS office, in the
- * app with the app's own token — port of frontend/src/modules/messages/pages/
- * TeacherMessagesPage.tsx. One conversation per teacher; CS answers from its inbox.
+ * One chat, WhatsApp-style (ports of the web chat): day dividers, replies,
+ * edit / delete-for-everyone, reactions, read ticks, search, pending bubbles.
+ * The same screen serves both sides — the teacher's thread with the CS office
+ * (MessagesScreen) and CS's chat with one teacher (CsChatScreen) — `channel`
+ * says which, and whether the viewer's own bubbles are the CS ones.
  */
-export default function MessagesScreen() {
+export default function ChatScreen({ channel, renderTitle, emptyMessage }: ChatScreenProps) {
   const { colors } = useTheme();
   const { ref: rootRef, onLayout: onRootLayout, inset: keyboardInset, keyboardOpen } = useKeyboardInset();
   const myUserId = useAuthStore((s) => s.user?.id ?? null);
+  const { viewerIsCs } = channel;
 
-  const thread = useMyThread();
-  const send = useSendMessage();
-  const pending = usePendingSends();
-  const edit = useEditMessage();
-  const del = useDeleteMessage();
-  const react = useReactMessage();
+  const thread = useThread(channel);
+  const send = useSendMessage(channel);
+  const pending = usePendingSends(channel);
+  const edit = useEditMessage(channel);
+  const del = useDeleteMessage(channel);
+  const react = useReactMessage(channel);
+  const conversation = thread.data?.conversation;
 
   const inputRef = useRef<TextInput>(null);
   const listRef = useRef<FlatList<ThreadRow>>(null);
@@ -244,7 +245,8 @@ export default function MessagesScreen() {
             messages={messages}
             pending={pending}
             myUserId={myUserId}
-            csLastReadAt={thread.data?.conversation?.csLastReadAt ?? null}
+            viewerIsCs={viewerIsCs}
+            peerLastReadAt={(viewerIsCs ? conversation?.teacherLastReadAt : conversation?.csLastReadAt) ?? null}
             searchTerm={searchOpen ? term.trim() : ""}
             activeMatchId={activeMatchId}
             onLongPress={(m) => {
@@ -258,7 +260,7 @@ export default function MessagesScreen() {
             <EmptyState
               icon="chat"
               title="No messages yet"
-              message="Send the CS office a message to start the conversation — questions, problems with a duty, anything."
+              message={emptyMessage}
             />
           </Pressable>
         )}
@@ -298,7 +300,7 @@ export default function MessagesScreen() {
     <View ref={rootRef} onLayout={onRootLayout} style={styles.flex}>
       <Stack.Screen
         options={{
-          headerTitle: () => <HeaderTitle />,
+          headerTitle: () => renderTitle(conversation),
           headerRight: () => (
             <View style={styles.headerActions}>
               {hasMessages ? (
@@ -324,7 +326,8 @@ export default function MessagesScreen() {
 
       <MessageActionSheet
         message={sheetFor}
-        canModify={!!sheetFor && !sheetFor.senderIsCs && !sheetFor.deleted}
+        viewerIsCs={viewerIsCs}
+        canModify={!!sheetFor && sheetFor.senderIsCs === viewerIsCs && !sheetFor.deleted}
         currentReaction={sheetFor ? myReaction(sheetFor, myUserId) : null}
         onClose={() => setSheetFor(null)}
         onReact={(emoji) => {
@@ -358,8 +361,5 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
   inlineBanner: { paddingHorizontal: 12, paddingVertical: 6 },
-  headerTitle: { flexDirection: "row", alignItems: "center", gap: 10, maxWidth: 260 },
-  avatar: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  onlineDot: { position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, borderWidth: 2, backgroundColor: "#34d399" },
   headerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 });

@@ -19,17 +19,7 @@ const { buildRoomLabel, buildExamLabel } = require("../exam-cleanup/utils/examCl
 const { localToUtc } = require("../../shared/utils/datetime");
 const { calculateAllTeachersProgress } = require("../duty-calculation/dutyCalculation.service");
 
-const MIN = 60 * 1000;
-const HOUR = 60 * MIN;
-const DAY = 24 * HOUR;
-
-// Longest lead first. A stage is sent inside [start - lead, start - nextLead):
-// once the next stage's moment has arrived, the earlier one is stale.
-const STAGES = [
-  { id: "3d", lead: 3 * DAY },
-  { id: "1d", lead: 1 * DAY },
-  { id: "30m", lead: 30 * MIN },
-];
+const { STAGES, MIN, HOUR, DAY } = require("./reminder.stages");
 
 const CONFIRM_NUDGE_AFTER = 24 * HOUR; // unconfirmed this long after assignment → nudge
 const CS_ALERT_WITHIN = 1 * DAY; // unconfirmed this close to the duty → tell CS
@@ -98,7 +88,7 @@ const upcomingUnits = async (now) => {
 
 /**
  * Timed reminders, confirmation nudges and the CS escalation. Cheap enough to
- * run every few minutes — which the 30-minute reminder needs.
+ * run every few minutes, so the 2-hour reminder lands on time.
  */
 const runReminderTick = async () => {
   const now = new Date();
@@ -107,7 +97,7 @@ const runReminderTick = async () => {
   let csIds = null;
 
   for (const u of units) {
-    // ── 3d / 1d / 30m reminders ───────────────────────────────────────────
+    // ── 3d / 1d / 2h reminders (reminder.stages.js) ───────────────────────
     for (const [i, stage] of STAGES.entries()) {
       const due = u.start.getTime() - stage.lead;
       const stale = i + 1 < STAGES.length ? u.start.getTime() - STAGES[i + 1].lead : u.start.getTime();

@@ -52,10 +52,11 @@ const dark: typeof light = {
 export type ThemeColors = typeof light;
 
 /** Role accent chips — same hues the web uses per role. */
-export const roleColors: Record<"invigilator" | "rs" | "dcs", { fg: string; bg: string; label: string }> = {
+export const roleColors: Record<"invigilator" | "rs" | "dcs" | "cs", { fg: string; bg: string; label: string }> = {
   invigilator: { fg: "#4f46e5", bg: "#e0e7ff", label: "Invigilator" },
   rs: { fg: "#0d9488", bg: "#ccfbf1", label: "RS" },
   dcs: { fg: "#c026d3", bg: "#fae8ff", label: "DCS" },
+  cs: { fg: "#b45309", bg: "#fef3c7", label: "CS" },
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;

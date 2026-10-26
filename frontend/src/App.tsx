@@ -11,6 +11,7 @@ import { dcsRoutes } from "@/modules/dcs/routes/dcsRoutes";
 
 // Pages are lazy so each role/section only downloads its own chunk. The auth
 // surfaces and layouts stay eager — they are the shell every visit needs.
+const GetAppPage = lazy(() => import("@/modules/home/pages/GetAppPage"));
 const DashboardPage = lazy(() => import("@/modules/dashboard/components/DashboardPage"));
 const CreateExamsPage = lazy(() => import("@/modules/create-exams/components/CreateExamsPage"));
 const ExamsPage = lazy(() => import("@/modules/exams/components/ExamsPage"));
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/" element={<HomeGate />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/select-role" element={<RoleSelectionPage />} />
+        <Route path="/app" element={<GetAppPage />} />
         <Route element={<ProtectedLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/create-exams" element={<CreateExamsPage />} />

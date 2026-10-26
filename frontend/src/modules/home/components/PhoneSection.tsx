@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { BellRing, Check, VolumeX } from "lucide-react";
+import AndroidDownloadButton from "./AndroidDownloadButton";
 import Eyebrow from "./Eyebrow";
 import Reveal from "./Reveal";
 
@@ -14,7 +16,7 @@ export default function PhoneSection() {
     <section id="alarms" className="scroll-mt-20 overflow-hidden">
       <div className="mx-auto grid max-w-6xl items-center gap-16 px-5 py-24 sm:px-8 lg:grid-cols-[1fr_auto]">
         <Reveal>
-          <Eyebrow>The Proctavo app · rolling out</Eyebrow>
+          <Eyebrow>The Proctavo app · Android now, iPhone soon</Eyebrow>
           <h2 className="mt-4 max-w-xl font-editorial text-5xl leading-[1.02] text-[#17151f] sm:text-6xl">
             Not another notification. <span className="italic text-indigo-600">An alarm.</span>
           </h2>
@@ -32,6 +34,15 @@ export default function PhoneSection() {
               </li>
             ))}
           </ul>
+          <div className="mt-9 flex flex-wrap items-start gap-x-6 gap-y-3">
+            <AndroidDownloadButton />
+            <Link
+              to="/app"
+              className="py-3 font-landing text-[14px] font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+            >
+              Install help &amp; iPhone →
+            </Link>
+          </div>
         </Reveal>
 
         <Reveal delay={150} className="mx-auto">

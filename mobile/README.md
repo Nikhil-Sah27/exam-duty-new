@@ -89,6 +89,24 @@ What gets uploaded is set by the repo-root `.easignore`: only `mobile/`, so `db-
 ignore rule in `mobile/.gitignore` needs repeating there. Check with
 `npx eas-cli@latest build:inspect -p android --profile preview -s archive -o /tmp/eas-archive`.
 
+### Publishing the APK on proctavo.com/app
+
+Teachers download the app from **proctavo.com/app**. The backend's `mobile-app` module serves whatever
+APK sits in `~/proctavo-app/` on the server, outside the repo, so deploys never touch it. The page shows
+its version, size and upload date. To publish a new build:
+
+```bash
+npx eas-cli@latest build:view <build-id> --json   # artifacts.buildUrl is the APK link
+curl -L -o proctavo.apk "<buildUrl>"
+scp -i <key>.pem proctavo.apk ec2-user@proctavo.com:~/proctavo-app/proctavo.apk.new
+ssh -i <key>.pem ec2-user@proctavo.com \
+  'cd ~/proctavo-app && mv proctavo.apk.new proctavo.apk && echo "{ \"version\": \"1.0.0\" }" > proctavo.json'
+```
+
+Upload to `.new` and then `mv`, so nobody downloads a half-copied file. You only need a new APK after a
+native change. JS-only changes reach installed phones through EAS Update (below), so the APK on the
+website can stay as it is.
+
 ### Shipping a JS fix without a new build (EAS Update)
 
 Installed builds check for an update every time they launch and apply it on the *next* launch.

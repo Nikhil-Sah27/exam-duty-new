@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ComponentType } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
@@ -231,6 +232,15 @@ export default function LoginForm() {
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
                 Secured, role-based access — you'll land on your dashboard
                 automatically.
+              </p>
+              <p className="mt-3 text-center text-xs text-white/70">
+                On your phone?{" "}
+                <Link
+                  to="/app"
+                  className="font-semibold text-sky-300 transition-colors hover:text-sky-200"
+                >
+                  Get the Android app
+                </Link>
               </p>
             </GlassCard>
           )}

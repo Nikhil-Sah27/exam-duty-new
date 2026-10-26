@@ -30,6 +30,7 @@ const suites = [
   { name: "Multi-college", file: "./17-colleges.test.js" },
   { name: "Authorization", file: "./18-authorization.test.js" },
   { name: "Shared SEE sitting", file: "./19-shared-sitting.test.js" },
+  { name: "Mobile app download", file: "./20-mobile-app.test.js" },
 ];
 
 async function main() {

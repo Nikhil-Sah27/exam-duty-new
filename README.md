@@ -207,6 +207,7 @@ Time-critical checks run on a 5-minute tick. Verify with `MAIL_TRANSPORT=console
 A phone app for **Invigilators, RS and DCS** — and a phone-sized slice of the dashboard for **CS** (home exam status, change-request approve/reject, messages, alerts) — lives in `mobile/` (Expo / React Native — see `mobile/README.md` and `MOBILE_PLAN.md`). Everything else CS does stays on the web dashboard.
 
 - **Push alerts.** Every notification is also queued as a phone push, hooked in at the same emitter choke point as email: `emit` writes a `PushOutbox` row in the *same transaction* as the notification, and `push.dispatcher.js` (`backend/modules/push/`) sends it through Expo's push service to every phone the recipient has registered. Same guarantees as email — a rolled-back assignment buzzes nobody, Expo outages never fail a request, every attempt is recorded. Per-type policy is `modules/push/push.policy.js`: every teacher-facing type pushes (including `exam_created` — no quota to protect); of the CS-facing alerts only `teacher_message` (a teacher wrote to CS) buzzes CS's phone — the rest (`request_submitted`, `duty_claimed_by_teacher`, …) show in the CS app's Alerts list without a push.
+- **Download.** Teachers and CS install the Android app from **proctavo.com/app** (also linked from the landing page and the sign-in screen). The APK is served by the public `mobile-app` module from `~/proctavo-app/` on the server, outside the repo, so deploys never touch it. Publishing a new build is an `scp` (see `mobile/README.md`). The iPhone app isn't out yet, and the page says so.
 - **Alarms.** The app pulls `GET /api/duties/my-units` (one entry per duty unit, with exact UTC `startsAt`/`endsAt`) and schedules **ringing alarms on the phone** — 1 h and 20 min before each duty by default, adjustable per teacher. They ring with no network at duty time; every push received re-syncs them, so a cancelled duty loses its alarm.
 
 ```env
@@ -595,6 +596,12 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 | POST | `/devices` | Register / refresh this phone: `{ token: "ExponentPushToken[…]", platform: "android"\|"ios", appVersion? }`. A token seen under another user moves to the caller. |
 | DELETE | `/devices` | Unregister on logout: `{ token }` (only the caller's own devices). |
 | GET | `/deliveries` | The caller's 30 most recent push deliveries (status, skip reason, devices reached). |
+
+### Mobile app (`/mobile-app`) — public
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/` | `{ android: { available, version?, sizeBytes?, updatedAt? } }`. `available` is false until an APK has been uploaded. |
+| GET | `/android` | Downloads `Proctavo.apk` (range requests supported). 404 until an APK has been uploaded. |
 
 ### Platform (`/platform`) — superadmin only
 The superadmin belongs to no college and can reach only these endpoints (and `/auth`); every other route answers 403. Create the account on the server: `SUPERADMIN_PASSWORD='…' node scripts/create-superadmin.js you@example.com "Your Name"`.

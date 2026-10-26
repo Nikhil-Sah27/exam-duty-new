@@ -1,3 +1,5 @@
+const AppError = require("../utils/AppError");
+
 // Browser origins allowed to call the API — shared by the Express `cors`
 // middleware and the realtime socket, so the two can never disagree.
 const allowedOrigins = [
@@ -11,6 +13,13 @@ const allowedOrigins = [
   "https://proctavo.com",
   "https://www.proctavo.com",
 ];
+
+// `localhost` and `127.0.0.1` are the same machine but different origins to a
+// browser, so every local dev port is allowed under both names — opening the
+// app at http://127.0.0.1:5173 must work exactly like http://localhost:5173.
+for (const o of [...allowedOrigins]) {
+  if (o.startsWith("http://localhost:")) allowedOrigins.push(o.replace("localhost", "127.0.0.1"));
+}
 
 // Extra origins can be supplied at runtime via CLIENT_ORIGINS (comma-separated)
 // without a code change.
@@ -27,7 +36,8 @@ const corsOrigin = (origin, callback) => {
   if (!origin || allowedOrigins.includes(origin) || /\.ngrok-free\.app$/.test(origin)) {
     callback(null, true);
   } else {
-    callback(new Error("Not allowed by CORS"));
+    // 403, not a generic 500: the request was refused, nothing broke.
+    callback(new AppError(`Not allowed by CORS: ${origin}`, 403));
   }
 };
 

@@ -83,7 +83,7 @@ export default function LoginForm() {
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col items-center justify-center gap-10 px-6 py-10 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:px-12">
         {/* ── Brand / features (left) ─────────────────────────────── */}
         <section className="hidden max-w-xl flex-1 text-white lg:block">
-          <ProctavoBrand className="h-12" />
+          <ProctavoBrand large />
 
           <h1 className="mt-8 text-4xl font-extrabold leading-tight xl:text-5xl">
             Smarter <span className="text-blue-400">Exams.</span>

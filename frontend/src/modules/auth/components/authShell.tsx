@@ -1,31 +1,27 @@
 import type { ComponentType, InputHTMLAttributes, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
+import { Logo } from "@/shared/components";
 
 /** Dark frosted input — deep translucent fill with light text, on the glass card. */
 export const GLASS_INPUT =
   "w-full rounded-xl border border-white/15 bg-slate-950/50 py-3 text-sm text-white shadow-inner backdrop-blur-sm transition-colors placeholder:text-white/40 focus:border-blue-400/70 focus:bg-slate-950/60 focus:outline-none focus:ring-2 focus:ring-blue-400/40";
 
-/**
- * The Proctavo logo — the brand asset with its white background removed and the
- * dark lettering reversed to white, so it sits directly on the dark auth surface
- * (no plate) while keeping the blue→violet "avo" gradient. `className` sets the
- * logo height.
- */
+/** The Proctavo logo on the dark auth screens: the brand mark and a white wordmark. */
 export function ProctavoBrand({
   center = false,
-  className = "h-10",
+  large = false,
 }: {
-  /** Accepted for call-site compatibility; the image renders the same either way. */
+  /** Accepted for call-site compatibility; the auth screens are always dark. */
   onDark?: boolean;
   center?: boolean;
-  className?: string;
+  large?: boolean;
 }) {
   return (
     <div className={center ? "flex justify-center" : ""}>
-      <img
-        src="/proctavo-wordmark.png"
-        alt="Proctavo — Exam Duty Management System"
-        className={`w-auto ${className}`}
+      <Logo
+        size={large ? 44 : 36}
+        showWordmark
+        wordmarkClassName={`font-semibold tracking-tight text-white ${large ? "text-3xl" : "text-2xl"}`}
       />
     </div>
   );

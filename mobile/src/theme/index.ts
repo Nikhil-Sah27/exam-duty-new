@@ -1,8 +1,8 @@
 import { useColorScheme } from "react-native";
 
-// Proctavo brand tokens — indigo→violet, matching the web logo mark
-// (frontend/public/favicon.svg) and frontend/src/shared/theme. Both themes are
-// supported surfaces, as on the web: always style through `useTheme()`.
+// Proctavo UI tokens: indigo/violet, matching frontend/src/shared/theme. The
+// logo and app icon have their own ink/paper/amber palette (brand/generate_icons.py).
+// Both themes are supported surfaces, as on the web: always style through `useTheme()`.
 
 const brand = {
   primary: "#6366f1", // indigo-500

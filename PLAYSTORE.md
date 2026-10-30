@@ -163,8 +163,12 @@ Whichever you choose, the AAB we upload is signed with the Expo keystore. With o
 ## 6. Demo college and screenshots
 
 1. After the deploy, on the server: `cd ~/exam-duty-new/backend && DEMO_PASSWORD='<choose one>' node scripts/seed-demo-college.js`.
-   It creates "Proctavo Demo College" (code DEMO) with its own CS, teachers, rooms and an upcoming exam.
-   The reviewer account already holds a few duties. Re-running it creates nothing new.
+   It creates "Proctavo Demo College" (code DEMO) with its own CS, 12 teachers, CSE + ECE, 8 rooms and an SEE
+   exam with three sittings starting 5 days from the run date. The reviewer (single role, invigilator) already
+   holds a confirmed duty in each sitting, and some slots stay open to claim. Re-running it creates nothing new
+   while that exam is still upcoming. About 12 days later the duties are in the past, and a re-run publishes a
+   fresh exam, so **re-run it shortly before each Play review**. Emails to the `@demo.proctavo.com` addresses
+   will bounce, which is harmless.
 2. Sign in on a phone as `reviewer@demo.proctavo.com` and take the screenshots: Home (upcoming duties), a
    duty's detail, Select Duty, the alarm screen, Messages. Optionally sign in as `cs@demo.proctavo.com` for the
    CS home. Play needs PNG or JPEG, 16:9 or 9:16, with each side between 320 and 3840 px.

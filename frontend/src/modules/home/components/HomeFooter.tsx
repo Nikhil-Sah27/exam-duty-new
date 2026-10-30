@@ -12,6 +12,7 @@ export default function HomeFooter() {
           <a href="/#roles" className="hover:text-[#17151f]">Roles</a>
           <a href="/#alarms" className="hover:text-[#17151f]">Phone alarms</a>
           <Link to="/app" className="hover:text-[#17151f]">Get the app</Link>
+          <Link to="/privacy" className="hover:text-[#17151f]">Privacy</Link>
           <Link to="/login" className="hover:text-[#17151f]">Sign in</Link>
         </nav>
         <p className="font-landing-mono text-[11px] text-[#8a8494]">© {new Date().getFullYear()} Proctavo</p>

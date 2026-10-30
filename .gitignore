@@ -2,3 +2,7 @@ node_modules/
 .env
 .env.local
 dist/
+
+# Firebase / Google service-account private keys must never be committed (public repo, auto-push)
+*firebase-adminsdk*.json
+*service-account*.json

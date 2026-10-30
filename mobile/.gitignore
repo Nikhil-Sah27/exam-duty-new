@@ -41,3 +41,8 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase config: kept off the public repo. EAS still uploads it (/.easignore doesn't list it),
+# so cloud builds get it from the machine that runs `eas build`.
+google-services.json
+GoogleService-Info.plist

@@ -29,3 +29,5 @@ yarn-error.*
 /mobile/example
 /mobile/ios
 /mobile/android
+*firebase-adminsdk*.json
+*service-account*.json

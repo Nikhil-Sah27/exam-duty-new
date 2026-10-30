@@ -6,6 +6,8 @@ import { useSelectRole } from "../hooks";
 import type { UserRole } from "@/shared/lib/types";
 import RoleSelectionCard from "./RoleSelectionCard";
 import { ErrorAlert, Logo } from "@/shared/components";
+import { usePageMeta } from "@/shared/hooks/usePageMeta";
+import { APP_TITLE } from "@/shared/constants/seo";
 
 export default function RoleSelectionPage() {
   const user = useAuthStore((s) => s.user);
@@ -13,6 +15,7 @@ export default function RoleSelectionPage() {
   const token = useAuthStore((s) => s.token);
   const applyAnyRoleTheme = useAppStore((s) => s.applyAnyRoleTheme);
   const selectRoleMutation = useSelectRole();
+  usePageMeta({ title: APP_TITLE, noindex: true });
 
   // No role is active on this screen, so fall back to dark if ANY of the user's
   // roles opted into it. (Hook runs before the early returns below.)

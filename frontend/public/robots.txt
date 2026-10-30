@@ -1,0 +1,7 @@
+# Public pages: / and /app. Everything else sits behind sign-in and is marked noindex.
+User-agent: *
+Disallow: /api/
+# The download page reads the app's version from here; the APK itself stays uncrawled.
+Allow: /api/mobile-app$
+
+Sitemap: https://proctavo.com/sitemap.xml

@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { useLogin } from "../hooks";
+import { usePageMeta } from "@/shared/hooks/usePageMeta";
 import { GlassCard, ProctavoBrand, Field, GLASS_INPUT } from "./authShell";
 import ForgotPasswordView from "./ForgotPasswordView";
 import LoginBackground from "./LoginBackground";
@@ -68,6 +69,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const login = useLogin();
+  usePageMeta({ title: "Sign in — Proctavo", noindex: true });
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

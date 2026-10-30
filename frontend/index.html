@@ -4,7 +4,58 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Proctavo — Exam Duty</title>
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Home page tags, for crawlers and link previews that don't run JS. HomePage.tsx
+         (HOME_META) sets the same values. Change both together. Each route sets its
+         own via usePageMeta. The canonical is added there, not here, on purpose. -->
+    <title>Proctavo — Exam duty &amp; invigilation planner for colleges</title>
+    <meta
+      name="description"
+      content="Turn your exam timetable, rooms and faculty into a fair invigilation roster. Assign in a click, let teachers pick or swap duties, with reminders and phone alarms."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Proctavo" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:title" content="Proctavo — Exam duty &amp; invigilation planner for colleges" />
+    <meta
+      property="og:description"
+      content="Turn your exam timetable, rooms and faculty into a fair invigilation roster. Assign in a click, let teachers pick or swap duties, with reminders and phone alarms."
+    />
+    <meta property="og:image" content="https://proctavo.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Proctavo — Every exam room, covered." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Proctavo — Exam duty &amp; invigilation planner for colleges" />
+    <meta
+      name="twitter:description"
+      content="Turn your exam timetable, rooms and faculty into a fair invigilation roster. Assign in a click, let teachers pick or swap duties, with reminders and phone alarms."
+    />
+    <meta name="twitter:image" content="https://proctavo.com/og-image.png" />
+    <!-- Site name and logo in Google results. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://proctavo.com/#website",
+            "name": "Proctavo",
+            "url": "https://proctavo.com/",
+            "publisher": { "@id": "https://proctavo.com/#organization" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://proctavo.com/#organization",
+            "name": "Proctavo",
+            "url": "https://proctavo.com/",
+            "logo": "https://proctavo.com/icon-512.png"
+          }
+        ]
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

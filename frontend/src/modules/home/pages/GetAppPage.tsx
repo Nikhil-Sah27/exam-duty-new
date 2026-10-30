@@ -5,6 +5,14 @@ import HomeNavbar from "../components/HomeNavbar";
 import HomeFooter from "../components/HomeFooter";
 import Eyebrow from "../components/Eyebrow";
 import AndroidDownloadButton from "../components/AndroidDownloadButton";
+import { usePageMeta } from "@/shared/hooks/usePageMeta";
+
+const APP_META = {
+  title: "Get the Proctavo app — exam duty alarms on Android",
+  description:
+    "Download the Proctavo Android app: see and select your exam duties, get alerts when they change, and hear an alarm before every duty, even on silent.",
+  path: "/app",
+};
 
 const ANDROID_STEPS: ReactNode[] = [
   <>
@@ -30,6 +38,8 @@ const CARD = "rounded-3xl border border-[#e6e1d6] bg-white p-7 sm:p-9";
  * fixed palette, like the rest of the public site.
  */
 export default function GetAppPage() {
+  usePageMeta(APP_META);
+
   return (
     <div className="min-h-screen bg-[#f5f2ec] font-landing text-[#17151f] antialiased selection:bg-indigo-200">
       <HomeNavbar />

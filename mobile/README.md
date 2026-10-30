@@ -136,7 +136,7 @@ signing key.
 | Need | Why | Where it goes |
 |---|---|---|
 | **Expo account** | Cloud builds and the push service | `eas login`, then `eas init` (sets `projectId`) |
-| **Firebase project** | Android push delivery (FCM v1) | Put `google-services.json` in `mobile/` and set `"android.googleServicesFile": "./google-services.json"` in `app.json`. Upload the FCM v1 service-account key with `eas credentials` |
+| **Firebase project** | Android push delivery (FCM v1) | Done: project `proctavo-4cfcf` (Earthling Aid Tech Google account), app `com.proctavo.app`, FCM v1 key uploaded to EAS. `google-services.json` is **gitignored** (public repo) but `app.json` points at it, so a machine that builds or publishes updates needs it in `mobile/`. Download it from Firebase console → Project settings → General → Your apps. EAS uploads it from there. Never commit the service-account key |
 | **Apple Developer Program** ($99/yr) | Any iPhone install beyond a simulator, APNs, App Store | `eas credentials` creates certificates and the APNs key. Enable *Time Sensitive Notifications* on the App ID (EAS syncs the entitlement) |
 | Google Play Console ($25 once, optional) | Play Store listing. The APK link works without it | `eas submit -p android` |
 | Backend `.env`: `PUSH_TRANSPORT=expo` | Turns on real pushes (default `console` only logs) | server |

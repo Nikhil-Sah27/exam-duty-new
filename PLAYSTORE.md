@@ -7,9 +7,11 @@ Everything Play Console asks for, ready to paste, and the release steps in order
 the publisher named in the privacy policy (`frontend/src/modules/home/content/privacyPolicy.tsx`). Contact email
 `services@earthlingaidtech.com`, website `https://proctavo.com`.
 
-> New personal accounts must run a **closed test with at least 12 testers opted in for 14 days in a row** before
-> they can publish to everyone. Day one is therefore internal/closed testing. Teachers from the college make
-> ideal testers.
+> **Status (31 Oct 2026):** 1.2.0 (versionCode 5) was sent for review as a production release, India only, full
+> rollout. Managed publishing is off, so it goes live as soon as Google approves it. The app is in Play Console as
+> "Proctavo: Exam Duty Planner" (app ID 4972574909379457045) under the Earthling Aid Tech account. That account
+> predates the rule that makes new personal accounts run a 12-tester, 14-day closed test, so production was allowed
+> directly.
 
 ---
 
@@ -18,7 +20,7 @@ the publisher named in the privacy policy (`frontend/src/modules/home/content/pr
 | Field | Answer |
 |---|---|
 | App name | `Proctavo: Exam Duty Planner` |
-| Default language | English (India) – en-IN |
+| Default language | English (United States) – en-US |
 | App or game | App |
 | Free or paid | Free |
 | Declarations | Tick Developer Program Policies and US export laws |
@@ -63,7 +65,7 @@ Proctavo accounts are created by your college's exam cell. If your college uses 
 |---|---|
 | App icon | `play-store/icon-512.png` (512×512) |
 | Feature graphic | `play-store/feature-graphic.jpg` (1024×500, no transparency) |
-| Phone screenshots | 4–8 portrait screenshots from the **demo account** (see §6). Never use a real college's data |
+| Phone screenshots | `play-store/screenshots/` (6, from the **demo account**, see §6). Never use a real college's data |
 | Category | Education |
 | Tags | Education, Productivity, Calendar |
 | Email | services@earthlingaidtech.com |
@@ -88,11 +90,14 @@ real college.
 
 **Ads:** No, the app doesn't contain ads.
 
-**Content rating:** fill in the IARC questionnaire.
-- Category: *Utility, Productivity, Communication, or Other*
-- Violence, sexual content, profanity, drugs, gambling: **No** to all
-- Do users interact or exchange content? **Yes**: teachers message their college's exam cell
-- Does the app share the user's location? **No**. Digital purchases? **No**
+**Content rating:** fill in the IARC questionnaire (result: 3+ / Everyone).
+- Category: *All Other App Types*. Contact email: services@earthlingaidtech.com
+- Ratings-relevant content in the download: **No**
+- Do users interact or exchange content? **Yes**: teachers message their college's exam cell. Is user content the
+  primary content: **No**. Public sharing of nudity or graphic violence: **No**. Block users, report users, chat
+  moderation: **No**. Interactions limited to invited friends only: **Yes** (only the user's own college)
+- Online content not in the download: **No**. Promoting age-restricted products: **No**
+- Shares precise location, digital purchases, cash rewards, web browser, primarily news or educational: **No**
 
 **Target audience:** **18 and over** only. The app isn't designed to appeal to children.
 
@@ -105,7 +110,7 @@ real college.
 | Does your app collect or share any of the required user data types? | Yes |
 | Is all collected data encrypted in transit? | Yes |
 | Do you provide a way for users to request that their data is deleted? | Yes: `https://proctavo.com/privacy#delete-account` |
-| Account creation | The app doesn't let users create accounts. Accounts are created by the college; users sign in with email and password |
+| Account creation | *My app does not allow users to create an account*. Users log in with accounts created outside the app: *Through employment, or enterprise accounts* (the college creates them) |
 | Data **shared** with third parties | None (service providers acting for us don't count as sharing) |
 
 Data **collected**. None of it is sold, shared or used for ads; it's all processed for the app's purpose only:
@@ -118,6 +123,7 @@ Data **collected**. None of it is sold, shared or used for ads; it's all process
 | Personal info → User IDs | Required | App functionality, Account management |
 | Personal info → Other info (department, designation) | Required | App functionality |
 | Messages → Other in-app messages | Optional (only if the user writes to the exam cell) | App functionality |
+| App activity → App interactions (last-active time the exam cell sees) | Required | App functionality |
 | App activity → Other actions (duties selected, confirmed, swapped) | Required | App functionality |
 | Device or other IDs (push-notification token) | Optional (only if notifications are allowed) | App functionality |
 
@@ -125,17 +131,22 @@ Not collected: location, contacts, photos/files, audio, calendar, health, financ
 logs or diagnostics, and advertising IDs.
 
 **Permissions declarations:**
-- **Full-screen intent (`USE_FULL_SCREEN_INTENT`):** declare the *alarm* use case. Justification:
-  `Proctavo rings a scheduled alarm before each exam invigilation duty the user holds (by default 1 hour and 20 minutes before). The full-screen alarm lets the teacher snooze it or confirm "I'm on my way" from the lock screen, like an alarm clock.`
-  If Google doesn't grant it automatically, the app already asks the user to switch it on in Settings. Without
-  it the alarm still rings, as a heads-up notification.
+- **Full-screen intent (`USE_FULL_SCREEN_INTENT`):** core functionality **Other**. Play pre-grants this
+  permission only to apps whose *core* job is an alarm clock or calling. Proctavo is a duty planner with an
+  alarm feature, so claiming "Alarm clock" would be a policy risk. The app already asks the user to switch the
+  permission on in Settings, and without it the alarm still rings, as a heads-up notification.
+- **Advertising ID:** No. The bundle has no `AD_ID` permission.
 - **Exact alarms (`SCHEDULE_EXACT_ALARM`):** no declaration needed. The user grants it, and the app asks.
 - **Foreground service:** if Play Console asks, the app doesn't declare a foreground-service *type*; the
   permission comes from the notification library.
 
-## 4. App signing (decide at the first upload)
+## 4. App signing
 
-Play re-signs what users download. Two options:
+**Done (31 Oct 2026): option 1.** Play's app-signing key is the Expo keystore (SHA-1 `35:32:90:10:…:7B:50`),
+uploaded with PEPK. Play generates a different encryption public key for each app, so download it fresh from App
+signing if this ever needs redoing. The choice is fixed once the first open-track release is published.
+
+Play re-signs what users download. The two options were:
 
 1. **Recommended: reuse the current key.** Pick *Use a different key → export and upload from a Java keystore*.
    The Play app then has the same signature as the APK on proctavo.com/app, so teachers who already installed
@@ -154,11 +165,10 @@ Whichever you choose, the AAB we upload is signed with the Expo keystore. With o
 2. Let OTA updates reach Play installs too: the production build listens on the `production` channel and we
    publish to `preview`, so point one at the other once:
    `npx eas-cli channel:edit production --branch preview`.
-3. Play Console → **Testing → Internal testing** → create a release → upload the `.aab` → add testers' Gmail
-   addresses → share the opt-in link. The first upload must be done by hand. Later ones can use
+3. Play Console → **Test and release → Production** → create a release → upload the `.aab` → release notes →
+   save → **Publishing overview → Send changes for review**. The first upload was done by hand. Later ones can use
    `npx eas-cli submit -p android` with a Play service-account key.
-4. **Closed testing** with 12+ testers for 14 days, then **Apply for production** (personal accounts).
-5. Once public, switch the Android button on proctavo.com/app to the Play Store link.
+4. Once public, switch the Android button on proctavo.com/app to the Play Store link.
 
 ## 6. Demo college and screenshots
 

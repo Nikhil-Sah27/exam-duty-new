@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import HomeNavbar from "../components/HomeNavbar";
 import HomeFooter from "../components/HomeFooter";
 import Eyebrow from "../components/Eyebrow";
@@ -47,11 +48,7 @@ function PolicyBlock({ section }: { section: PolicySection }) {
   return (
     <section id={section.id} className="scroll-mt-24">
       <h2 className="text-2xl font-semibold">{section.heading}</h2>
-      {section.paragraphs.map((p, i) => (
-        <p key={i} className="mt-3 text-[15.5px] leading-relaxed text-[#2b2734]">
-          {p}
-        </p>
-      ))}
+      <Paragraphs items={section.paragraphs} />
       {section.points && (
         <ul className="mt-3 list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed text-[#2b2734] marker:text-indigo-400">
           {section.points.map((point, i) => (
@@ -59,6 +56,15 @@ function PolicyBlock({ section }: { section: PolicySection }) {
           ))}
         </ul>
       )}
+      {section.after && <Paragraphs items={section.after} />}
     </section>
   );
+}
+
+function Paragraphs({ items }: { items: ReactNode[] }) {
+  return items.map((p, i) => (
+    <p key={i} className="mt-3 text-[15.5px] leading-relaxed text-[#2b2734]">
+      {p}
+    </p>
+  ));
 }

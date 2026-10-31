@@ -140,7 +140,8 @@
       "Bash(Get-ChildItem -Directory)",
       "Bash(Select-Object -ExpandProperty Name)",
       "Bash(ssh -i /Users/avin/Desktop/provacto.pem:*)",
-      "Skill(run)"
+      "Skill(run)",
+      "mcp__claude-in-chrome__*"
     ]
   }
 }

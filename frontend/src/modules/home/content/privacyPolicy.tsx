@@ -17,6 +17,8 @@ export interface PolicySection {
   heading: string;
   paragraphs: ReactNode[];
   points?: ReactNode[];
+  /** Paragraphs shown after the points. */
+  after?: ReactNode[];
 }
 
 const Mail = () => (
@@ -159,13 +161,27 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
     id: "delete-account",
     heading: "Deleting your account and data",
     paragraphs: [
-      <>To have your Proctavo account and personal data deleted, do either of these:</>,
+      <>
+        Proctavo is published by {PRIVACY_PUBLISHER}. To have your Proctavo account and personal data deleted, do
+        either of these:
+      </>,
     ],
     points: [
       <>Ask your college's exam cell (CS) to remove your account, or</>,
       <>
         Email <Mail /> from the address on your account, with the subject "Delete my Proctavo account". We'll confirm
         with your college and delete your account and personal data within 30 days.
+      </>,
+    ],
+    after: [
+      <>
+        <strong>What's deleted:</strong> your account and the personal details on it (name, email address, phone
+        number, department and designation), your messages with the exam cell, and your phone's push-notification
+        token.
+      </>,
+      <>
+        <strong>What's kept:</strong> your college may keep records of past exam duties (which room was covered, and
+        when) with your personal details removed. Server logs that mention your account expire after a short period.
       </>,
     ],
   },

@@ -88,7 +88,7 @@ After signing in, choose the "Invigilator" role if asked. Home lists the reviewe
 The demo college is created by `backend/scripts/seed-demo-college.js` (see §6). Its data is separate from every
 real college.
 
-**Ads:** No, the app doesn't contain ads.
+**Ads:** **Yes** from 1.3.0: Google AdMob banners and a once-a-day interstitial, only in colleges where the superadmin turned ads on (`ADS_PLAN.md`). Play shows a "Contains ads" label. (1.2.0 was submitted as "No".)
 
 **Content rating:** fill in the IARC questionnaire (result: 3+ / Everyone).
 - Category: *All Other App Types*. Contact email: services@earthlingaidtech.com
@@ -111,7 +111,7 @@ real college.
 | Is all collected data encrypted in transit? | Yes |
 | Do you provide a way for users to request that their data is deleted? | Yes: `https://proctavo.com/privacy#delete-account` |
 | Account creation | *My app does not allow users to create an account*. Users log in with accounts created outside the app: *Through employment, or enterprise accounts* (the college creates them) |
-| Data **shared** with third parties | None (service providers acting for us don't count as sharing) |
+| Data **shared** with third parties | From 1.3.0: the AdMob rows below, shared with Google for advertising. Nothing else (service providers acting for us don't count as sharing) |
 
 Data **collected**. None of it is sold, shared or used for ads; it's all processed for the app's purpose only:
 
@@ -127,15 +127,25 @@ Data **collected**. None of it is sold, shared or used for ads; it's all process
 | App activity → Other actions (duties selected, confirmed, swapped) | Required | App functionality |
 | Device or other IDs (push-notification token) | Optional (only if notifications are allowed) | App functionality |
 
-Not collected: location, contacts, photos/files, audio, calendar, health, financial info, web history, crash
-logs or diagnostics, and advertising IDs.
+From 1.3.0, the Google Mobile Ads SDK also **collects and shares** these, with Google, for *Advertising or marketing*, *Analytics* and *Fraud prevention, security, and compliance*. Not processed ephemerally; required where ads are on:
+
+| Data type | Collected | Shared |
+|---|---|---|
+| Device or other IDs (advertising ID) | Yes | Yes |
+| Location → Approximate location (from IP) | Yes | Yes |
+| App activity → App interactions (ad taps, views) | Yes | Yes |
+| App info and performance → Crash logs, Diagnostics | Yes | Yes |
+
+Not collected: precise location, contacts, photos/files, audio, calendar, health, financial info and web history.
+Up to 1.2.0 the app also collected no approximate location, crash logs, diagnostics or advertising ID; from 1.3.0 the
+ads SDK collects those (table above).
 
 **Permissions declarations:**
 - **Full-screen intent (`USE_FULL_SCREEN_INTENT`):** core functionality **Other**. Play pre-grants this
   permission only to apps whose *core* job is an alarm clock or calling. Proctavo is a duty planner with an
   alarm feature, so claiming "Alarm clock" would be a policy risk. The app already asks the user to switch the
   permission on in Settings, and without it the alarm still rings, as a heads-up notification.
-- **Advertising ID:** No. The bundle has no `AD_ID` permission.
+- **Advertising ID:** **Yes** from 1.3.0 (the ads SDK adds `com.google.android.gms.permission.AD_ID`); purpose *Advertising or marketing*. 1.2.0 declared No.
 - **Exact alarms (`SCHEDULE_EXACT_ALARM`):** no declaration needed. The user grants it, and the app asks.
 - **Foreground service:** if Play Console asks, the app doesn't declare a foreground-service *type*; the
   permission comes from the notification library.

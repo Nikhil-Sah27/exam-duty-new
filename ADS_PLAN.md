@@ -1,8 +1,10 @@
 # Ads in Proctavo: plan
 
-**Status (1 Nov 2026):** steps 1–3 are built. Step 3 is the app, version 1.3.0, so far a preview APK with Google's
-test ads. Step 4 (going live on Play) is next and needs the AdMob account. Every switch starts off, so nobody sees ads
-yet.
+**Status (1 Nov 2026):** steps 1–3 are built, and step 4 is under way. The real AdMob IDs are in: App ID
+`ca-app-pub-2753291183102591~8851230606` (`mobile/app.json`), banner `…/8077204984` and interstitial `…/3900167157`
+(`mobile/src/features/ads/adUnits.ts`), plus `proctavo.com/app-ads.txt` and the privacy policy's Ads section. The
+1.3.0 production bundle builds next; the Play declarations change when it's submitted. Every switch starts off, so
+nobody sees ads until the superadmin turns them on.
 
 **The request:** banner ads in the app, with more ads for teachers who put things off. A teacher who hasn't picked
 their duties, or who didn't turn up for one, sees more ads, and the longer they leave it, the more they see. The admin

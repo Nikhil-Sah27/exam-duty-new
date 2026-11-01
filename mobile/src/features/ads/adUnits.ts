@@ -9,13 +9,13 @@ import { TestIds } from "react-native-google-mobile-ads";
  * the team taps our own live ads — AdMob bans accounts for that. The channel
  * is baked into each build, so an over-the-air update can't change it.
  *
- * The real IDs come from the AdMob account at go-live (ADS_PLAN.md step 4,
- * together with the real App ID in app.json). They aren't secret. Until they're
- * set, the production build shows no ads at all.
+ * The real units belong to the Proctavo app in AdMob (App ID in app.json,
+ * publisher pub-2753291183102591, also in proctavo.com/app-ads.txt). Ad unit
+ * IDs aren't secret.
  */
 const LIVE_UNITS: { banner: string | null; interstitial: string | null } = {
-  banner: null,
-  interstitial: null,
+  banner: "ca-app-pub-2753291183102591/8077204984",
+  interstitial: "ca-app-pub-2753291183102591/3900167157",
 };
 
 const TEST_UNITS = { banner: TestIds.BANNER, interstitial: TestIds.INTERSTITIAL };

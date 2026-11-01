@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 
 export const PRIVACY_PUBLISHER = "Earthling Aid Tech";
 export const PRIVACY_CONTACT = "services@earthlingaidtech.com";
-export const PRIVACY_UPDATED = "31 October 2026";
+export const PRIVACY_UPDATED = "1 November 2026";
 
 export interface PolicySection {
   /** Stable anchor: proctavo.com/privacy#<id>. */
@@ -86,8 +86,9 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
     heading: "What we don't collect",
     paragraphs: [
       <>
-        Proctavo doesn't access your location, contacts, photos, camera, microphone or files. It has no advertising,
-        no ad identifiers and no third-party analytics or tracking. We never sell personal data.
+        Proctavo doesn't access your location, contacts, photos, camera, microphone or files. Apart from the ads
+        described under <a href="#ads" className="font-medium text-indigo-600 hover:text-indigo-700">Ads</a>, it has no
+        third-party analytics or tracking. We never sell personal data.
       </>,
     ],
   },
@@ -98,7 +99,8 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       <>
         Only to run Proctavo for your college: working out fair duty targets, showing and assigning duties, handling
         swaps, sending email reminders and calendar invites, push notifications and on-phone alarms, letting you
-        message your exam cell, and keeping the service secure.
+        message your exam cell, keeping the service secure and, where your college has turned them on, showing ads in
+        the app.
       </>,
     ],
   },
@@ -134,7 +136,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       <>
         Your exam cell can see your account and duties. Colleagues may see names on the duty schedules you share.
         Each college's data is kept separate from every other college's. We share data only with the providers that
-        run Proctavo for us, and only for that purpose:
+        run Proctavo for us, and only for that purpose, and with Google for ads where your college has turned them on:
       </>,
     ],
     points: [
@@ -143,6 +145,37 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       <>Microsoft 365: sending email.</>,
       <>Expo and Google Firebase Cloud Messaging: delivering push notifications to phones.</>,
       <>Google Fonts: the website's fonts, which your browser loads from Google.</>,
+      <>Google AdMob: ads in the app, where your college has turned them on (see Ads below).</>,
+    ],
+  },
+  {
+    id: "ads",
+    heading: "Ads",
+    paragraphs: [
+      <>
+        Where your college has turned ads on, the Proctavo app shows ads from Google AdMob. Every teacher sees a small
+        banner. Teachers who are behind on picking their duties, or who were recently marked absent, see more ads until
+        they catch up, and the app always says why. The exam cell (CS) never sees ads, and the website shows none.
+      </>,
+      <>
+        To show ads and count them, Google's ad software in the app collects your phone's advertising ID, an approximate
+        location worked out from your IP address, how you interact with the ads, and diagnostic data. Google handles
+        this under its own policy:{" "}
+        <a
+          href="https://policies.google.com/technologies/partner-sites"
+          className="font-medium text-indigo-600 hover:text-indigo-700"
+          target="_blank"
+          rel="noreferrer"
+        >
+          how Google uses information from apps that use its services
+        </a>
+        . We never give advertisers your name, email, phone number or duty records.
+      </>,
+      <>
+        You can reset your advertising ID or turn off personalised ads in your phone's settings (on Android: Settings,
+        then Google, then Ads). Where the law requires consent, for example in the EEA and the UK, the app asks for it
+        before showing any ad.
+      </>,
     ],
   },
   {

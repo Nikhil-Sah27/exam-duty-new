@@ -1,7 +1,8 @@
 # Ads in Proctavo: plan
 
-**Status (1 Nov 2026):** steps 1 and 2 are built (backend rule, website switches, no-show marking). Steps 3 (the
-app) and 4 (going live on Play) are next. Every switch starts off, so nobody sees ads yet.
+**Status (1 Nov 2026):** steps 1–3 are built. Step 3 is the app, version 1.3.0, so far a preview APK with Google's
+test ads. Step 4 (going live on Play) is next and needs the AdMob account. Every switch starts off, so nobody sees ads
+yet.
 
 **The request:** banner ads in the app, with more ads for teachers who put things off. A teacher who hasn't picked
 their duties, or who didn't turn up for one, sees more ads, and the longer they leave it, the more they see. The admin
@@ -147,7 +148,7 @@ The module follows the repo's rules:
    and the app has no SDK yet anyway.
 2. ✅ **No-shows.** Marking absences (backend, CS web UI, notification, tests). This is useful on its own even before
    ads ship.
-3. **App.** SDK, `features/ads`, the reason strip, the slots, the daily interstitial, consent, test IDs, and a
+3. ✅ **App.** SDK, `features/ads`, the reason strip, the slots, the daily interstitial, consent, test IDs, and a
    preview APK for your phone.
 4. **Go live.** AdMob IDs, `app-ads.txt`, the privacy policy, the Play declarations, then the 1.3.0 bundle sent for
    review. This waits until 1.2.0 is approved, and needs the AdMob account you create.
@@ -171,6 +172,30 @@ The module follows the repo's rules:
 - **Proof.** `tests/21-ads.test.js` (14 tests); the full suite passes (`npm test`).
 - **Open question.** An absent duty still counts as *completed* toward the teacher's target. Should a no-show stop
   counting?
+
+## As built (step 3, app 1.3.0)
+
+- **Library and config.** `react-native-google-mobile-ads` 17.4. Its config plugin in `mobile/app.json` carries
+  Google's **sample** App IDs, plus `delayAppMeasurementInit`, so the SDK collects nothing until the app starts it.
+- **Code.** `mobile/src/features/ads/`:
+  - `useAdStatus` queries `GET /api/ads/status` for teachers only. It refetches on app foreground and after a claim
+    (`CLAIM_INVALIDATIONS`).
+  - `useAdLevel` returns 0 until `startAds()` has gathered Google's consent (UMP) and initialized the SDK. The SDK
+    never starts at level 0.
+  - `AdSlot minLevel` renders a labelled 320×50 banner.
+  - `AdReasonStrip` gives the why and the fix.
+  - `useDailyInterstitial` (Home) handles the level-4 ad; `interstitialRule` holds its rule: once a day, only when
+    returning to Home, never in the 3 hours before or during a duty.
+- **Placements.**
+  - Home: the strip, a banner at level 3+, and the base banner at the end.
+  - Select Duty list: level 2+.
+  - Completed duties and Alerts: level 3+.
+- **Which ads.** `adUnits.ts` picks by the build's EAS channel. `production` uses `LIVE_UNITS`, which stay null (so
+  no ads) until go-live. Development and preview use Google's test units.
+
+**Go-live swap (step 4):** set the real App ID in `app.json`, the real banner and interstitial unit IDs in
+`adUnits.ts`, add `app-ads.txt`, update the privacy policy and Play declarations, then build the 1.3.0 production
+bundle.
 
 ## Decisions (1 Nov 2026)
 

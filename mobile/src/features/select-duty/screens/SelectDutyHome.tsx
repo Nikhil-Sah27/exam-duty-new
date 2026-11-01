@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AdSlot } from "@/features/ads/AdSlot";
 import { TabHeader } from "@/features/notifications/TabHeader";
 import type { TeacherRole } from "@/lib/types";
 import { useAuthStore } from "@/store/auth";
@@ -183,6 +184,8 @@ export default function SelectDutyHome() {
           </View>
         ))
       )}
+
+      <AdSlot minLevel={2} />
     </ScrollView>
   );
 }

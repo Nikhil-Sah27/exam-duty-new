@@ -3,6 +3,9 @@ import { useState } from "react";
 import { View } from "react-native";
 
 import { Banner, Button, Card, Chip, EmptyState, ListRow, Divider, Screen, Text } from "@/components/ui";
+import { AdReasonStrip } from "@/features/ads/AdReasonStrip";
+import { AdSlot } from "@/features/ads/AdSlot";
+import { useDailyInterstitial } from "@/features/ads/useDailyInterstitial";
 import { NextAlarmCard } from "@/features/alarms/NextAlarmCard";
 import { CHANGE_REQUESTS_HREF } from "@/features/change-requests/routes";
 import { DutyProgressSummary } from "@/features/duties/DutyProgressSummary";
@@ -24,6 +27,7 @@ export default function HomeScreen() {
   const { data: unreadMessages = 0 } = useUnreadMessages();
   const role = user?.activeRole;
   const unconfirmed = units.data?.filter((u) => !u.confirmed).length ?? 0;
+  useDailyInterstitial();
 
   return (
     <Screen refreshing={units.isRefetching} onRefresh={() => void units.refetch()}>
@@ -40,6 +44,8 @@ export default function HomeScreen() {
       </TabHeader>
 
       <NextAlarmCard />
+
+      <AdReasonStrip />
 
       {unconfirmed > 0 ? (
         <Banner tone="warning" title={`${unconfirmed} dut${unconfirmed === 1 ? "y needs" : "ies need"} your confirmation`}>
@@ -94,6 +100,8 @@ export default function HomeScreen() {
 
       {confirm.isError ? <Banner tone="danger" title={confirm.error.message} /> : null}
 
+      <AdSlot minLevel={3} />
+
       {role && role !== "cs" ? (
         <Card>
           <ListRow
@@ -114,6 +122,8 @@ export default function HomeScreen() {
           />
         </Card>
       ) : null}
+
+      <AdSlot minLevel={1} />
     </Screen>
   );
 }

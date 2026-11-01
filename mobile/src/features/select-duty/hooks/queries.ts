@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 
+import { queryKeys } from "@/lib/queryKeys";
 import type { TeacherRole } from "@/lib/types";
 
 import {
@@ -38,6 +39,8 @@ export const CLAIM_INVALIDATIONS = [
   ["dcs", "my-groups"],
   ["duty-calculation"],
   ["my-units"],
+  // Catching up on duties drops the extra ads (features/ads).
+  queryKeys.adStatus,
 ] as const;
 
 const STALE = 15_000;

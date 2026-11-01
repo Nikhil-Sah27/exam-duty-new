@@ -1,6 +1,7 @@
 import { View } from "react-native";
 
 import { Banner, Card, EmptyState, Screen, Text } from "@/components/ui";
+import { AdSlot } from "@/features/ads/AdSlot";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/theme";
 
@@ -43,6 +44,8 @@ export default function CompletedDutiesScreen() {
           <EmptyState icon="check" title="No completed duties yet" message="Duties show up here once their exam time has passed." />
         </Card>
       )}
+
+      <AdSlot minLevel={3} />
     </Screen>
   );
 }

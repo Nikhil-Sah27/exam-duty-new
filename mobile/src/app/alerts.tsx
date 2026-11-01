@@ -1,6 +1,7 @@
 import { Pressable, View } from "react-native";
 
 import { Banner, Button, Card, EmptyState, Screen, Text } from "@/components/ui";
+import { AdSlot } from "@/features/ads/AdSlot";
 import type { AppNotification } from "@/features/notifications/api";
 import { useMarkAllRead, useMarkRead, useNotifications } from "@/features/notifications/hooks";
 import { timeAgo } from "@/lib/format";
@@ -89,6 +90,8 @@ export default function AlertsScreen() {
           <EmptyState icon="alerts" title="You're all caught up" message="Duty assignments, changes and reminders show up here and on your lock screen." />
         </Card>
       )}
+
+      <AdSlot minLevel={3} />
     </Screen>
   );
 }

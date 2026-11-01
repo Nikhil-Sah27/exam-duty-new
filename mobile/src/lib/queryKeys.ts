@@ -5,6 +5,8 @@ export const queryKeys = {
   notifications: ["notifications"] as const,
   unreadCount: ["notifications", "unread-count"] as const,
   me: ["auth", "me"] as const,
+  // The teacher's ad level (features/ads). Claiming a duty refreshes it.
+  adStatus: ["ads", "status"] as const,
   // Under the "duty-calculation" root next to the progress counts, so whatever
   // refreshes the "Completed" number refreshes its list too.
   myCompleted: (role: string | null) => ["duty-calculation", "my-completed", role] as const,

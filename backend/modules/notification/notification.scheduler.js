@@ -61,6 +61,12 @@ const runSweeps = async () => {
     console.error("[reminders] selection sweep failed:", err.message);
   }
   try {
+    // Ads: start "days behind" clocks for teachers who haven't opened the app.
+    await perCollege("ads", (college) => require("../ads/ads.service").syncBehindForCollege(college));
+  } catch (err) {
+    console.error("[ads] sweep failed:", err.message);
+  }
+  try {
     await perCollege("calendar", () => calendarSync.runSweep());
   } catch (err) {
     console.error("[calendar] sweep failed:", err.message);

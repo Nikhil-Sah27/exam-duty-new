@@ -8,16 +8,12 @@
  * sending anything twice.
  */
 const Duty = require("../duty/duty.model");
-const ExamGroup = require("../exam/examGroup.model");
-const ExamSchedule = require("../exam/examSchedule.model");
-const ExamRoom = require("../exam/examRoom.model");
-const DCSGroup = require("../dcs/dcsGroup.model");
 const { emitIfAbsent } = require("./notification.emitter");
 const userService = require("../user/user.service");
 const { groupIntoUnits, unitKey, idOf, locationFor } = require("../duty/duty.unit");
 const { buildRoomLabel, buildExamLabel } = require("../exam-cleanup/utils/examCleanupUtils");
 const { localToUtc } = require("../../shared/utils/datetime");
-const { calculateAllTeachersProgress } = require("../duty-calculation/dutyCalculation.service");
+const { findSelectionShortfall, SELECTION_WINDOW } = require("../duty-calculation/dutyCalculation.service");
 
 const { STAGES, MIN, HOUR, DAY } = require("./reminder.stages");
 
@@ -25,7 +21,7 @@ const CONFIRM_NUDGE_AFTER = 24 * HOUR; // unconfirmed this long after assignment
 const CS_ALERT_WITHIN = 1 * DAY; // unconfirmed this close to the duty → tell CS
 const CS_ALERT_GRACE = 6 * HOUR; // …but give a just-assigned teacher a chance first
 const SELECT_STAGES = [
-  { id: "7d", within: 7 * DAY },
+  { id: "7d", within: SELECTION_WINDOW }, // the shortfall rule's window
   { id: "3d", within: 3 * DAY },
 ];
 // Tightest-first — scanned once per (teacher, exam) to pick the closest stage.
@@ -152,101 +148,15 @@ const runReminderTick = async () => {
 };
 
 /**
- * Where each role still has open slots, per exam group starting within a week:
- * Map<examGroupId, { group, roles: Set<role> }>.
- */
-const examGroupsWithOpenSlots = async (now) => {
-  const groups = await ExamGroup.find({
-    startDate: { $gte: utcDayStart(0), $lt: new Date(now.getTime() + SELECT_STAGES[0].within) },
-  });
-  const out = new Map();
-  if (groups.length === 0) return out;
-
-  // Batch every group's schedules/rooms/duties/open-DCS in one query each
-  // (keyed back to their group) rather than four queries per group.
-  const dayStart = utcDayStart(0);
-  const groupIds = groups.map((g) => g._id);
-  const schedules = await ExamSchedule.find({
-    examGroup: { $in: groupIds },
-    date: { $gte: dayStart },
-  }).select("_id examGroup");
-  const scheduleToGroup = new Map(
-    schedules.map((s) => [String(s._id), String(s.examGroup)]),
-  );
-  const scheduleIds = schedules.map((s) => s._id);
-  // A group with no future schedules is skipped entirely (mirrors the original
-  // per-group `continue`), so its open DCS groups don't surface on their own.
-  const groupsWithSchedules = new Set(schedules.map((s) => String(s.examGroup)));
-
-  const [rooms, taken, openDcs] = await Promise.all([
-    scheduleIds.length
-      ? ExamRoom.find({ schedule: { $in: scheduleIds } }).select("_id schedule")
-      : [],
-    scheduleIds.length
-      ? Duty.find({
-          examSchedule: { $in: scheduleIds },
-          status: { $in: ["assigned", "completed"] },
-        }).select("examRoom role examSchedule")
-      : [],
-    DCSGroup.find({ examGroup: { $in: groupIds }, status: "open" }).select("examGroup"),
-  ]);
-
-  const roomsByGroup = new Map();
-  for (const r of rooms) {
-    const gid = scheduleToGroup.get(String(r.schedule));
-    if (!gid) continue;
-    if (!roomsByGroup.has(gid)) roomsByGroup.set(gid, []);
-    roomsByGroup.get(gid).push(String(r._id));
-  }
-  const filledByGroup = new Map();
-  for (const d of taken) {
-    const gid = scheduleToGroup.get(String(d.examSchedule));
-    if (!gid || !d.examRoom) continue;
-    if (!filledByGroup.has(gid)) {
-      filledByGroup.set(gid, { invigilator: new Set(), rs: new Set() });
-    }
-    const filled = filledByGroup.get(gid);
-    if (filled[d.role]) filled[d.role].add(String(d.examRoom));
-  }
-  const dcsOpenGroups = new Set(openDcs.map((d) => String(d.examGroup)));
-
-  for (const group of groups) {
-    const gid = String(group._id);
-    if (!groupsWithSchedules.has(gid)) continue;
-    const groupRooms = roomsByGroup.get(gid) || [];
-    const filled = filledByGroup.get(gid) || {
-      invigilator: new Set(),
-      rs: new Set(),
-    };
-    const roles = new Set();
-    if (groupRooms.some((rid) => !filled.invigilator.has(rid))) roles.add("invigilator");
-    if (groupRooms.some((rid) => !filled.rs.has(rid))) roles.add("rs");
-    if (dcsOpenGroups.has(gid)) roles.add("dcs");
-    if (roles.size > 0) out.set(gid, { group, roles });
-  }
-  return out;
-};
-
-/**
  * "Please select your duties" — teachers still below their target when an exam
  * with open slots for their role starts within 7 days, then again within 3.
  * Runs with the 6-hourly sweep; there's no minute-level urgency here.
  */
 const runSelectionNudgeSweep = async () => {
   const now = new Date();
-  const open = await examGroupsWithOpenSlots(now);
+  // teacherId → roles they're still short on; examGroupId → roles with open slots
+  const { open, short } = await findSelectionShortfall({ now, within: SELECT_STAGES[0].within });
   if (open.size === 0) return 0;
-
-  const { teachers } = await calculateAllTeachersProgress();
-  // teacherId → roles they're still short on
-  const short = new Map();
-  for (const row of teachers) {
-    if (!row.eligible || !(row.target > 0) || row.assigned >= row.target) continue;
-    const id = String(row.teacherId);
-    if (!short.has(id)) short.set(id, { roles: new Set(), remaining: 0 });
-    short.get(id).roles.add(row.role);
-    short.get(id).remaining += row.target - row.assigned;
-  }
 
   let sent = 0;
   for (const [teacherId, { roles, remaining }] of short) {

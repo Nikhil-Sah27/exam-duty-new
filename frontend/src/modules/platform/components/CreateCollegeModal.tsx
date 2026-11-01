@@ -26,7 +26,7 @@ export default function CreateCollegeModal({ open, onClose }: { open: boolean; o
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [codeTouched, setCodeTouched] = useState(false);
-  const [features, setFeatures] = useState<CollegeFeatures>({ cie: true, see: true });
+  const [features, setFeatures] = useState<CollegeFeatures>({ cie: true, see: true, ads: false });
   const [cs, setCs] = useState(EMPTY_CS);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export default function CreateCollegeModal({ open, onClose }: { open: boolean; o
     setName("");
     setCode("");
     setCodeTouched(false);
-    setFeatures({ cie: true, see: true });
+    setFeatures({ cie: true, see: true, ads: false });
     setCs(EMPTY_CS);
     setError(null);
     create.reset();

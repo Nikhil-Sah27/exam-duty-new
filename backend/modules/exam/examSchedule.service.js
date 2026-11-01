@@ -54,8 +54,13 @@ const findSharedSeeSitting = async ({ date, startTime, endTime }, semester, sess
 const joinSharedSitting = (scheduleId, examGroupId, session) =>
   examScheduleRepo.addSharedMember(scheduleId, examGroupId, session);
 
+/** { _id, examGroup } of every schedule these groups own dated on/after `from`. */
+const listOwnedByGroupsFrom = (examGroupIds, from) =>
+  examGroupIds.length ? examScheduleRepo.findOwnedByGroupsFrom(examGroupIds, from) : Promise.resolve([]);
+
 module.exports = {
   findSharedSeeSitting,
+  listOwnedByGroupsFrom,
   joinSharedSitting,
   createSchedule,
   getSchedulesByGroup,

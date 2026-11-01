@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addCsAccount,
   createCollege,
+  fetchAdSettings,
   fetchCollege,
   fetchColleges,
   resetCsPassword,
   setCsActive,
+  updateAdSettings,
   updateCollege,
 } from "../services";
 import type { CreateCollegeRequest, NewCsAccount, PlatformCollegeDetail, UpdateCollegeRequest } from "../types";
@@ -43,3 +45,16 @@ export const useResetCsPassword = (id: string) =>
   useMutation({
     mutationFn: ({ userId, password }: { userId: string; password: string }) => resetCsPassword(id, userId, password),
   });
+
+const ADS_KEY = ["platform", "ads"] as const;
+
+/** The platform-wide ads master switch. */
+export const useAdSettings = () => useQuery({ queryKey: ADS_KEY, queryFn: fetchAdSettings });
+
+export const useSetAdsEnabled = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (adsEnabled: boolean) => updateAdSettings(adsEnabled),
+    onSuccess: (settings) => qc.setQueryData(ADS_KEY, settings),
+  });
+};

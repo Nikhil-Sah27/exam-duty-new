@@ -2,6 +2,7 @@ import api from "@/shared/lib/api";
 import type {
   CreateCollegeRequest,
   NewCsAccount,
+  PlatformAdSettings,
   PlatformCollege,
   PlatformCollegeDetail,
   UpdateCollegeRequest,
@@ -30,3 +31,9 @@ export const setCsActive = async (id: string, userId: string, active: boolean): 
 export const resetCsPassword = async (id: string, userId: string, password: string): Promise<void> => {
   await api.post(`/platform/colleges/${id}/cs/${userId}/reset-password`, { password });
 };
+
+export const fetchAdSettings = async (): Promise<PlatformAdSettings> =>
+  (await api.get<Envelope<PlatformAdSettings>>("/platform/ads")).data.data;
+
+export const updateAdSettings = async (adsEnabled: boolean): Promise<PlatformAdSettings> =>
+  (await api.patch<Envelope<PlatformAdSettings>>("/platform/ads", { adsEnabled })).data.data;

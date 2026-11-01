@@ -79,6 +79,14 @@ const FEED_MAP: Partial<Record<NotificationType, FeedMeta>> = {
     category: "Duty cancelled",
     action: "duties",
   },
+  // Very important — CS recorded that they didn't turn up.
+  duty_marked_absent: {
+    accent: "red",
+    priority: "high",
+    category: "Marked absent",
+    highlight: true,
+    action: "duties",
+  },
   // Very important — rooms were added to / removed from a group they hold.
   duty_group_updated: {
     accent: "amber",

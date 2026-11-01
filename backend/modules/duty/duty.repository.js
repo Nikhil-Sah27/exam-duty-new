@@ -82,6 +82,13 @@ const findForResponsiveness = (since) =>
 const updateMany = (filter, data, session) =>
   Duty.updateMany(filter, data, session ? { session } : {});
 
+/** A teacher's most recently marked absence on/after `since` (lean), or null. */
+const findLatestAbsence = (teacherId, since) =>
+  Duty.findOne({ teacher: teacherId, absentAt: { $gte: since } })
+    .sort({ absentAt: -1 })
+    .select("date absentAt role")
+    .lean();
+
 // Cancel several duties in one write — used by group unassign, which must be
 // all-or-nothing, hence the optional session.
 const cancelMany = (ids, cancelReason, session) =>
@@ -179,6 +186,7 @@ module.exports = {
   findLiveForTeacherSince,
   findForResponsiveness,
   updateMany,
+  findLatestAbsence,
   cancelMany,
   create,
   createMany,

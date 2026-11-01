@@ -141,6 +141,23 @@ const adminUnassignGroup = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, count: result.count, data: { role: result.role } });
 });
 
+/** CS records a no-show for a whole duty unit, or undoes it (ADS_PLAN.md §1b). */
+const adminMarkAbsent = catchAsync(async (req, res) => {
+  const result = await dutyService.markUnitAbsent(req.body?.dutyId, req.body?.absent, { id: req.user.id });
+  const { duty } = result;
+  if (result.changed > 0) {
+    auditService.logSafe({
+      action: req.body.absent ? "ADMIN_MARK_ABSENT" : "ADMIN_UNMARK_ABSENT",
+      entity: "Duty",
+      entityId: duty._id,
+      performedBy: req.user.id,
+      ipAddress: req.ip,
+      details: { actorRole: req.user.activeRole, roomCount: result.changed, ...dutySnapshot(duty) },
+    });
+  }
+  res.status(200).json({ success: true, data: { changed: result.changed, absent: req.body.absent } });
+});
+
 /** Teacher confirms their own duty from the app. */
 const confirm = catchAsync(async (req, res) => {
   const result = await dutyService.confirmDutyUnit(req.params.id, { teacherId: req.user.id, via: "app" });
@@ -205,5 +222,6 @@ module.exports = {
   confirm,
   confirmByToken,
   adminUnassignGroup,
+  adminMarkAbsent,
   invigilatorsForRooms,
 };

@@ -40,8 +40,27 @@ export interface UpdateCollegeRequest {
   features?: Partial<CollegeFeatures>;
 }
 
-/** The switches the console offers — mirrors backend shared/tenancy/features.js. */
-export const FEATURE_LIST: { key: keyof CollegeFeatures; label: string; description: string }[] = [
+interface FeatureInfo {
+  key: keyof CollegeFeatures;
+  label: string;
+  description: string;
+}
+
+/** The exam-type switches — mirrors backend shared/tenancy/features.js. */
+export const FEATURE_LIST: FeatureInfo[] = [
   { key: "cie", label: "CIE exams", description: "Internal assessments — IA1, IA2, IA3" },
   { key: "see", label: "SEE exams", description: "Semester end examinations" },
 ];
+
+/** The per-college ads switch (ADS_PLAN.md). Hides nothing, so it gets no confirm step. */
+export const ADS_FEATURE: FeatureInfo = {
+  key: "ads",
+  label: "Ads in the app",
+  description: "Banner ads for this college's teachers — more for those behind on their duties",
+};
+
+/** The platform-wide ads master switch. */
+export interface PlatformAdSettings {
+  adsEnabled: boolean;
+  updatedAt: string | null;
+}

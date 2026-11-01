@@ -15,6 +15,10 @@ export default function FeatureChips({ features }: { features: CollegeFeatures }
           {f.key.toUpperCase()}
         </span>
       ))}
+      {/* Ads only show as a chip when on — off is the normal state. */}
+      {features.ads && (
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">ADS</span>
+      )}
     </div>
   );
 }

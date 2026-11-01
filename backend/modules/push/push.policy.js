@@ -23,6 +23,7 @@ const POLICY = {
   duty_cancelled: PUSH,
   duty_group_cancelled: PUSH,
   duty_group_updated: PUSH,
+  duty_marked_absent: PUSH,
   duty_swapped: PUSH,
   exam_deleted_duty_release: PUSH,
   exam_updated: PUSH,

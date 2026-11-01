@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/shared/store/auth.store";
 import type { CollegeFeatures } from "@/shared/lib/types";
 
-const ALL_ON: CollegeFeatures = { cie: true, see: true };
+const ALL_ON: CollegeFeatures = { cie: true, see: true, ads: false };
 
 /**
  * The signed-in college's feature switches. Defaults to everything on until

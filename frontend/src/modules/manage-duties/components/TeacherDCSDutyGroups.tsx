@@ -1,15 +1,19 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 import type { DcsGroup } from "@/modules/dcs/select-duty/types";
 import DcsDutyCard from "@/modules/dcs/upcoming-duties/components/DcsDutyCard";
 import DcsDutyModal from "@/modules/dcs/upcoming-duties/components/DcsDutyModal";
 import DutyGroupSection from "./DutyGroupSection";
 import UnassignLink from "./UnassignLink";
+import AbsentAction, { type AbsenceControls } from "./AbsentAction";
+import { formatDate } from "@/shared/lib/utils";
 
 interface TeacherDCSDutyGroupsProps {
   groups: DcsGroup[];
   /** CS only — offers Unassign on each upcoming group. */
   onUnassign?: (group: DcsGroup) => void;
+  /** CS only — offers Mark absent / Undo on each completed group. */
+  absence?: AbsenceControls;
 }
 
 /**
@@ -22,6 +26,7 @@ interface TeacherDCSDutyGroupsProps {
 export default function TeacherDCSDutyGroups({
   groups,
   onUnassign,
+  absence,
 }: TeacherDCSDutyGroupsProps) {
   const [active, setActive] = useState<DcsGroup | null>(null);
 
@@ -45,7 +50,11 @@ export default function TeacherDCSDutyGroups({
         count={upcoming.length}
         emptyLabel="No upcoming DCS groups"
       >
-        <GroupGrid groups={upcoming} onGroupClick={setActive} onUnassign={onUnassign} />
+        <GroupGrid
+          groups={upcoming}
+          onGroupClick={setActive}
+          action={onUnassign && ((g) => <UnassignLink onClick={() => onUnassign(g)} />)}
+        />
       </DutyGroupSection>
 
       <DutyGroupSection
@@ -54,7 +63,20 @@ export default function TeacherDCSDutyGroups({
         count={completed.length}
         emptyLabel="No completed DCS groups"
       >
-        <GroupGrid groups={completed} onGroupClick={setActive} />
+        <GroupGrid
+          groups={completed}
+          onGroupClick={setActive}
+          action={
+            absence &&
+            ((g) => (
+              <AbsentAction
+                controls={absence}
+                dutyId={g.duties?.[0]}
+                what={`DCS group of ${g.assignedRooms.length} room${g.assignedRooms.length === 1 ? "" : "s"} on ${formatDate(g.schedule.date)}`}
+              />
+            ))
+          }
+        />
       </DutyGroupSection>
 
       <DcsDutyModal
@@ -69,18 +91,19 @@ export default function TeacherDCSDutyGroups({
 function GroupGrid({
   groups,
   onGroupClick,
-  onUnassign,
+  action,
 }: {
   groups: DcsGroup[];
   onGroupClick: (group: DcsGroup) => void;
-  onUnassign?: (group: DcsGroup) => void;
+  /** A CS action under each card, kept outside it so it never opens the card. */
+  action?: (group: DcsGroup) => ReactNode;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {groups.map((group) => (
         <div key={group._id} className="space-y-1.5">
           <DcsDutyCard group={group} onClick={onGroupClick} />
-          {onUnassign && <UnassignLink onClick={() => onUnassign(group)} />}
+          {action?.(group)}
         </div>
       ))}
     </div>

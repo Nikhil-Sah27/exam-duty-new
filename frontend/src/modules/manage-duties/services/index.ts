@@ -117,3 +117,11 @@ export const unassignDuty = async (id: string, reason?: string): Promise<void> =
 export const unassignDutyGroup = async (dutyId: string, reason?: string): Promise<void> => {
   await api.post("/duties/admin-unassign-group", { dutyId, reason: reason || undefined });
 };
+
+/**
+ * CS records that the teacher didn't turn up — for a whole duty unit (an RS or
+ * DCS group as one) — or takes it back. Only once the duty has ended.
+ */
+export const markDutyAbsent = async (dutyId: string, absent: boolean): Promise<void> => {
+  await api.patch("/duties/admin-mark-absent", { dutyId, absent });
+};

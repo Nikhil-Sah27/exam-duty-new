@@ -40,6 +40,7 @@ app.use("/api/duty-calculation", require("./modules/duty-calculation/dutyCalcula
 app.use("/api/messages", require("./modules/message/message.routes"));
 app.use("/api/push", require("./modules/push/push.routes"));
 app.use("/api/mobile-app", require("./modules/mobile-app/mobileApp.routes"));
+app.use("/api/ads", require("./modules/ads/ads.routes"));
 app.use("/api/platform", require("./modules/college/college.routes"));
 
 // Global error handler (must be after all routes)

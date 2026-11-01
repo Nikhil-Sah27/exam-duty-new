@@ -18,6 +18,8 @@ const notificationSchema = new mongoose.Schema(
         "duty_cancelled",
         "duty_group_cancelled",
         "duty_group_updated",
+        // CS recorded a no-show (ADS_PLAN.md §1b).
+        "duty_marked_absent",
         "request_submitted",
         "request_approved",
         "request_rejected",

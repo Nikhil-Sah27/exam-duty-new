@@ -17,6 +17,9 @@ const findBySchedule = (scheduleId) => {
   return ExamRoom.find({ schedule: scheduleId }).populate(POPULATE_FIELDS);
 };
 
+/** { _id, schedule } only — for counting rooms, not showing them. */
+const findIdsBySchedules = (scheduleIds) => ExamRoom.find({ schedule: { $in: scheduleIds } }).select("_id schedule");
+
 const findBySchedules = (scheduleIds) => {
   return ExamRoom.find({ schedule: { $in: scheduleIds } }).populate(POPULATE_FIELDS);
 };
@@ -52,6 +55,7 @@ module.exports = {
   create,
   findBySchedule,
   findBySchedules,
+  findIdsBySchedules,
   findForGroup,
   findById,
   findManyByIds,

@@ -66,6 +66,8 @@ export interface Duty {
   /** Teacher acknowledged the duty (REMINDERS_PLAN.md). Null = awaiting confirmation. */
   confirmedAt?: string | null;
   confirmedVia?: "self" | "request" | "email" | "app" | null;
+  /** CS recorded a no-show for this duty's unit (ADS_PLAN.md §1b). */
+  absentAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

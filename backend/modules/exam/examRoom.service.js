@@ -36,8 +36,13 @@ const removeRoom = async (id, actor = {}) => {
   return examDeletionService.deleteExamRoomWithCleanup(id, actor);
 };
 
+/** { _id, schedule } of every room in these schedules. */
+const listIdsForSchedules = (scheduleIds) =>
+  scheduleIds.length ? examRoomRepo.findIdsBySchedules(scheduleIds) : Promise.resolve([]);
+
 module.exports = {
   addRoom,
+  listIdsForSchedules,
   getRoomsBySchedule,
   removeRoom,
 };

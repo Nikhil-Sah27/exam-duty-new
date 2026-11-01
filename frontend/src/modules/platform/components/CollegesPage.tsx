@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, Plus } from "lucide-react";
 import { useColleges } from "../hooks";
 import CreateCollegeModal from "./CreateCollegeModal";
+import PlatformAdsCard from "./PlatformAdsCard";
 import FeatureChips, { StatusChip } from "./FeatureChips";
 
 export default function CollegesPage() {
@@ -26,6 +27,8 @@ export default function CollegesPage() {
           <Plus className="h-4 w-4" /> New college
         </button>
       </div>
+
+      <PlatformAdsCard />
 
       {isLoading && <p className="text-gray-500">Loading colleges…</p>}
       {isError && <p className="text-red-600">Error: {(error as Error).message}</p>}

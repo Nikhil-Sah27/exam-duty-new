@@ -17,4 +17,7 @@ router.post("/colleges/:id/cs", collegeController.addCs);
 router.patch("/colleges/:id/cs/:userId", collegeController.setCsActive);
 router.post("/colleges/:id/cs/:userId/reset-password", collegeController.resetCsPassword);
 
+// The platform-wide ads master switch (ADS_PLAN.md); per-college switches are features above.
+router.use("/ads", require("../ads/ads.platform.routes"));
+
 module.exports = router;

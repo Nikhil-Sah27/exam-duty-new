@@ -6,8 +6,8 @@ import Input from "@/shared/components/Input";
 import Button from "@/shared/components/Button";
 import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 import type { CollegeFeatures } from "@/shared/lib/types";
-import { useCollege, useUpdateCollege } from "../hooks";
-import { FEATURE_LIST, type PlatformCollegeDetail } from "../types";
+import { useAdSettings, useCollege, useUpdateCollege } from "../hooks";
+import { ADS_FEATURE, FEATURE_LIST, type PlatformCollegeDetail } from "../types";
 import { StatusChip } from "./FeatureChips";
 import FeatureToggle from "./FeatureToggle";
 import CsAccountsCard from "./CsAccountsCard";
@@ -103,6 +103,8 @@ function CollegeDetail({ college }: { college: PlatformCollegeDetail }) {
         {update.error && <p className="mt-2 text-sm text-red-600">{(update.error as Error).message}</p>}
       </section>
 
+      <AdsSection college={college} />
+
       <CsAccountsCard college={college} />
 
       <RenameModal open={renaming} onClose={() => setRenaming(false)} college={college} />
@@ -168,5 +170,34 @@ function RenameModal({ open, onClose, college }: { open: boolean; onClose: () =>
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** The college's own Ads switch. Turning it on or off hides nothing, so no confirm step. */
+function AdsSection({ college }: { college: PlatformCollegeDetail }) {
+  const update = useUpdateCollege(college.id);
+  const { data: settings } = useAdSettings();
+  const masterOff = settings && !settings.adsEnabled;
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h2 className="text-base font-semibold text-gray-800">Ads</h2>
+      <p className="text-xs text-gray-500">
+        Every teacher sees one banner; teachers behind on picking duties, or recently marked absent, see more. CS never
+        sees ads. Agree it with the college before switching it on.
+      </p>
+      <FeatureToggle
+        label={ADS_FEATURE.label}
+        description={ADS_FEATURE.description}
+        checked={college.features.ads}
+        disabled={update.isPending}
+        onChange={(next) => update.mutate({ features: { ads: next } })}
+      />
+      {masterOff && college.features.ads && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          The platform master switch (Colleges page) is off, so no ads show yet.
+        </p>
+      )}
+      {update.error && <p className="mt-2 text-sm text-red-600">{(update.error as Error).message}</p>}
+    </section>
   );
 }

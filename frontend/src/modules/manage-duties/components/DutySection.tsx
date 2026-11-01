@@ -3,6 +3,7 @@ import { StatusBadge } from "@/shared/components";
 import { formatDate, capitalize } from "@/shared/lib/utils";
 import type { Duty } from "@/modules/duties/types";
 import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
+import AbsentAction, { type AbsenceControls } from "./AbsentAction";
 
 interface DutySectionProps {
   title: string;
@@ -10,6 +11,8 @@ interface DutySectionProps {
   duties: Duty[];
   /** CS only — adds an Unassign action to duties that haven't happened yet. */
   onUnassign?: (duty: Duty) => void;
+  /** CS only — adds Mark absent / Undo to duties that have happened. */
+  absence?: AbsenceControls;
 }
 
 /**
@@ -51,8 +54,9 @@ export default function DutySection({
   variant,
   duties,
   onUnassign,
+  absence,
 }: DutySectionProps) {
-  const showActions = !!onUnassign && variant === "upcoming";
+  const showActions = variant === "upcoming" ? !!onUnassign : !!absence;
   const Icon = variant === "upcoming" ? Clock : CheckCircle2;
   const iconColor =
     variant === "upcoming" ? "text-blue-600" : "text-green-600";
@@ -128,7 +132,14 @@ export default function DutySection({
                   </td>
                   {showActions && (
                     <td className="px-5 py-3 text-right">
-                      {d.status === "assigned" && isDutyUpcoming(d.date, d.endTime) && (
+                      {absence && variant === "completed" && d.status !== "cancelled" && (
+                        <AbsentAction
+                          controls={absence}
+                          dutyId={d._id}
+                          what={`duty in room ${d.room || "—"} on ${formatDate(d.date)}`}
+                        />
+                      )}
+                      {variant === "upcoming" && d.status === "assigned" && isDutyUpcoming(d.date, d.endTime) && (
                         <button
                           type="button"
                           onClick={() => onUnassign?.(d)}

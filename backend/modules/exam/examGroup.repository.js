@@ -12,6 +12,9 @@ const findAll = (filter = {}) => {
     .sort({ startDate: 1 });
 };
 
+/** Exam groups whose start date falls in [from, to) — unpopulated. */
+const findStartingBetween = (from, to) => ExamGroup.find({ startDate: { $gte: from, $lt: to } });
+
 const findById = (id) => {
   return ExamGroup.findById(id).populate("createdBy", "name email");
 };
@@ -111,6 +114,7 @@ const countByCollege = async () => {
 
 module.exports = {
   countByCollege,
+  findStartingBetween,
   findIdsByTypeAndSemester,
   create,
   findAll,

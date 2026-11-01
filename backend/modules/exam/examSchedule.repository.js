@@ -14,6 +14,11 @@ const findByExamGroup = (examGroupId) => {
   return ExamSchedule.find(membershipFilter(examGroupId)).sort({ date: 1, startTime: 1 });
 };
 
+// Owned schedules only (examGroup), not shared slots a group joined — the
+// open-slot count (dutyCalculation.findSelectionShortfall) has always read them so.
+const findOwnedByGroupsFrom = (examGroupIds, from) =>
+  ExamSchedule.find({ examGroup: { $in: examGroupIds }, date: { $gte: from } }).select("_id examGroup");
+
 const findById = (id) => {
   return ExamSchedule.findById(id);
 };
@@ -64,6 +69,7 @@ const leaveShared = async (schedule, groupId, session) => {
 module.exports = {
   create,
   findByExamGroup,
+  findOwnedByGroupsFrom,
   findSittingOfGroups,
   addSharedMember,
   leaveShared,

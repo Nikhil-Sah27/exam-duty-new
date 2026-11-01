@@ -31,6 +31,7 @@ const suites = [
   { name: "Authorization", file: "./18-authorization.test.js" },
   { name: "Shared SEE sitting", file: "./19-shared-sitting.test.js" },
   { name: "Mobile app download", file: "./20-mobile-app.test.js" },
+  { name: "Ads + no-shows", file: "./21-ads.test.js" },
 ];
 
 async function main() {

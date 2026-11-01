@@ -13,6 +13,7 @@ import {
   assignRSGroup,
   unassignDuty,
   unassignDutyGroup,
+  markDutyAbsent,
   type AssignByScheduleSlotPayload,
   type AssignGroupPayload,
 } from "../services";
@@ -174,6 +175,15 @@ export const useUnassignDuty = () => {
   return useMutation({
     mutationFn: ({ dutyId, group, reason }: { dutyId: string; group: boolean; reason?: string }) =>
       group ? unassignDutyGroup(dutyId, reason) : unassignDuty(dutyId, reason),
+    onSuccess: () => invalidateAfterAssign(queryClient),
+  });
+};
+
+/** CS marks a duty unit absent, or undoes it. */
+export const useMarkAbsent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ dutyId, absent }: { dutyId: string; absent: boolean }) => markDutyAbsent(dutyId, absent),
     onSuccess: () => invalidateAfterAssign(queryClient),
   });
 };

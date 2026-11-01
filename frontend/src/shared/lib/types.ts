@@ -9,6 +9,8 @@ export type DutyRole = "dcs" | "rs" | "invigilator";
 export interface CollegeFeatures {
   cie: boolean;
   see: boolean;
+  /** Ads in the mobile app (ADS_PLAN.md) — read by the backend, not used by the web UI. */
+  ads: boolean;
 }
 
 export interface CollegeSummary {

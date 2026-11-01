@@ -7,6 +7,8 @@ export type AuditAction =
   | "CANCEL_DUTY"
   | "ADMIN_UNASSIGN_DUTY"
   | "ADMIN_UNASSIGN_DUTY_GROUP"
+  | "ADMIN_MARK_ABSENT"
+  | "ADMIN_UNMARK_ABSENT"
   // DCS groups
   | "CLAIM_DCS_GROUP"
   | "ADMIN_CLAIM_DCS_GROUP"

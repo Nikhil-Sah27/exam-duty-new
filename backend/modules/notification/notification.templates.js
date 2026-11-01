@@ -167,6 +167,18 @@ const templates = {
     };
   },
 
+  // CS recorded that the teacher didn't turn up (ADS_PLAN.md §1b). `room` is set
+  // for an invigilator duty; RS / DCS groups are described by their size.
+  duty_marked_absent: ({ roleLabel, room, roomCount, date, startTime, endTime }) => {
+    const what = room
+      ? `your ${roleLabel} duty at ${room}`
+      : `your ${roleLabel} group of ${roomCount} room${roomCount === 1 ? "" : "s"}`;
+    return {
+      title: "Marked Absent",
+      message: `The exam cell marked you absent for ${what} on ${formatDate(date)} (${startTime}–${endTime}). If this is a mistake, message the exam cell.`,
+    };
+  },
+
   // CS wrote to the teacher in their message thread. The body is the message
   // itself (trimmed), like a chat app's notification; tapping it opens the chat.
   cs_message: ({ preview }) => ({

@@ -22,6 +22,14 @@ const FEATURES = {
     default: true,
     examTypes: ["SEE"],
   },
+  // Not an exam type, so it hides nothing. The ads module reads it, together
+  // with the platform master switch, to decide whether this college's teachers
+  // see ads in the app (ADS_PLAN.md). Off until the superadmin switches it on.
+  ads: {
+    label: "Ads in the app",
+    description: "Banner ads for this college's teachers — more for those behind on their duties",
+    default: false,
+  },
 };
 
 const FEATURE_KEYS = Object.keys(FEATURES);

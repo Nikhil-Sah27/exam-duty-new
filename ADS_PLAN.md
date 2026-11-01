@@ -1,6 +1,7 @@
 # Ads in Proctavo: plan
 
-**Status:** decisions made 1 Nov 2026 (see the end). Not built yet.
+**Status (1 Nov 2026):** steps 1 and 2 are built (backend rule, website switches, no-show marking). Steps 3 (the
+app) and 4 (going live on Play) are next. Every switch starts off, so nobody sees ads yet.
 
 **The request:** banner ads in the app, with more ads for teachers who put things off. A teacher who hasn't picked
 their duties, or who didn't turn up for one, sees more ads, and the longer they leave it, the more they see. The admin
@@ -141,15 +142,35 @@ The module follows the repo's rules:
 
 ## Build order
 
-1. **Backend and web: switches and the nudge rule.** The pure rule, the `ads` module and endpoint, the switches,
+1. ✅ **Backend and web: switches and the nudge rule.** The pure rule, the `ads` module and endpoint, the switches,
    the superadmin UI and the tests. This can deploy right away. Every switch starts off, so nobody sees anything,
    and the app has no SDK yet anyway.
-2. **No-shows.** Marking absences (backend, CS web UI, notification, tests). This is useful on its own even before
+2. ✅ **No-shows.** Marking absences (backend, CS web UI, notification, tests). This is useful on its own even before
    ads ship.
 3. **App.** SDK, `features/ads`, the reason strip, the slots, the daily interstitial, consent, test IDs, and a
    preview APK for your phone.
 4. **Go live.** AdMob IDs, `app-ads.txt`, the privacy policy, the Play declarations, then the 1.3.0 bundle sent for
    review. This waits until 1.2.0 is approved, and needs the AdMob account you create.
+
+## As built (steps 1–2)
+
+- **Backend.** `modules/ads/` holds:
+  - `adLevel.utils.js` (the pure level rule);
+  - `AdSettings` (the master switch) and `AdNudge` ("behind since");
+  - `GET /api/ads/status`, plus `GET/PATCH /api/platform/ads` for the superadmin.
+
+  The "behind" rule moved from `notification/reminder.jobs.js` into
+  `dutyCalculation.findSelectionShortfall` + `selectionShortfall.utils`, so the select-your-duty nudge and the ad
+  level share it. The 6-hourly sweep keeps `AdNudge` current for colleges with ads on.
+- **No-shows.** `Duty.absentAt` / `absentMarkedBy`, `PATCH /api/duties/admin-mark-absent`, the `duty_marked_absent`
+  alert (inbox, email, push), and audit actions `ADMIN_MARK_ABSENT` / `ADMIN_UNMARK_ABSENT`.
+- **Web.**
+  - Superadmin: the master switch on the Colleges page and an Ads section on each college.
+  - CS: Mark absent / Undo on past duties in Teacher Details (flat duties, RS and DCS groups), with a confirm step.
+  - Not done: the exam-room `DutyStatusModal` action and a no-show column in the Responsiveness report.
+- **Proof.** `tests/21-ads.test.js` (14 tests); the full suite passes (`npm test`).
+- **Open question.** An absent duty still counts as *completed* toward the teacher's target. Should a no-show stop
+  counting?
 
 ## Decisions (1 Nov 2026)
 

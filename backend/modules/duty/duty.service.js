@@ -840,6 +840,51 @@ const confirmLinksForDuty = async (dutyId) => {
   };
 };
 
+// ---------- No-shows (ADS_PLAN.md §1b) ----------
+
+/**
+ * CS records that a teacher didn't turn up for a duty unit — every room of an
+ * RS/DCS group at once — or takes that back (`absent: false`). Only once the
+ * slot has ended. The teacher hears about a new absence; an undo is silent.
+ * Returns { changed, duty }.
+ */
+const markUnitAbsent = async (dutyId, absent, actor) => {
+  if (!dutyId) throw new AppError("dutyId is required", 400);
+  if (typeof absent !== "boolean") throw new AppError("absent must be true or false", 400);
+  const duty = await dutyRepository.findById(dutyId);
+  if (!duty) throw new AppError("Duty not found", 404);
+  if (duty.status === "cancelled") throw new AppError("This duty was cancelled", 400);
+  if (unitEndsAt(duty) > new Date()) {
+    throw new AppError("A teacher can be marked absent only after the duty has ended", 400);
+  }
+  if (Boolean(duty.absentAt) === absent) return { changed: 0, duty };
+
+  const res = await dutyRepository.updateMany(
+    { ...unitFilter(duty), status: { $ne: "cancelled" } },
+    absent ? { absentAt: new Date(), absentMarkedBy: actor.id } : { absentAt: null, absentMarkedBy: null }
+  );
+  if (absent) {
+    emit("duty_marked_absent", {
+      recipient: duty.teacher,
+      role: duty.role,
+      refModel: "Duty",
+      refId: duty._id,
+      data: {
+        roleLabel: ROLE_LABELS[duty.role],
+        room: duty.role === "invigilator" ? buildRoomLabel(duty) : null,
+        roomCount: res.matchedCount || 1,
+        date: duty.examSchedule?.date || duty.date,
+        startTime: duty.examSchedule?.startTime || duty.startTime,
+        endTime: duty.examSchedule?.endTime || duty.endTime,
+      },
+    });
+  }
+  return { changed: res.modifiedCount || 0, duty };
+};
+
+/** The teacher's most recently marked absence on/after `since`, or null. */
+const getLatestAbsence = (teacherId, since) => dutyRepository.findLatestAbsence(teacherId, since);
+
 /** Duties (assigned or completed) dated on/after `since`, lean — for reports. */
 const getDutiesForResponsiveness = (since) => dutyRepository.findForResponsiveness(since);
 
@@ -948,5 +993,7 @@ module.exports = {
   getInvigilatorsForRooms,
   cancelDuty,
   adminUnassignDutyGroup,
+  markUnitAbsent,
+  getLatestAbsence,
   syncRsGroupsForSchedule,
 };

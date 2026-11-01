@@ -534,6 +534,7 @@ All endpoints are prefixed with `/api`. All routes except `POST /auth/register` 
 | GET | `/` · `/:id` | List / get. |
 | GET | `/my-units` | The caller's live upcoming duty **units** across all their roles (an RS/DCS group is one), each with UTC `startsAt`/`endsAt`, rooms, location and `confirmed` — the mobile app's alarm source. |
 | PATCH | `/:id/cancel` | Cancel with notification. |
+| PATCH | `/admin-mark-absent` | CS only. `{ dutyId, absent }` — record a no-show for the whole duty unit (an RS/DCS group as one) once it has ended, or undo it. Marking notifies the teacher (`duty_marked_absent`); see `ADS_PLAN.md`. |
 
 ### DCS Groups (`/dcs`)
 | Method | Path | Description |
@@ -603,18 +604,24 @@ CRUD for `Department`, `Semester` (`/semesters`), `ElectiveGroup` (`/elective-gr
 | GET | `/` | `{ android: { available, version?, sizeBytes?, updatedAt? } }`. `available` is false until an APK has been uploaded. |
 | GET | `/android` | Downloads `Proctavo.apk` (range requests supported). 404 until an APK has been uploaded. |
 
+### Ads (`/ads`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/status` | The caller's ad level `{ level: 0–4, reasons: [{ code: "behind", remaining, days, since } \| { code: "no_show", date, until }] }`. 0 when either ads switch is off or the caller is acting as CS. The mobile app reads it; see `ADS_PLAN.md`. |
+
 ### Platform (`/platform`) — superadmin only
 The superadmin belongs to no college and can reach only these endpoints (and `/auth`); every other route answers 403. Create the account on the server: `SUPERADMIN_PASSWORD='…' node scripts/create-superadmin.js you@example.com "Your Name"`.
 
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/colleges` | Every college with status, feature switches and counts (`teachers`, `exams`, `upcomingDuties`) — never people or exams. |
-| POST | `/colleges` | `{ name, code, features?: { cie, see }, cs: { name, email, phone, password } }` — the college and its first CS in one step. |
+| POST | `/colleges` | `{ name, code, features?: { cie, see, ads }, cs: { name, email, phone, password } }` — the college and its first CS in one step. |
 | GET | `/colleges/:id` | One college plus its CS accounts. |
-| PATCH | `/colleges/:id` | `{ name?, code?, status?: "active"\|"suspended", features?: { cie?, see? } }`. Suspending signs everyone in the college out and blocks sign-in; a switched-off exam type is hidden (not deleted) across the college. |
+| PATCH | `/colleges/:id` | `{ name?, code?, status?: "active"\|"suspended", features?: { cie?, see?, ads? } }`. Suspending signs everyone in the college out and blocks sign-in; a switched-off exam type is hidden (not deleted) across the college. |
 | POST | `/colleges/:id/cs` | Add a CS account. |
 | PATCH | `/colleges/:id/cs/:userId` | `{ active }` — deactivate / reactivate a CS. |
 | POST | `/colleges/:id/cs/:userId/reset-password` | `{ password }`. |
+| GET · PATCH | `/ads` | The platform-wide ads master switch: `{ adsEnabled }`. Ads show in a college only when this and the college's `features.ads` are both on (`ADS_PLAN.md`). |
 
 ### Notify (`/notify`)
 | Method | Path | Description |

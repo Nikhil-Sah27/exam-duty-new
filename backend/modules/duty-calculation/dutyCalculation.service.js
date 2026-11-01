@@ -8,6 +8,7 @@ const Duty = require("../duty/duty.model");
 const DCSGroup = require("../dcs/dcsGroup.model");
 const examGroupRepo = require("../exam/examGroup.repository");
 const { compareRoomNumbers } = require("../../shared/utils/roomOrder");
+const { shortfallByTeacher, openRolesForGroup } = require("./selectionShortfall.utils");
 
 /**
  * Centralised duty-target calculation.
@@ -1148,6 +1149,104 @@ const recalculateAll = async () => {
   };
 };
 
+// ---------- Selection shortfall: who is behind on picking duties ----------
+
+/** How far ahead an exam with open slots makes a short teacher "behind". */
+const SELECTION_WINDOW = 7 * 24 * 60 * 60 * 1000;
+
+const utcDayStart = (now) => {
+  const d = new Date(now);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+
+/**
+ * Where each role still has open slots, per exam group starting within
+ * `within`: Map<examGroupId, { group, roles: Set<role> }>. Only schedules from
+ * today on count, and a group with none left is skipped entirely.
+ */
+const examGroupsWithOpenSlots = async (now, within) => {
+  const dayStart = utcDayStart(now);
+  const groups = await examGroupRepo.findStartingBetween(dayStart, new Date(now.getTime() + within));
+  const out = new Map();
+  if (groups.length === 0) return out;
+
+  // Lazy: the exam services load the cleanup cascade, which loads this file.
+  const examScheduleService = require("../exam/examSchedule.service");
+  const examRoomService = require("../exam/examRoom.service");
+
+  // One query per kind for every group, keyed back to its group, rather than
+  // four queries per group.
+  const groupIds = groups.map((g) => g._id);
+  const schedules = await examScheduleService.listOwnedByGroupsFrom(groupIds, dayStart);
+  const scheduleToGroup = new Map(schedules.map((s) => [String(s._id), String(s.examGroup)]));
+  const scheduleIds = schedules.map((s) => s._id);
+  const groupsWithSchedules = new Set(schedules.map((s) => String(s.examGroup)));
+
+  const [rooms, taken, openDcs] = await Promise.all([
+    examRoomService.listIdsForSchedules(scheduleIds),
+    scheduleIds.length
+      ? Duty.find({ examSchedule: { $in: scheduleIds }, status: { $in: ["assigned", "completed"] } }).select(
+          "examRoom role examSchedule"
+        )
+      : [],
+    DCSGroup.find({ examGroup: { $in: groupIds }, status: "open" }).select("examGroup"),
+  ]);
+
+  const roomsByGroup = new Map();
+  for (const r of rooms) {
+    const gid = scheduleToGroup.get(String(r.schedule));
+    if (!gid) continue;
+    if (!roomsByGroup.has(gid)) roomsByGroup.set(gid, []);
+    roomsByGroup.get(gid).push(String(r._id));
+  }
+  const filledByGroup = new Map();
+  for (const d of taken) {
+    const gid = scheduleToGroup.get(String(d.examSchedule));
+    if (!gid || !d.examRoom) continue;
+    if (!filledByGroup.has(gid)) filledByGroup.set(gid, { invigilator: new Set(), rs: new Set() });
+    const filled = filledByGroup.get(gid);
+    if (filled[d.role]) filled[d.role].add(String(d.examRoom));
+  }
+  const dcsOpenGroups = new Set(openDcs.map((d) => String(d.examGroup)));
+
+  for (const group of groups) {
+    const gid = String(group._id);
+    if (!groupsWithSchedules.has(gid)) continue;
+    const roles = openRolesForGroup({
+      roomIds: roomsByGroup.get(gid) || [],
+      filled: filledByGroup.get(gid) || { invigilator: new Set(), rs: new Set() },
+      dcsOpen: dcsOpenGroups.has(gid),
+    });
+    if (roles.size > 0) out.set(gid, { group, roles });
+  }
+  return out;
+};
+
+/** One teacher's progress rows: invigilator (which also carries their roles), plus RS / DCS when held. */
+const progressRowsForTeacher = async (teacherId) => {
+  const invigilator = await calculateTeacherProgress(teacherId);
+  const rows = [invigilator];
+  if (invigilator.roles.includes("rs")) rows.push(await calculateRsTeacherProgress(teacherId));
+  if (invigilator.roles.includes("dcs")) rows.push(await calculateDcsTeacherProgress(teacherId));
+  return rows;
+};
+
+/**
+ * Who is behind on picking duties: below a role's target while an exam starting
+ * within `within` still has open slots. Read by the select-your-duty nudge and
+ * the ad level. Pass `teacherId` to check one teacher instead of everyone.
+ * Returns { open, short }; selectionShortfall.utils.isBehind reads them.
+ */
+const findSelectionShortfall = async ({ now = new Date(), within = SELECTION_WINDOW, teacherId } = {}) => {
+  const open = await examGroupsWithOpenSlots(now, within);
+  if (open.size === 0) return { open, short: new Map() };
+  const rows = teacherId
+    ? await progressRowsForTeacher(teacherId)
+    : (await calculateAllTeachersProgress()).teachers;
+  return { open, short: shortfallByTeacher(rows) };
+};
+
 module.exports = {
   ELIGIBLE_DESIGNATIONS,
   getAverageClassroomCapacity,
@@ -1163,6 +1262,9 @@ module.exports = {
   calculateTeacherProgress,
   calculateAllTeachersProgress,
   recalculateAll,
+  // Who is behind on picking duties (select-your-duty nudge, ad level)
+  SELECTION_WINDOW,
+  findSelectionShortfall,
   // Target-reached guard (CS assignment enforcement)
   getTeacherProgressForRole,
   assertTargetNotReached,

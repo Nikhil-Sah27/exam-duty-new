@@ -13,6 +13,9 @@ export const ACTION_META: Record<string, { label: string; tone: string }> = {
   // Single room, RS group or DCS group — all one "unassigned by CS" to the CS.
   ADMIN_UNASSIGN_DUTY: { label: "Duty unassigned by CS", tone: "red" },
   ADMIN_UNASSIGN_DUTY_GROUP: { label: "Duty unassigned by CS", tone: "red" },
+  // A no-show recorded (or taken back) for a whole duty unit (ADS_PLAN.md §1b).
+  ADMIN_MARK_ABSENT: { label: "Marked absent", tone: "red" },
+  ADMIN_UNMARK_ABSENT: { label: "Absence undone", tone: "gray" },
   CLAIM_DCS_GROUP: { label: "DCS group claimed", tone: "emerald" },
   // A CS-assigned DCS group is a duty assignment from the CS's point of view —
   // surface it the same as any other "Duty assigned by CS".

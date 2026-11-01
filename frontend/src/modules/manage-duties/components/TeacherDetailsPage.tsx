@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useDutiesByTeacher } from "@/modules/shared/exams/hooks/useSharedExamData";
 import { useTeacherDetails, useTeacherDcsGroups } from "../hooks";
+import { useAbsenceControls } from "../hooks/useAbsenceControls";
+import ConfirmActionModal from "@/shared/components/ConfirmActionModal";
 import {
   useTeacherDutyProgress,
   useTeacherRsDutyProgress,
@@ -50,6 +52,7 @@ export default function TeacherDetailsPage() {
   );
 
   const [unassignTarget, setUnassignTarget] = useState<UnassignTarget | null>(null);
+  const absence = useAbsenceControls(dutiesData ?? []);
 
   if (teacherLoading || dutiesLoading || dcsGroupsLoading) {
     return <p className="text-gray-500">Loading...</p>;
@@ -140,6 +143,7 @@ export default function TeacherDetailsPage() {
       {showDcs && (
         <TeacherDCSDutyGroups
           groups={dcsGroups}
+          absence={absence.controls}
           onUnassign={(g) => {
             const dutyId = g.duties?.[0];
             if (!dutyId) return;
@@ -155,6 +159,7 @@ export default function TeacherDetailsPage() {
       {showRs && (
         <TeacherRSDutyGroups
           duties={rsDuties}
+          absence={absence.controls}
           onUnassign={(g) =>
             setUnassignTarget({
               dutyId: g.rooms[0].dutyId,
@@ -185,11 +190,29 @@ export default function TeacherDetailsPage() {
             title="Completed Duties"
             variant="completed"
             duties={flatCompleted}
+            absence={absence.controls}
           />
         </>
       )}
 
       <UnassignDutyModal target={unassignTarget} onClose={() => setUnassignTarget(null)} />
+
+      <ConfirmActionModal
+        open={!!absence.confirming}
+        onClose={absence.cancel}
+        title={`Mark ${teacher.name} absent?`}
+        description={
+          <>
+            Records that {teacher.name} didn&apos;t turn up for the {absence.confirming?.what}. They&apos;re notified,
+            and if ads are on for your college they see extra ads for 14 days. You can undo it.
+            {absence.mark.error && <span className="mt-2 block text-red-600">{absence.mark.error.message}</span>}
+          </>
+        }
+        confirmLabel="Mark absent"
+        variant="warning"
+        isLoading={absence.mark.isPending}
+        onConfirm={absence.confirm}
+      />
     </div>
   );
 }

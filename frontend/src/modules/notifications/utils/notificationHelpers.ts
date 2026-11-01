@@ -43,6 +43,8 @@ const TYPE_META: Record<NotificationType, NotifTypeMeta> = {
   duty_group_cancelled: { tone: "red", highlight: false },
   // Rooms moved in/out of a group the teacher holds — they must re-check it.
   duty_group_updated: { tone: "amber", highlight: true },
+  // CS recorded a no-show — serious, and the teacher may need to dispute it.
+  duty_marked_absent: { tone: "red", highlight: true },
   duty_reminder: { tone: "amber", highlight: false },
   // Something is still needed from the teacher — make it stand out.
   duty_confirm_nudge: { tone: "amber", highlight: true },

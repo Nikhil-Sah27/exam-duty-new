@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Duty } from "@/modules/duties/types";
 import { isDutyUpcoming } from "@/modules/shared/duties/utils/dutyTiming";
 import {
@@ -9,11 +9,15 @@ import RSUpcomingGroupCard from "@/modules/rs/upcoming-duties/components/RSUpcom
 import RSUpcomingGroupModal from "@/modules/rs/upcoming-duties/components/RSUpcomingGroupModal";
 import DutyGroupSection from "./DutyGroupSection";
 import UnassignLink from "./UnassignLink";
+import AbsentAction, { type AbsenceControls } from "./AbsentAction";
+import { formatDate } from "@/shared/lib/utils";
 
 interface TeacherRSDutyGroupsProps {
   duties: Duty[];
   /** CS only — offers Unassign on each upcoming group. */
   onUnassign?: (group: RSUpcomingGroup) => void;
+  /** CS only — offers Mark absent / Undo on each completed group. */
+  absence?: AbsenceControls;
 }
 
 /**
@@ -29,6 +33,7 @@ interface TeacherRSDutyGroupsProps {
 export default function TeacherRSDutyGroups({
   duties,
   onUnassign,
+  absence,
 }: TeacherRSDutyGroupsProps) {
   const [active, setActive] = useState<RSUpcomingGroup | null>(null);
 
@@ -54,7 +59,11 @@ export default function TeacherRSDutyGroups({
         count={upcomingGroups.length}
         emptyLabel="No upcoming RS groups"
       >
-        <GroupGrid groups={upcomingGroups} onGroupClick={setActive} onUnassign={onUnassign} />
+        <GroupGrid
+          groups={upcomingGroups}
+          onGroupClick={setActive}
+          action={onUnassign && ((g) => <UnassignLink onClick={() => onUnassign(g)} />)}
+        />
       </DutyGroupSection>
 
       <DutyGroupSection
@@ -63,7 +72,20 @@ export default function TeacherRSDutyGroups({
         count={completedGroups.length}
         emptyLabel="No completed RS groups"
       >
-        <GroupGrid groups={completedGroups} onGroupClick={setActive} />
+        <GroupGrid
+          groups={completedGroups}
+          onGroupClick={setActive}
+          action={
+            absence &&
+            ((g) => (
+              <AbsentAction
+                controls={absence}
+                dutyId={g.rooms[0]?.dutyId}
+                what={`RS group of ${g.rooms.length} room${g.rooms.length === 1 ? "" : "s"} on ${formatDate(g.date)}`}
+              />
+            ))
+          }
+        />
       </DutyGroupSection>
 
       <RSUpcomingGroupModal
@@ -78,18 +100,19 @@ export default function TeacherRSDutyGroups({
 function GroupGrid({
   groups,
   onGroupClick,
-  onUnassign,
+  action,
 }: {
   groups: RSUpcomingGroup[];
   onGroupClick: (group: RSUpcomingGroup) => void;
-  onUnassign?: (group: RSUpcomingGroup) => void;
+  /** A CS action under each card, kept outside it so it never opens the card. */
+  action?: (group: RSUpcomingGroup) => ReactNode;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {groups.map((group) => (
         <div key={group.groupId} className="space-y-1.5">
           <RSUpcomingGroupCard group={group} onClick={onGroupClick} />
-          {onUnassign && <UnassignLink onClick={() => onUnassign(group)} />}
+          {action?.(group)}
         </div>
       ))}
     </div>

@@ -16,6 +16,7 @@ router.post("/self-assign-group", dutyController.selfAssignGroup);
 router.post("/admin-assign", requireRole("cs"), dutyController.adminAssign);
 router.post("/admin-assign-group", requireRole("cs"), dutyController.adminAssignGroup);
 router.post("/admin-unassign-group", requireRole("cs"), dutyController.adminUnassignGroup);
+router.patch("/admin-mark-absent", requireRole("cs"), dutyController.adminMarkAbsent);
 router.post("/invigilators-for-rooms", dutyController.invigilatorsForRooms);
 router.get("/", dutyController.getAll);
 // Before "/:id" so "my-units" isn't read as a duty id.

@@ -98,6 +98,17 @@ const dutySchema = new mongoose.Schema(
       enum: ["self", "request", "email", "app", null],
       default: null,
     },
+    // CS recorded that the teacher didn't turn up (ADS_PLAN.md §1b). Set on
+    // every duty of the unit once the slot has ended; cleared again on undo.
+    absentAt: {
+      type: Date,
+      default: null,
+    },
+    absentMarkedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   { timestamps: true }
 );

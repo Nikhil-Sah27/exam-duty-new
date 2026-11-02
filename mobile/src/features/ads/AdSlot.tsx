@@ -23,7 +23,14 @@ export function AdSlot({ minLevel }: { minLevel: Exclude<AdLevel, 0> }) {
       <Text variant="caption" muted>
         Advertisement
       </Text>
-      <BannerAd unitId={AD_UNITS.banner} size={BannerAdSize.BANNER} onAdFailedToLoad={() => setFailed(true)} />
+      <BannerAd
+        unitId={AD_UNITS.banner}
+        size={BannerAdSize.BANNER}
+        onAdFailedToLoad={(err) => {
+          console.warn("[ads] banner failed:", err.code ?? "", err.message);
+          setFailed(true);
+        }}
+      />
     </View>
   );
 }
